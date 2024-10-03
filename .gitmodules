@@ -1,3 +1,6 @@
 [submodule "vendor/flutter"]
 	path = vendor/flutter
 	url = https://github.com/flutter/flutter.git
+[submodule "vendor/sc4pac-tools"]
+	path = vendor/sc4pac-tools
+	url = https://github.com/memo33/sc4pac-tools.git
