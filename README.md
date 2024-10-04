@@ -7,7 +7,7 @@ This is an early prototype and work-in-progress.
 
 ## Overview
 
-The GUI is built using Flutter, a cross-platform app framework.
+The sc4pac GUI is built using Flutter, a cross-platform app framework.
 Flutter can be compiled for multiple platforms,
 such as `web` (which runs as web-app in the browser) and `linux`/`windows`/`macos` (which are native desktop apps).
 The current goal is to first only build a functional GUI for `web`, which is fully cross-platform,
@@ -76,4 +76,42 @@ This merely creates the file `./profiles/profile-1/sc4pac-plugins.json` (which c
     ./vendor/flutter/bin/flutter run                     # you can directly choose a device with `--device-id <id>`
 
 Flutter supports hot-reloading, so that changes of the source code become visible in an instant.
-Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for web), `?` help, `q` quit.
+Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for web), `h` help, `q` quit.
+
+
+## Roadmap
+
+- [ ] managing multiple Plugins folders/profiles:
+  The API requires some changes for this, as currently the server can only handle a single profile.
+  The GUI needs to implement the initialization of new profiles, in particular, as well as switching of profiles.
+
+- [ ] persistent profile-independent storage, such as GUI settings:
+  This is related to the previous point; the goal is a file layout such as:
+  ```
+  profiles/
+  ├── <id-1>/
+  │   └── sc4pac-plugins.json    # plugins for profile 1
+  ├── <id-2>/
+  │   └── sc4pac-plugins.json    # plugins for profile 2
+  ├── …
+  └── sc4pac-profiles.json       # profile names, GUI settings
+  ```
+
+- [ ] configuring variants: should be part of the dashboard.
+
+- [ ] filtering: limiting search results to selected categories. This might require some API changes to avoid unwieldy computations in the GUI.
+  Searching only among installed packages is not implemented yet either.
+
+- [ ] displaying whether a dependency is already installed or not: This would probably best be added to the `packages.info` API.
+
+- [ ] images: should be displayed with the package details.
+
+- [ ] image cache: should be implemented in sc4pac-tools to conserve external resources.
+  The images for a package only need to be refreshed when a package is updated, i.e. when the package JSON checksum changes.
+
+- [ ] color scheme.
+
+- [ ] deployment: launch scripts for each platform for reliably starting both server and client.
+  If one of the processes terminates, this should be handled gracefully by the other.
+
+- [ ] split-pane layout for wide screens: list of packages on the left, individual package details on the right (similar to an email app).
