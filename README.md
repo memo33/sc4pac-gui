@@ -1,6 +1,6 @@
 # sc4pac GUI
 
-Mod Manager for SimCity 4. Graphical UI for the package manager [sc4pac](https://memo33.github.io/sc4pac/).
+Mod Manager for SimCity 4. Graphical UI for the package manager [sc4pac](https://github.com/memo33/sc4pac-tools) ([website](https://memo33.github.io/sc4pac/)).
 
 This is an early prototype and work-in-progress.
 
@@ -8,8 +8,11 @@ This is an early prototype and work-in-progress.
 ## Overview
 
 The sc4pac GUI is built using Flutter, a cross-platform app framework.
-Flutter can be compiled for multiple platforms,
-such as `web` (which runs as web-app in the browser) and `linux`/`windows`/`macos` (which are native desktop apps).
+Flutter can be compiled for multiple platforms, such as
+
+- `web` (which runs as web-app in the browser) and
+- `linux`/`windows`/`macos` (which are native desktop apps).
+
 The current goal is to first only build a functional GUI for `web`, which is fully cross-platform,
 and later on build desktop apps for supported platforms.
 
@@ -30,50 +33,56 @@ all state that should outlive the running GUI process needs to be written to dis
 
 ## Repository layout
 
-    lib/                  # main source code
-    ├── data.dart         # JSON-serializable data classes used by the API
-    ├── data.g.dart       # auto-generated serialization code
-    ├── main.dart         # main app process
-    ├── model.dart        # non-UI logic such as the API client
-    ├── viewmodel.dart    # app state
-    └── widgets/          # widgets for the different pages of the app
-        └── …
-    vendor/
-    ├── flutter/          # submodule: pinned Flutter version
-    └── sc4pac-tools/     # submodule: sc4pac API
-
+```sh
+lib/                  # main source code
+├── data.dart         # JSON-serializable data classes used by the API
+├── data.g.dart       # auto-generated serialization code
+├── main.dart         # main app process
+├── model.dart        # non-UI logic such as the API client
+├── viewmodel.dart    # app state
+└── widgets/          # widgets for the different pages of the app
+    └── …
+vendor/
+├── flutter/          # submodule: pinned Flutter version
+└── sc4pac-tools/     # submodule: sc4pac API
+```
 
 ## Build instructions
 
-**Once:** Install Flutter with the following commands:
+1. **Once:** Install Flutter with the following commands:
+   ```sh
+   git submodule update --init --recursive              # downloads Flutter repository (~2GB)
+   ./vendor/flutter/bin/flutter config --no-analytics   # downloads Dart SDK and deactivates analytics
+   ./vendor/flutter/bin/flutter doctor                  # inspect output to check everything is ok
+   ./vendor/flutter/bin/flutter devices                 # inspect available devices, e.g. chrome (web) and linux (desktop)
+   ./vendor/flutter/bin/dart run build_runner build --delete-conflicting-outputs   # needs to be rerun whenever ./lib/data.dart is modified
+   ```
 
-    git submodule update --init --recursive              # downloads Flutter repository (~2GB)
-    ./vendor/flutter/bin/flutter config --no-analytics   # downloads Dart SDK and deactivates analytics
-    ./vendor/flutter/bin/flutter doctor                  # inspect output to check everything is ok
-    ./vendor/flutter/bin/flutter devices                 # inspect available devices, e.g. chrome (web) and linux (desktop)
-    ./vendor/flutter/bin/dart run build_runner build --delete-conflicting-outputs   # needs to be rerun whenever ./lib/data.dart is modified
+2. **Once:** Build the development version of the sc4pac CLI (requires the build tool `sbt`).
+   Repeat this whenever the `sc4pac-tools` submodule is updated.
+   ```sh
+   git submodule update --init --recursive              # downloads submodule repositories
+   (cd ./vendor/sc4pac-tools/ && sbt assembly)          # compiles sc4pac-cli.jar
+   ```
 
-**Once:** Build the development version of the sc4pac CLI (requires the build tool `sbt`).
-Repeat this whenever the `sc4pac-tools` submodule is updated.
+3. **Always:** Start the sc4pac server and keep it running. Open a new terminal afterwards.
+   (If you are in a Windows terminal, create a copy of `sc4pac.bat` and edit it to adjust the path to the jar file:
+   `./vendor/sc4pac-tools/target/scala-<x.y.z>/sc4pac-cli.jar`)
+   ```sh
+   ./vendor/sc4pac-tools/sc4pac server --indent 1 --profile-root profiles/profile-1
+   ```
 
-    git submodule update --init --recursive              # downloads submodule repositories
-    (cd ./vendor/sc4pac-tools/ && sbt assembly)          # compiles sc4pac-cli.jar
+4. **Once:** Initialize the plugins profile (requires `curl` or a similar tool).
+   This merely creates the file `./profiles/profile-1/sc4pac-plugins.json` (which could alternatively be done using the sc4pac CLI).
+   ```sh
+   curl -X POST http://localhost:51515/init     # First, inspect the output for the recommended "cache" location. Ideally re-use the CACHE of your sc4pac CLI installation.
+   curl -X POST -d '{"plugins":"plugins","cache":"CACHE"}' http://localhost:51515/init    # Then, set the "cache" location accordingly.
+   ```
 
-**Always:** Start the sc4pac server and keep it running. Open a new terminal afterwards.
-(If you are in a Windows terminal, create a copy of `sc4pac.bat` and edit it to adjust the path to the jar file:
-`./vendor/sc4pac-tools/target/scala-<x.y.z>/sc4pac-cli.jar`)
-
-    ./vendor/sc4pac-tools/sc4pac server --indent 1 --profile-root profiles/profile-1
-
-**Once:** Initialize the plugins profile (requires `curl` or a similar tool).
-This merely creates the file `./profiles/profile-1/sc4pac-plugins.json` (which could alternatively be done using the sc4pac CLI).
-
-    curl -X POST http://localhost:51515/init     # First, inspect the output for the recommended "cache" location. Ideally re-use the CACHE of your sc4pac CLI installation.
-    curl -X POST -d '{"plugins":"plugins","cache":"CACHE"}' http://localhost:51515/init    # Then, set the "cache" location accordingly.
-
-**Always:** Finally, build and run the GUI.
-
-    ./vendor/flutter/bin/flutter run                     # you can directly choose a device with `--device-id <id>`
+5. **Always:** Finally, build and run the GUI.
+   ```sh
+   ./vendor/flutter/bin/flutter run             # you can directly choose a device with `--device-id <id>`
+   ```
 
 Flutter supports hot-reloading, so that changes of the source code become visible in an instant.
 Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for web), `h` help, `q` quit.
@@ -87,7 +96,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 
 - [ ] persistent profile-independent storage, such as GUI settings:
   This is related to the previous point; the goal is a file layout such as:
-  ```
+  ```sh
   profiles/
   ├── <id-1>/
   │   └── sc4pac-plugins.json    # plugins for profile 1
