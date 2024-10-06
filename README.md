@@ -69,7 +69,7 @@ vendor/
    (If you are in a Windows terminal, create a copy of `sc4pac.bat` and edit it to adjust the path to the jar file:
    `./vendor/sc4pac-tools/target/scala-<x.y.z>/sc4pac-cli.jar`)
    ```sh
-   ./vendor/sc4pac-tools/sc4pac server --indent 1 --profile-root profiles/profile-1
+   ./vendor/sc4pac-tools/sc4pac server --indent 1 --profiles-dir profiles
    ```
 
 4. **Once:** Initialize the plugins profile (requires `curl` or a similar tool).

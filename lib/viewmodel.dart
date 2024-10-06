@@ -10,20 +10,26 @@ import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
 
-class World {
-  Profile profile;
+class World extends ChangeNotifier {
+  Profile? profile;
   // themeMode
   // server
   // other gui settings
   final Sc4pacClient client = Sc4pacClient();
 
-  World(this.profile);
+  void updateProfileAndNotify(({String id, String name}) p) {
+    profile = Profile(p.id, p.name);
+    notifyListeners();
+  }
 }
 
 class Profile {
-  Dashboard dashboard = Dashboard();
+  final String id;
+  final String name;
+  late Dashboard dashboard = Dashboard((id: id, name: name));
   FindPackages findPackages = FindPackages();
   MyPlugins myPlugins = MyPlugins();
+  Profile(this.id, this.name);
 }
 
 class FindPackages {
@@ -44,6 +50,8 @@ class Dashboard extends ChangeNotifier {
     _updateProcess = updateProcess;
     notifyListeners();
   }
+  final ({String id, String name}) profile;
+  Dashboard(this.profile);
 }
 
 enum UpdateStatus { running, finished, finishedWithError, canceled }

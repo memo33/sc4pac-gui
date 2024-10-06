@@ -104,6 +104,30 @@ class Api {
     final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/server.connect'));
     return ws;
   }
+
+  static Future<Profiles> profiles() async {
+    final response = await http.get(Uri.parse('$rootUrl/profiles.list'));
+    if (response.statusCode == 200) {
+      return Profiles.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  static Future<({String id, String name})> addProfile(String name) async {
+    final response = await http.post(Uri.parse('$rootUrl/profiles.add'),
+      body: jsonUtf8Encode({'name': name}),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      final m = jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+      if (m case {'id': String id, 'name': String name}) {
+        return (id: id, name: name);
+      }
+    }
+    throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+  }
+
 }
 
 enum ClientStatus { connecting, connected, serverNotRunning, lostConnection }

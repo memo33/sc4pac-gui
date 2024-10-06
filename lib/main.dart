@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'model.dart';
+import 'data.dart';
 import 'viewmodel.dart';
 import 'widgets/dashboard.dart';
 import 'widgets/findpackages.dart';
@@ -17,7 +18,7 @@ class NavigationService {
 }
 
 class Sc4pacGuiApp extends StatelessWidget {
-  final World _world = World(Profile());
+  final World _world = World();
   Sc4pacGuiApp({super.key});
 
   @override
@@ -68,7 +69,91 @@ class Sc4pacGuiApp extends StatelessWidget {
       // themeMode: ThemeMode.system,
       themeMode: ThemeMode.dark,
 
-      home: NavRail(_world),
+      home: ListenableBuilder(
+        listenable: _world,
+        builder: (context, child) => _world.profile == null ? FutureBuilder<Profiles>(
+          future: Api.profiles(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
+            } else if (!snapshot.hasData) {
+              return const Center(child: Card(child: ListTile(leading: CircularProgressIndicator(), title: Text("Loading profiles"))));
+            } else {
+              final data = snapshot.data!;
+              if (data.currentProfileId.isEmpty) {
+                return CreateProfileDialog(_world);
+              } else {
+                final String id = data.currentProfileId.first;
+                final p = data.profiles.firstWhere((p) => p.id == id);
+                _world.profile = Profile(p.id, p.name);
+                return NavRail(_world);
+              }
+            }
+          },
+        ) : NavRail(_world)
+      ),
+    );
+  }
+}
+
+class CreateProfileDialog extends StatefulWidget {
+  final World world;
+  const CreateProfileDialog(this.world, {super.key});
+  @override
+  State<CreateProfileDialog> createState() => _CreateProfileDialogState();
+}
+class _CreateProfileDialogState extends State<CreateProfileDialog> {
+  late final TextEditingController _profileNameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _profileNameController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    Api.addProfile(_profileNameController.text).then(widget.world.updateProfileAndNotify);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(centerTitle: true, title: const Text('Create a new profile')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              const Spacer(),
+              TextField(
+                controller: _profileNameController,
+                decoration: const InputDecoration(
+                  icon: Icon(Icons.edit),
+                  labelText: "Profile name",
+                  helperText: "Each profile corresponds to a Plugins folder. This allows you to manage multiple Plugins folders for different regions.",
+                  helperMaxLines: 10,
+                  hintText: "Timbuktu, London-with-CAM, Futuristic, …",
+                ),
+                onSubmitted: (String name) {
+                  if (name.isNotEmpty) {
+                    _submit();
+                  }
+                }
+              ),
+              const SizedBox(height: 20),
+              ListenableBuilder(
+                listenable: _profileNameController,
+                builder: (context, child) => FilledButton(
+                  onPressed: _profileNameController.text.isEmpty ? null : _submit,
+                  child: child,
+                ),
+                child: const Text("Create profile")
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -80,7 +165,6 @@ class NavRail extends StatefulWidget {
   @override
   State<NavRail> createState() => _NavRailState();
 }
-
 class _NavRailState extends State<NavRail> {
   int _selectedIndex = 0;
 
@@ -132,9 +216,9 @@ class _NavRailState extends State<NavRail> {
             // This is the main content.
             Expanded(
               child:
-                _selectedIndex == 0 ? DashboardScreen(widget.world.profile.dashboard, widget.world.client) :
-                _selectedIndex == 1 ? FindPackagesScreen(widget.world.profile.findPackages) :
-                _selectedIndex == 2 ? MyPluginsScreen(widget.world.profile.myPlugins) : Column(
+                _selectedIndex == 0 ? DashboardScreen(widget.world.profile!.dashboard, widget.world.client) :
+                _selectedIndex == 1 ? FindPackagesScreen(widget.world.profile!.findPackages) :
+                _selectedIndex == 2 ? MyPluginsScreen(widget.world.profile!.myPlugins) : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
                     Text('selectedIndex: $_selectedIndex'),

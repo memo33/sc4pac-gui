@@ -160,7 +160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
             ),
           ),
-          const Text('Profile: profile-1'),
+          Text('Profile: ${widget.dashboard.profile.name}'),
           const SizedBox(height: 20),
           OverflowBar(
             spacing: 10.0,
