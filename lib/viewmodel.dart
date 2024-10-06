@@ -21,14 +21,20 @@ class World extends ChangeNotifier {
     profile = Profile(p.id, p.name);
     notifyListeners();
   }
+
+  static late World world;
+
+  World() {
+    World.world = this;  // TODO for simplicity of access, we store a static reference to the one world
+  }
 }
 
 class Profile {
   final String id;
   final String name;
   late Dashboard dashboard = Dashboard((id: id, name: name));
-  FindPackages findPackages = FindPackages();
-  MyPlugins myPlugins = MyPlugins();
+  late FindPackages findPackages = FindPackages();
+  late MyPlugins myPlugins = MyPlugins();
   Profile(this.id, this.name);
 }
 
@@ -84,7 +90,7 @@ class UpdateProcess {
   final void Function() onFinished;
 
   UpdateProcess({required this.onFinished}) {
-    _ws = Api.update();
+    _ws = Api.update(profileId: World.world.profile!.id);
     stream =
       _ws.ready
         .then((_) => true, onError: (e) {

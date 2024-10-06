@@ -22,7 +22,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   }
 
   void _computeState() {
-    futureJson = Api.installed();
+    futureJson = Api.installed(profileId: World.world.profile!.id);
     _computeFilter();
   }
 
@@ -120,7 +120,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.variant[k]!)),
                         if (pkg.explicit) PackageTileChip.explicit(onDeleted: () {
-                          Api.remove(module).then((_) {
+                          Api.remove(module, profileId: World.world.profile!.id).then((_) {
                             refresh();
                           });  // TODO handle failure and success
                         }),

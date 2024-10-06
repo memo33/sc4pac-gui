@@ -36,11 +36,11 @@ class ApiError {
 }
 
 class Api {
-  static const rootUrl = 'http://localhost:51515';
-  static const wsUrl = 'ws://localhost:51515';
+  static const host = 'localhost:51515';
+  static const wsUrl = 'ws://$host';
 
-  static Future<Map<String, dynamic>> info(BareModule module) async {
-    final response = await http.get(Uri.parse('$rootUrl/packages.info?pkg=$module')); // TODO url encode
+  static Future<Map<String, dynamic>> info(BareModule module, {required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/packages.info', {'pkg': module.toString(), 'profile': profileId}));
     if (response.statusCode == 200) {
       return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
     } else {
@@ -48,8 +48,8 @@ class Api {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> search(String query) async {
-    final response = await http.get(Uri.parse('$rootUrl/packages.search?q=$query')); // TODO url encode
+  static Future<List<Map<String, dynamic>>> search(String query, {required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/packages.search', {'q': query, 'profile': profileId}));
     if (response.statusCode == 200) {
       return List<Map<String, dynamic>>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
     } else {
@@ -57,8 +57,8 @@ class Api {
     }
   }
 
-  static Future<void> add(BareModule module) async {
-    final response = await http.post(Uri.parse('$rootUrl/plugins.add'),
+  static Future<void> add(BareModule module, {required String profileId}) async {
+    final response = await http.post(Uri.http(host, '/plugins.add', {'profile': profileId}),
       body: jsonUtf8Encode([module.toString()]),
       headers: {'Content-Type': 'application/json'},
     );
@@ -67,8 +67,8 @@ class Api {
     }
   }
 
-  static Future<void> remove(BareModule module) async {
-    final response = await http.post(Uri.parse('$rootUrl/plugins.remove'),
+  static Future<void> remove(BareModule module, {required String profileId}) async {
+    final response = await http.post(Uri.http(host, '/plugins.remove', {'profile': profileId}),
       body: jsonUtf8Encode([module.toString()]),
       headers: {'Content-Type': 'application/json'},
     );
@@ -77,8 +77,8 @@ class Api {
     }
   }
 
-  static Future<List<InstalledListItem>> installed() async {
-    final response = await http.get(Uri.parse('$rootUrl/plugins.installed.list'));
+  static Future<List<InstalledListItem>> installed({required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/plugins.installed.list', {'profile': profileId}));
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>).map((m) => InstalledListItem.fromJson(m as Map<String, dynamic>)).toList();
     } else {
@@ -86,13 +86,13 @@ class Api {
     }
   }
 
-  static WebSocketChannel update() {
-    final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update'));
+  static WebSocketChannel update({required String profileId}) {
+    final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update?profile=$profileId'));
     return ws;
   }
 
   static Future<Map<String, dynamic>> serverStatus() async {
-    final response = await http.get(Uri.parse('$rootUrl/server.status'));
+    final response = await http.get(Uri.http(host, '/server.status'));
     if (response.statusCode == 200) {
       return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
     } else {
@@ -106,7 +106,7 @@ class Api {
   }
 
   static Future<Profiles> profiles() async {
-    final response = await http.get(Uri.parse('$rootUrl/profiles.list'));
+    final response = await http.get(Uri.http(host, '/profiles.list'));
     if (response.statusCode == 200) {
       return Profiles.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -115,7 +115,7 @@ class Api {
   }
 
   static Future<({String id, String name})> addProfile(String name) async {
-    final response = await http.post(Uri.parse('$rootUrl/profiles.add'),
+    final response = await http.post(Uri.http(host, '/profiles.add'),
       body: jsonUtf8Encode({'name': name}),
       headers: {'Content-Type': 'application/json'},
     );
