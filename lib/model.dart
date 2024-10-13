@@ -39,6 +39,30 @@ class Api {
   static const host = 'localhost:51515';
   static const wsUrl = 'ws://$host';
 
+  static Future<({bool initialized, Map<String, dynamic> data})> profileRead({required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/profile.read', {'profile': profileId}));
+    if (response.statusCode == 409 || response.statusCode == 200) {
+      return (
+        initialized: response.statusCode == 200,
+        data: jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>,
+      );
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  static Future<Map<String, dynamic>> profileInit({required String profileId, required ({String plugins, String cache}) paths}) async {
+    final response = await http.post(Uri.http(host, '/profile.init', {'profile': profileId}),
+      body: jsonUtf8Encode({'plugins': paths.plugins, 'cache': paths.cache}),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   static Future<Map<String, dynamic>> info(BareModule module, {required String profileId}) async {
     final response = await http.get(Uri.http(host, '/packages.info', {'pkg': module.toString(), 'profile': profileId}));
     if (response.statusCode == 200) {

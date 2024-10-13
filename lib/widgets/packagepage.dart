@@ -169,7 +169,8 @@ class _AddPackageButtonState extends State<AddPackageButton> {
       label: Text(addedExplicitly ? "Remove from Plugins" : "Add to Plugins"),
       onPressed: () {
         setState(() { addedExplicitly = !addedExplicitly; });
-        Api.add(widget.module, profileId: World.world.profile!.id);  // async, but we do not need to await result (TODO maybe we should to avoid race?)
+        Api.add(widget.module, profileId: World.world.profile!.id)  // async, but we do not need to await result (TODO maybe we should to avoid race?)
+          .catchError(ApiErrorWidget.dialog);
       },
     );
   }

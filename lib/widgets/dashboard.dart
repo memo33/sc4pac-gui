@@ -173,7 +173,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     labelText: 'Path'
                   ),
                   readOnly: true,
-                  initialValue: '/aaa/bbb/ccc/ddd/eee/fff/ggg/hhh/iii/jjj/Plugins/',
+                  initialValue: widget.dashboard.profile.paths?.plugins,
                 ),
               ),
               ElevatedButton(

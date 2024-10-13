@@ -72,14 +72,7 @@ vendor/
    ./vendor/sc4pac-tools/sc4pac server --indent 1 --profiles-dir profiles
    ```
 
-4. **Once:** Initialize the plugins profile (requires `curl` or a similar tool).
-   This merely creates the file `./profiles/profile-1/sc4pac-plugins.json` (which could alternatively be done using the sc4pac CLI).
-   ```sh
-   curl -X POST http://localhost:51515/init     # First, inspect the output for the recommended "cache" location. Ideally re-use the CACHE of your sc4pac CLI installation.
-   curl -X POST -d '{"plugins":"plugins","cache":"CACHE"}' http://localhost:51515/init    # Then, set the "cache" location accordingly.
-   ```
-
-5. **Always:** Finally, build and run the GUI.
+4. **Always:** Finally, build and run the GUI.
    ```sh
    ./vendor/flutter/bin/flutter run             # you can directly choose a device with `--device-id <id>`
    ```
@@ -94,7 +87,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
   The API requires some changes for this, as currently the server can only handle a single profile.
   The GUI needs to implement the initialization of new profiles, in particular, as well as switching of profiles.
 
-- [ ] persistent profile-independent storage, such as GUI settings:
+- [x] persistent profile-independent storage, such as GUI settings:
   This is related to the previous point; the goal is a file layout such as:
   ```sh
   profiles/

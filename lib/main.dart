@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'model.dart';
 import 'data.dart';
 import 'viewmodel.dart';
@@ -85,13 +86,46 @@ class Sc4pacGuiApp extends StatelessWidget {
               } else {
                 final String id = data.currentProfileId.first;
                 final p = data.profiles.firstWhere((p) => p.id == id);
-                _world.profile = Profile(p.id, p.name);
-                return NavRail(_world);
+                _world.updateProfile(p, notify: false);
+                return InitProfileWrapper(_world);
               }
             }
           },
-        ) : NavRail(_world)
+        ) : _world.profile!.paths == null ? InitProfileWrapper(_world) : NavRail(_world)
       ),
+    );
+  }
+}
+
+class InitProfileWrapper extends StatelessWidget {
+  final World world;
+  const InitProfileWrapper(this.world, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: Api.profileRead(profileId: world.profile!.id),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
+        } else if (!snapshot.hasData) {
+          return const Center(child: Card(child: ListTile(leading: CircularProgressIndicator(), title: Text("Loading profile data"))));
+        } else {
+          final profileData = snapshot.data!;
+          if (profileData.initialized) {
+            final paths = (plugins: profileData.data['pluginsRoot'] as String, cache: profileData.data['cacheRoot'] as String);
+            world.updatePaths(paths, notify: false);
+            return NavRail(world);
+          } else {
+            final defaults = profileData.data['platformDefaults'];
+            return InitProfileDialog(
+              world,
+              initialPluginsPath: defaults['plugins'].first as String,
+              initialCachePath: defaults['cache'].first as String,
+            );
+          }
+        }
+      },
     );
   }
 }
@@ -112,7 +146,10 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
   }
 
   void _submit() {
-    Api.addProfile(_profileNameController.text).then(widget.world.updateProfileAndNotify);
+    Api.addProfile(_profileNameController.text).then(
+      (p) => widget.world.updateProfile(p, notify: true),
+      onError: ApiErrorWidget.dialog,
+    );
   }
 
   @override
@@ -151,6 +188,112 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
               ),
               const Spacer(),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FolderPathEdit extends StatelessWidget {
+  final TextEditingController controller;
+  final String? labelText;
+  final void Function() onSelected;
+  const FolderPathEdit(this.controller, {this.labelText, required this.onSelected, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(child:
+          TextField(
+            controller: controller,
+            decoration: InputDecoration(labelText: labelText),
+            readOnly: true,
+          ),
+        ),
+        const SizedBox(width: 10),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.folder),
+          onPressed: () async {
+            String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: controller.text);
+            if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
+              controller.text = selectedDirectory;
+              onSelected();
+            }
+          },
+          label: const Text("Edit"),
+        ),
+      ],
+    );
+  }
+}
+
+class InitProfileDialog extends StatefulWidget {
+  final World world;
+  final String initialPluginsPath;
+  final String initialCachePath;
+  const InitProfileDialog(this.world, {required this.initialPluginsPath, required this.initialCachePath, super.key});
+  @override
+  State<InitProfileDialog> createState() => _InitProfileDialogState();
+}
+class _InitProfileDialogState extends State<InitProfileDialog> {
+  late final TextEditingController _pluginsPathController = TextEditingController(text: widget.initialPluginsPath);
+  late final TextEditingController _cachePathController = TextEditingController(text: widget.initialCachePath);
+
+  @override
+  void dispose() {
+    _pluginsPathController.dispose();
+    _cachePathController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    Api.profileInit(
+      profileId: widget.world.profile!.id,
+      paths: (plugins: _pluginsPathController.text, cache: _cachePathController.text),
+    ).then(
+      (data) => widget.world.updatePaths((plugins: data['pluginsRoot'], cache: data['cacheRoot']), notify: true),
+      onError: ApiErrorWidget.dialog,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(centerTitle: true, title: Text('Select folders for profile "${widget.world.profile?.name}"')),
+      body: SingleChildScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Column(
+              children: [
+                const ExpansionTile(
+                  trailing: Icon(Icons.info_outlined),
+                  title: Text("Plugins folder"),
+                  children: [Text("This folder is going to contain all the SimCity 4 mods and assets you choose to install."
+                    " If your Plugins folder is not empty, check the documentation on how to migrate your existing plugin files before continuing.")],
+                ),
+                const SizedBox(height: 15),
+                FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", onSelected: () => setState(() {})),
+                const SizedBox(height: 30),
+                const ExpansionTile(
+                  trailing: Icon(Icons.info_outlined),
+                  title: Text("Cache folder"),
+                  children: [Text("The Cache folder stores all the files that are downloaded."
+                    " It requires several gigabytes of space."
+                    " To avoid unnecessary downloads, it is best to keep the default location for the cache, so that all your profiles share the same Cache folder.")],
+                ),
+                const SizedBox(height: 15),
+                FolderPathEdit(_cachePathController, labelText: "Cache folder path", onSelected: () => setState(() {})),
+                const SizedBox(height: 30),
+                FilledButton(
+                  onPressed: _submit,
+                  child: const Text("OK"),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),

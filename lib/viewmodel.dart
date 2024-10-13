@@ -17,9 +17,20 @@ class World extends ChangeNotifier {
   // other gui settings
   final Sc4pacClient client = Sc4pacClient();
 
-  void updateProfileAndNotify(({String id, String name}) p) {
+  void updateProfile(({String id, String name}) p, {required bool notify}) {
     profile = Profile(p.id, p.name);
-    notifyListeners();
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  void updatePaths(({String plugins, String cache}) paths, {required bool notify}) {
+    if (profile != null) {
+      profile?.paths = paths;
+      if (notify) {
+        notifyListeners();
+      }
+    }
   }
 
   static late World world;
@@ -32,7 +43,8 @@ class World extends ChangeNotifier {
 class Profile {
   final String id;
   final String name;
-  late Dashboard dashboard = Dashboard((id: id, name: name));
+  ({String plugins, String cache})? paths;
+  late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
   Profile(this.id, this.name);
@@ -56,7 +68,7 @@ class Dashboard extends ChangeNotifier {
     _updateProcess = updateProcess;
     notifyListeners();
   }
-  final ({String id, String name}) profile;
+  final Profile profile;
   Dashboard(this.profile);
 }
 

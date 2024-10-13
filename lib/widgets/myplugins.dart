@@ -122,7 +122,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                         if (pkg.explicit) PackageTileChip.explicit(onDeleted: () {
                           Api.remove(module, profileId: World.world.profile!.id).then((_) {
                             refresh();
-                          });  // TODO handle failure and success
+                          }, onError: ApiErrorWidget.dialog);  // TODO handle failure and success
                         }),
                       ],
                     );

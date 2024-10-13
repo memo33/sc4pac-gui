@@ -5,6 +5,7 @@ import 'package:url_launcher/link.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../model.dart';
 import 'packagepage.dart';
+import '../main.dart' show NavigationService;
 
 class ApiErrorWidget extends StatelessWidget {
   final ApiError error;
@@ -23,6 +24,22 @@ class ApiErrorWidget extends StatelessWidget {
         title: Text(error.title),
       );
     }
+  }
+
+  static void dialog(Object error) {
+    showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.error),
+        content: ApiErrorWidget(ApiError.from(error)),
+        actions: [
+          OutlinedButton(
+            child: const Text("Dismiss"),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
   }
 }
 
