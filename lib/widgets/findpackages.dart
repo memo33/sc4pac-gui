@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
-import 'packagepage.dart';
 
 class FindPackagesScreen extends StatefulWidget {
   final FindPackages findPackages;
@@ -19,7 +18,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
   @override
   void initState() {
     super.initState();
-    futureJson = Api.search(_searchBarController.text);
+    futureJson = Api.search(_searchBarController.text, profileId: World.world.profile!.id);
   }
 
   @override
@@ -52,7 +51,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 leading: const Icon(Icons.search),
                 // or onChanged for immediate feedback?
                 onSubmitted: (String query) => setState(() {
-                  futureJson = Api.search(query);
+                  futureJson = Api.search(query, profileId: World.world.profile!.id);
                   widget.findPackages.searchTerm = query;
                 }),  // TODO
                 trailing: [

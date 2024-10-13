@@ -10,20 +10,44 @@ import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
 
-class World {
-  Profile profile;
+class World extends ChangeNotifier {
+  Profile? profile;
   // themeMode
   // server
   // other gui settings
   final Sc4pacClient client = Sc4pacClient();
 
-  World(this.profile);
+  void updateProfile(({String id, String name}) p, {required bool notify}) {
+    profile = Profile(p.id, p.name);
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  void updatePaths(({String plugins, String cache}) paths, {required bool notify}) {
+    if (profile != null) {
+      profile?.paths = paths;
+      if (notify) {
+        notifyListeners();
+      }
+    }
+  }
+
+  static late World world;
+
+  World() {
+    World.world = this;  // TODO for simplicity of access, we store a static reference to the one world
+  }
 }
 
 class Profile {
-  Dashboard dashboard = Dashboard();
-  FindPackages findPackages = FindPackages();
-  MyPlugins myPlugins = MyPlugins();
+  final String id;
+  final String name;
+  ({String plugins, String cache})? paths;
+  late Dashboard dashboard = Dashboard(this);
+  late FindPackages findPackages = FindPackages();
+  late MyPlugins myPlugins = MyPlugins();
+  Profile(this.id, this.name);
 }
 
 class FindPackages {
@@ -44,6 +68,8 @@ class Dashboard extends ChangeNotifier {
     _updateProcess = updateProcess;
     notifyListeners();
   }
+  final Profile profile;
+  Dashboard(this.profile);
 }
 
 enum UpdateStatus { running, finished, finishedWithError, canceled }
@@ -76,7 +102,7 @@ class UpdateProcess {
   final void Function() onFinished;
 
   UpdateProcess({required this.onFinished}) {
-    _ws = Api.update();
+    _ws = Api.update(profileId: World.world.profile!.id);
     stream =
       _ws.ready
         .then((_) => true, onError: (e) {

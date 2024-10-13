@@ -96,3 +96,11 @@ class InstalledListItem {
   InstalledListItem(this.package, this.version, this.variant, this.explicit);
   factory InstalledListItem.fromJson(Map<String, dynamic> json) => _$InstalledListItemFromJson(json);
 }
+
+@JsonSerializable()
+class Profiles {
+  final List<({String id, String name})> profiles;
+  final List<String> currentProfileId;
+  Profiles(this.profiles, this.currentProfileId);
+  factory Profiles.fromJson(Map<String, dynamic> json) => _$ProfilesFromJson(json);
+}

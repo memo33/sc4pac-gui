@@ -1,6 +1,7 @@
 import 'dart:collection' show LinkedHashSet;
 import 'package:flutter/material.dart';
 import '../model.dart';
+import '../viewmodel.dart';
 import 'fragments.dart';
 
 class PackagePage extends StatefulWidget {
@@ -13,7 +14,7 @@ class PackagePage extends StatefulWidget {
   static Future<dynamic> pushPkg(BuildContext context, BareModule module) {
     return Navigator.push(
       context,
-      MaterialPageRoute(barrierDismissible: true, builder: (context) => PackagePage(module)),
+      MaterialPageRoute(barrierDismissible: true, builder: (context1) => PackagePage(module)),
     );
   }
 }
@@ -32,7 +33,7 @@ class _PackagePageState extends State<PackagePage> {
   @override
   void initState() {
     super.initState();
-    futureJson = Api.info(widget.module);  // TODO
+    futureJson = Api.info(widget.module, profileId: World.world.profile!.id);  // TODO
   }
 
   @override
@@ -168,7 +169,8 @@ class _AddPackageButtonState extends State<AddPackageButton> {
       label: Text(addedExplicitly ? "Remove from Plugins" : "Add to Plugins"),
       onPressed: () {
         setState(() { addedExplicitly = !addedExplicitly; });
-        Api.add(widget.module);  // async, but we do not need to await result (TODO maybe we should to avoid race?)
+        Api.add(widget.module, profileId: World.world.profile!.id)  // async, but we do not need to await result (TODO maybe we should to avoid race?)
+          .catchError(ApiErrorWidget.dialog);
       },
     );
   }
