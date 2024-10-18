@@ -50,6 +50,9 @@ class PkgNameFragment extends StatelessWidget {
   final bool colored;
   // final Widget? leading;
   const PkgNameFragment(this.module, {super.key, this.asButton = false, this.isInstalled = false, this.colored = true/*, this.leading*/});
+
+  static const EdgeInsets padding = EdgeInsets.all(10);
+
   @override
   Widget build(BuildContext context) {
     final style = DefaultTextStyle.of(context).style; //.apply(fontFamily: GoogleFonts.notoSansMono().fontFamily);
@@ -75,6 +78,7 @@ class PkgNameFragment extends StatelessWidget {
       label: text,
       icon: !isInstalled ? null : const Tooltip(message: 'Installed', child: Icon(Icons.download_done)),  // TODO installed or added/marked for installation?
       iconAlignment: IconAlignment.start,
+      style: TextButton.styleFrom(padding: PkgNameFragment.padding),
     );
   }
 }

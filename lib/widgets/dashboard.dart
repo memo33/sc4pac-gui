@@ -432,10 +432,20 @@ class _VariantsTableState extends State<VariantsTable> {
       return Table(
         columnWidths: const {0: IntrinsicColumnWidth(), 1: IntrinsicColumnWidth(), 2: IntrinsicColumnWidth(), 3: IntrinsicColumnWidth(), 4: IntrinsicColumnWidth()},
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: widget.variants.entries.map((e) =>
-          TableRow(
+        children: widget.variants.entries.map((e) {
+          final keyParts = e.key.split(':');
+          return TableRow(
             children: [
-              Text(e.key),
+              keyParts.length >= 3 ?
+                Text.rich(TextSpan(
+                  children: [
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: PkgNameFragment(BareModule(keyParts[0], keyParts[1]), asButton: true),
+                    ),
+                    TextSpan(text: keyParts.sublist(2).join(':')),
+                  ],
+                )) : Padding(padding: PkgNameFragment.padding, child: Text(e.key)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_right_alt)),
               Text("${e.value}"),
               const SizedBox(width: 20),
@@ -449,8 +459,8 @@ class _VariantsTableState extends State<VariantsTable> {
                 },
               ),
             ],
-          ),
-        ).toList(),
+          );
+        }).toList(),
       );
     }
   }
