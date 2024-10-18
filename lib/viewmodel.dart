@@ -69,7 +69,18 @@ class Dashboard extends ChangeNotifier {
     notifyListeners();
   }
   final Profile profile;
-  Dashboard(this.profile);
+  late Future<Map<String, dynamic>> variantsFuture;
+  Dashboard(this.profile) {
+    fetchVariants();
+  }
+
+  void fetchVariants() {
+    variantsFuture = Api.variantsList(profileId: profile.id);
+    notifyListeners();
+  }
+}
+
+class Variants extends ChangeNotifier {
 }
 
 enum UpdateStatus { running, finished, finishedWithError, canceled }

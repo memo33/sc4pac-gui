@@ -110,6 +110,25 @@ class Api {
     }
   }
 
+  static Future<Map<String, dynamic>> variantsList({required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/variants.list', {'profile': profileId}));
+    if (response.statusCode == 200) {
+      return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  static Future<void> variantsReset(List<String> variants, {required String profileId}) async {
+    final response = await http.post(Uri.http(host, '/variants.reset', {'profile': profileId}),
+      body: jsonUtf8Encode(variants),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   static WebSocketChannel update({required String profileId}) {
     final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update?profile=$profileId'));
     return ws;

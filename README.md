@@ -99,7 +99,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
   └── sc4pac-profiles.json       # profile names, GUI settings
   ```
 
-- [ ] configuring variants: should be part of the dashboard.
+- [x] configuring variants: should be part of the dashboard.
 
 - [ ] filtering: limiting search results to selected categories. This might require some API changes to avoid unwieldy computations in the GUI.
   Searching only among installed packages is not implemented yet either.

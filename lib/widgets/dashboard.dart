@@ -186,6 +186,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+          ListenableBuilder(
+            listenable: widget.dashboard,
+            builder: (context, child) => VariantsWidget(widget.dashboard.variantsFuture),
+          ),
           FilledButton.icon(
             icon: const Icon(Icons.refresh),
             onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () {
@@ -194,7 +198,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // when the current screen is disposed.
               setState(() {
                 widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
-                  onFinished: () => setState(() {}),  // triggers rebuild of DashboardScreen
+                  onFinished: () => setState(() {  // triggers rebuild of DashboardScreen
+                    widget.dashboard.fetchVariants();
+                  }),
                 );
               });
             },
@@ -379,5 +385,73 @@ class DownloadProgressWidget extends StatelessWidget {
         semanticsLabel: 'Asset download progress indicator',
       ),
     );
+  }
+}
+
+class VariantsWidget extends StatelessWidget {
+  final Future<Map<String, dynamic>> futureJson;
+  const VariantsWidget(this.futureJson, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      title: const Text("Variants"),
+      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FutureBuilder(
+          future: futureJson,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
+            } else if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            } else {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: VariantsTable(snapshot.data!),
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class VariantsTable extends StatefulWidget {
+  final Map<String, dynamic> variants;
+  const VariantsTable(this.variants, {super.key});
+  @override State<VariantsTable> createState() => _VariantsTableState();
+}
+class _VariantsTableState extends State<VariantsTable> {
+  @override
+  Widget build(BuildContext context) {
+    if (widget.variants.isEmpty) {
+      return const Text("No variants installed yet.");
+    } else {
+      return Table(
+        columnWidths: const {0: IntrinsicColumnWidth(), 1: IntrinsicColumnWidth(), 2: IntrinsicColumnWidth(), 3: IntrinsicColumnWidth(), 4: IntrinsicColumnWidth()},
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: widget.variants.entries.map((e) =>
+          TableRow(
+            children: [
+              Text(e.key),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_right_alt)),
+              Text("${e.value}"),
+              const SizedBox(width: 20),
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline),
+                onPressed: () {
+                  setState(() {
+                    widget.variants.remove(e.key);
+                    Api.variantsReset([e.key], profileId: World.world.profile!.id);  // we do not need to await result
+                  });
+                },
+              ),
+            ],
+          ),
+        ).toList(),
+      );
+    }
   }
 }
