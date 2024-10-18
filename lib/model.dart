@@ -129,6 +129,25 @@ class Api {
     }
   }
 
+  static Future<List<String>> channelsList({required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/channels.list', {'profile': profileId}));
+    if (response.statusCode == 200) {
+      return List<String>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  static Future<void> channelsSet(List<String> urls, {required String profileId}) async {
+    final response = await http.post(Uri.http(host, '/channels.set', {'profile': profileId}),
+      body: jsonUtf8Encode(urls),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   static WebSocketChannel update({required String profileId}) {
     final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update?profile=$profileId'));
     return ws;

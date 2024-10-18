@@ -120,7 +120,12 @@ class DashboardScreen extends StatefulWidget {
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: false,
       builder: (context) => SimpleDialog(
-        title: Text('Choose a variant of type "${msg.label}" for ${msg.package}:'),
+        title: Column(
+          children: [
+            Padding(padding: const EdgeInsets.all(10), child: Icon(Icons.alt_route_outlined, color: Theme.of(context).colorScheme.tertiary)),
+            Text('Choose a variant of type "${msg.label}" for ${msg.package}:'),
+          ],
+        ),
         children: msg.choices.map((choice) => SimpleDialogOption(
           child: ListTile(title: Text(choice), subtitle: msg.descriptions.containsKey(choice) ? Text('${msg.descriptions[choice]}') : null),
           onPressed: () {
@@ -184,6 +189,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onPressed: () { },
                 child: const Text('Button 2'),
               ),
+            ],
+          ),
+          const ExpansionTile(
+            leading: Icon(Icons.layers_outlined),
+            title: Text("Channels"),
+            children: [
+              ChannelsList(),
             ],
           ),
           ListenableBuilder(
@@ -395,6 +407,7 @@ class VariantsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpansionTile(
+      leading: const Icon(Icons.alt_route_outlined),
       title: const Text("Variants"),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -404,7 +417,7 @@ class VariantsWidget extends StatelessWidget {
             if (snapshot.hasError) {
               return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
             } else if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
+              return const SizedBox();
             } else {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -463,5 +476,92 @@ class _VariantsTableState extends State<VariantsTable> {
         }).toList(),
       );
     }
+  }
+}
+
+class ChannelsList extends StatefulWidget {
+  const ChannelsList({super.key});
+  @override State<ChannelsList> createState() => _ChannelsListState();
+}
+class _ChannelsListState extends State<ChannelsList> {
+  late Future<List<String>> urlsFuture;
+  late TextEditingController controller = TextEditingController();
+  bool changed = false;
+
+  @override void initState() {
+    super.initState();
+    urlsFuture = Api.channelsList(profileId: World.world.profile!.id);
+  }
+
+  List<String> _parseUrls(String text) => text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
+
+  String _stringifyUrls(List<String> urls) => urls.isEmpty ? "" : "${urls.join('\n')}\n";
+
+  void _submit(List<String> urls) {
+    Api.channelsSet(urls, profileId: World.world.profile!.id).then(
+      (_) {
+        setState(() {
+          urlsFuture = Api.channelsList(profileId: World.world.profile!.id);
+          changed = false;
+        });
+      },
+      onError: (e) => ApiErrorWidget.dialog(ApiError.unexpected("Malformed channel URLs", "Something does not look like a proper URL.")),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text("Channels contain definitions for packages you can install."
+            " Append additional channel URLs below. The first URL has the highest priority."),
+        ),
+        FutureBuilder(
+          future: urlsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
+            } else if (!snapshot.hasData) {
+              return const SizedBox();
+            } else {
+              if (!changed) {  // avoids text being reset at 2nd change
+                controller.text = _stringifyUrls(snapshot.data!);
+              }
+              return TextField(
+                controller: controller,
+                maxLines: null,
+                onChanged: (_) {
+                  if (!changed) {
+                    setState(() { changed = true; });
+                  }
+                },
+              );
+            }
+          },
+        ),
+        OverflowBar(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.layers_clear_outlined),
+                onPressed: () => _submit([]),
+                label: const Text("Reset to default"),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: FilledButton.icon(
+                icon: const Icon(Icons.save_outlined),
+                onPressed: !changed ? null : () => _submit(_parseUrls(controller.text)),
+                label: const Text("Save changes"),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
