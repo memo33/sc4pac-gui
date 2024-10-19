@@ -453,21 +453,25 @@ class _VariantsTableState extends State<VariantsTable> {
     if (widget.variants.isEmpty) {
       return const Text("No variants installed yet.");
     } else {
+      final entries = (widget.variants.entries.map((e) => (key: e.key, value: e.value, keyParts: e.key.split(':')))).toList();
+      entries.sort((a, b) {  // first global, then local variants
+        final result = a.keyParts.length.compareTo(b.keyParts.length);
+        return result != 0 ? result : a.key.compareTo(b.key);
+      });
       return Table(
         columnWidths: const {0: IntrinsicColumnWidth(), 1: IntrinsicColumnWidth(), 2: IntrinsicColumnWidth(), 3: IntrinsicColumnWidth(), 4: IntrinsicColumnWidth()},
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: widget.variants.entries.map((e) {
-          final keyParts = e.key.split(':');
+        children: entries.map((e) {
           return TableRow(
             children: [
-              keyParts.length >= 3 ?
+              e.keyParts.length >= 3 ?
                 Text.rich(TextSpan(
                   children: [
                     WidgetSpan(
                       alignment: PlaceholderAlignment.middle,
-                      child: PkgNameFragment(BareModule(keyParts[0], keyParts[1]), asButton: true),
+                      child: PkgNameFragment(BareModule(e.keyParts[0], e.keyParts[1]), asButton: true),
                     ),
-                    TextSpan(text: keyParts.sublist(2).join(':')),
+                    TextSpan(text: e.keyParts.sublist(2).join(':')),
                   ],
                 )) : Padding(padding: PkgNameFragment.padding, child: Text(e.key)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_right_alt)),
