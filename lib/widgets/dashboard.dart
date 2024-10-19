@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:open_file/open_file.dart';
 import '../data.dart';
 import '../model.dart';
 import '../viewmodel.dart';
@@ -167,22 +168,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.person_outlined),
+            leading: const Icon(Symbols.person_pin_circle),
             title: Text('Profile: ${widget.dashboard.profile.name}')
           ),
           ExpansionTile(
             leading: const Icon(Symbols.folder_supervised),
             title: const Text("Plugins folder"),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Path'
+              Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Path'
+                        ),
+                        readOnly: true,
+                        initialValue: widget.dashboard.profile.paths?.plugins,
+                      ),
+                    ),
                   ),
-                  readOnly: true,
-                  initialValue: widget.dashboard.profile.paths?.plugins,
-                ),
+                  Tooltip(message: 'Open in file browser', child: IconButton(
+                    icon: const Icon(Symbols.open_in_new_down),
+                    onPressed: widget.dashboard.profile.paths == null ? null : () {
+                      OpenFile.open(widget.dashboard.profile.paths?.plugins);  // TODO does not work in web
+                    },
+                  )),
+                ],
               ),
             ],
           ),
