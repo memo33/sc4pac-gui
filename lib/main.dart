@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'model.dart';
 import 'data.dart';
@@ -214,7 +215,7 @@ class FolderPathEdit extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         OutlinedButton.icon(
-          icon: const Icon(Icons.folder),
+          icon: const Icon(Symbols.bookmark_manager),
           onPressed: () async {
             String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: controller.text);
             if (selectedDirectory != null && selectedDirectory.isNotEmpty) {

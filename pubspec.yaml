@@ -44,6 +44,7 @@ dependencies:
   provider: ^6.1.2
   url_launcher: ^6.3.0
   file_picker: ^8.1.2
+  material_symbols_icons: ^4.2789.0
 
 dev_dependencies:
   flutter_test:

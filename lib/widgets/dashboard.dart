@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import '../data.dart';
 import '../model.dart';
 import '../viewmodel.dart';
@@ -165,14 +166,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
             ),
           ),
-          Text('Profile: ${widget.dashboard.profile.name}'),
-          const SizedBox(height: 20),
-          OverflowBar(
-            spacing: 10.0,
-            children: <Widget>[
-              const Text('Plugins folder:'),
-              SizedBox(
-                width: 350,
+          ListTile(
+            leading: const Icon(Icons.person_outlined),
+            title: Text('Profile: ${widget.dashboard.profile.name}')
+          ),
+          ExpansionTile(
+            leading: const Icon(Symbols.folder_supervised),
+            title: const Text("Plugins folder"),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(10),
                 child: TextFormField(
                   decoration: const InputDecoration(
                     labelText: 'Path'
@@ -180,14 +183,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   readOnly: true,
                   initialValue: widget.dashboard.profile.paths?.plugins,
                 ),
-              ),
-              ElevatedButton(
-                onPressed: () { },
-                child: const Text('Button 1'),
-              ),
-              ElevatedButton(
-                onPressed: () { },
-                child: const Text('Button 2'),
               ),
             ],
           ),
@@ -202,21 +197,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
             listenable: widget.dashboard,
             builder: (context, child) => VariantsWidget(widget.dashboard.variantsFuture),
           ),
-          FilledButton.icon(
-            icon: const Icon(Icons.refresh),
-            onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () {
-              // Here we use global context (instead of current widget's
-              // context) so that update process can show dialog popups even
-              // when the current screen is disposed.
-              setState(() {
-                widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
-                  onFinished: () => setState(() {  // triggers rebuild of DashboardScreen
-                    widget.dashboard.fetchVariants();
-                  }),
-                );
-              });
-            },
-            label: const Text('Update All'),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: FilledButton.icon(
+              icon: const Icon(Icons.refresh),
+              onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () {
+                // Here we use global context (instead of current widget's
+                // context) so that update process can show dialog popups even
+                // when the current screen is disposed.
+                setState(() {
+                  widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
+                    onFinished: () => setState(() {  // triggers rebuild of DashboardScreen
+                      widget.dashboard.fetchVariants();
+                    }),
+                  );
+                });
+              },
+              label: const Text('Update All'),
+            ),
           ),
           if (widget.dashboard.updateProcess != null)
             Card.outlined(
@@ -462,7 +460,7 @@ class _VariantsTableState extends State<VariantsTable> {
               const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_right_alt)),
               Text("${e.value}"),
               const SizedBox(width: 20),
-              IconButton(
+              Tooltip(message: 'Reset variant', child: IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
                 onPressed: () {
                   setState(() {
@@ -470,7 +468,7 @@ class _VariantsTableState extends State<VariantsTable> {
                     Api.variantsReset([e.key], profileId: World.world.profile!.id);  // we do not need to await result
                   });
                 },
-              ),
+              )),
             ],
           );
         }).toList(),
