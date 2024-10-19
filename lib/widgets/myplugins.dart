@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import '../data.dart';
 import '../model.dart';
 import '../viewmodel.dart';
@@ -63,7 +64,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
               const SizedBox(height: 20),
               const DropdownMenu<String>(
                 width: 400,
-                leadingIcon: Icon(Icons.category),
+                leadingIcon: Icon(Symbols.category_search),
                 //initialSelection: '',
                 label: Text('Category'),
                 dropdownMenuEntries: [

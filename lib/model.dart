@@ -148,6 +148,15 @@ class Api {
     }
   }
 
+  static Future<ChannelStats> channelsStats({required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/channels.stats', {'profile': profileId}));
+    if (response.statusCode == 200) {
+      return ChannelStats.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   static WebSocketChannel update({required String profileId}) {
     final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update?profile=$profileId'));
     return ws;

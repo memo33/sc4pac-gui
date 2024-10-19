@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 // import 'package:google_fonts/google_fonts.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -62,21 +63,15 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              const DropdownMenu<String>(
-                width: 400,
-                leadingIcon: Icon(Icons.category),
-                //initialSelection: '',
-                label: Text('Category'),
-                dropdownMenuEntries: [
-                  DropdownMenuEntry<String>(
-                    value: '',
-                    label: 'All',
-                  ),
-                  DropdownMenuEntry<String>(
-                    value: '150-mods',
-                    label: '150-mods',
-                  ),
-                ],
+              FutureBuilder(
+                future: World.world.profile!.channelStatsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
+                  } else {
+                    return CategoryMenu(stats: snapshot.data);  // possibly null
+                  }
+                },
               ),
               // const SizedBox(height: 20),
               // const Text('Placeholder text'),

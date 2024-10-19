@@ -1,11 +1,14 @@
 // This file contains small reusable widgets that are used in multiple places of the app.
+import 'dart:math' show Random;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/link.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import '../model.dart';
 import 'packagepage.dart';
 import '../main.dart' show NavigationService;
+import '../data.dart' show ChannelStats;
 
 class ApiErrorWidget extends StatelessWidget {
   final ApiError error;
@@ -185,4 +188,72 @@ class PackageTile extends StatelessWidget {
       onTap: () => PackagePage.pushPkg(context, module),
     );
   }
+}
+
+class CategoryMenu extends StatefulWidget {
+  final ChannelStats? stats;
+  final ValueChanged<String?>? onSelected;
+  const CategoryMenu({required this.stats, this.onSelected, super.key});
+  @override State<CategoryMenu> createState() => _CategoryMenuState();
+}
+class _CategoryMenuState extends State<CategoryMenu> {
+  String? selectedCategory = '';
+  @override
+  Widget build(BuildContext context) {
+    final allCategories = [
+      (category: null, count: widget.stats?.totalPackageCount),  // All
+      ...? widget.stats?.categories,
+    ];
+    return DropdownMenu<String>(
+      width: 400,
+      onSelected: (s) {
+        // s == null means nothing was selected, s == '' means All was selected
+        setState(() { selectedCategory = s; });
+        if (widget.onSelected != null) {
+          widget.onSelected!(s);
+        }
+      },
+      leadingIcon: Icon(symbols[selectedCategory] ?? Symbols.category_search),
+      //initialSelection: '',
+      label: const Text('Category'),
+      // inputDecorationTheme: const InputDecorationTheme(
+      //   contentPadding: EdgeInsets.symmetric(vertical: 5.0),
+      // ),
+      menuStyle: const MenuStyle(
+        visualDensity: VisualDensity(horizontal: 0, vertical: -4),
+      ),
+      dropdownMenuEntries: allCategories.map((c) =>
+        DropdownMenuEntry<String>(
+          value: c.category ?? '',
+          label: c.category ?? "All",
+          leadingIcon: Icon(symbols[c.category], color: Theme.of(context).hintColor),
+          trailingIcon: Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(c.count?.toString() ?? '')),
+        ),
+      ).toList(),
+    );
+  }
+
+  static final symbols = {
+    '050-load-first': Symbols.event_upcoming,
+    '100-props-textures': Symbols.grid_view,
+    '150-mods': Symbols.tune,  // or Symbols.build
+    '170-terrain': Symbols.landscape,
+    '180-flora': Symbols.forest,
+    '200-residential': Symbols.house,
+    '300-commercial': Symbols.shopping_cart,
+    '360-landmark': Symbols.things_to_do,
+    '400-industrial': Symbols.factory,
+    '410-agriculture': Symbols.agriculture,
+    '500-utilities': Symbols.bolt,
+    '600-civics': Symbols.account_balance,
+    '610-safety': Symbols.fire_hydrant,
+    '620-education': Symbols.school,
+    '630-health': Symbols.emergency,
+    '640-government': Symbols.gavel,
+    '650-religion': [Symbols.church, Symbols.mosque, Symbols.synagogue][Random().nextInt(3)],
+    '660-parks': Symbols.nature_people,
+    '700-transit': Symbols.commute,
+    '710-automata': Symbols.traffic_jam,
+    '900-overrides': Symbols.event_repeat,
+  };
 }

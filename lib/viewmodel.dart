@@ -47,6 +47,7 @@ class Profile {
   late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
+  late Future<ChannelStats> channelStatsFuture = Api.channelsStats(profileId: id);
   Profile(this.id, this.name);
 }
 

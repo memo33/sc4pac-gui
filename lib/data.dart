@@ -104,3 +104,11 @@ class Profiles {
   Profiles(this.profiles, this.currentProfileId);
   factory Profiles.fromJson(Map<String, dynamic> json) => _$ProfilesFromJson(json);
 }
+
+@JsonSerializable()
+class ChannelStats {
+  final int totalPackageCount;
+  final List<({String category, int count})> categories;
+  ChannelStats(this.totalPackageCount, this.categories);
+  factory ChannelStats.fromJson(Map<String, dynamic> json) => _$ChannelStatsFromJson(json);
+}
