@@ -112,3 +112,21 @@ class ChannelStats {
   ChannelStats(this.totalPackageCount, this.categories);
   factory ChannelStats.fromJson(Map<String, dynamic> json) => _$ChannelStatsFromJson(json);
 }
+
+@JsonSerializable()
+class InstalledStatus {
+  final bool explicit;
+  final ({String version, Map<String, String> variant})? installed;
+  InstalledStatus(this.explicit, this.installed);
+  factory InstalledStatus.fromJson(Map<String, dynamic> json) => _$InstalledStatusFromJson(json);
+}
+
+@JsonSerializable()
+class PackageSearchResultItem {
+  final String package;
+  final int relevance;
+  final String summary;
+  final InstalledStatus? status;
+  PackageSearchResultItem(this.package, this.relevance, this.summary, this.status);
+  factory PackageSearchResultItem.fromJson(Map<String, dynamic> json) => _$PackageSearchResultItemFromJson(json);
+}

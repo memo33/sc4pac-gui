@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 // import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'dart:math';
+import '../data.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -14,7 +15,7 @@ class FindPackagesScreen extends StatefulWidget {
   State<FindPackagesScreen> createState() => _FindPackagesScreenState();
 }
 class _FindPackagesScreenState extends State<FindPackagesScreen> {
-  late Future<List<Map<String, dynamic>>> futureJson;
+  late Future<List<PackageSearchResultItem>> futureJson;
   late final TextEditingController _searchBarController = TextEditingController(text: widget.findPackages.searchTerm);
 
   @override
@@ -90,7 +91,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                     _search();
                   }),
                   trailing: [
-                    FutureBuilder<List<Map<String, dynamic>>>(
+                    FutureBuilder<List<PackageSearchResultItem>>(
                       future: futureJson,
                       builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
                     )
@@ -100,7 +101,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
             ],
           ),
         ),
-        FutureBuilder<List<Map<String, dynamic>>>(
+        FutureBuilder<List<PackageSearchResultItem>>(
           future: futureJson,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -115,11 +116,9 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 // Use a delegate to build items as they're scrolled on screen.
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    if (snapshot.data![index] case {'package': String pkg, 'summary': String summary}) {
-                      final module = BareModule.parse(pkg);
-                      return PackageTile(module, index, subtitle: summary, /*actionButton: AddPackageButton(module, false /*TODO*/)*/);
-                    }
-                    return ApiErrorWidget(ApiError.unexpected('Malformed package data.', '${snapshot.data![index]}'));
+                    final item = snapshot.data![index];
+                    final module = BareModule.parse(item.package);
+                    return PackageTile(module, index, subtitle: item.summary, status: item.status /*actionButton: AddPackageButton(module, false /*TODO*/)*/);
                   },
                   childCount: snapshot.data!.length,
                 ),

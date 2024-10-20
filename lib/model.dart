@@ -72,14 +72,16 @@ class Api {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> search(String query, {String? category, required String profileId}) async {
+  static Future<List<PackageSearchResultItem>> search(String query, {String? category, required String profileId}) async {
     final response = await http.get(Uri.http(host, '/packages.search', {
       'q': query,
       'profile': profileId,
       if (category != null && category.isNotEmpty) 'category': category
     }));
     if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
+      return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
+          .map((item) => PackageSearchResultItem.fromJson(item as Map<String, dynamic>))
+          .toList();
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }

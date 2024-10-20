@@ -5,10 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/link.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:badges/badges.dart' as badges;
 import '../model.dart';
 import 'packagepage.dart';
 import '../main.dart' show NavigationService;
-import '../data.dart' show ChannelStats;
+import '../data.dart' show ChannelStats, InstalledStatus;
 
 class ApiErrorWidget extends StatelessWidget {
   final ApiError error;
@@ -170,17 +171,47 @@ class PackageTileChip extends StatelessWidget {
   }
 }
 
+class InstalledStatusIcon extends StatelessWidget {
+  final InstalledStatus? status;
+  const InstalledStatusIcon(this.status, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    if (status != null) {
+      if (status!.explicit) {
+        if (status!.installed == null) {
+          return Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
+        } else {
+          final color = Theme.of(context).colorScheme.secondary;
+          return badges.Badge(
+            badgeContent: Icon(Icons.star, size: 13, color: color),
+            position: badges.BadgePosition.bottomEnd(bottom: -3, end: -2),
+            badgeStyle: badges.BadgeStyle(
+              padding: const EdgeInsets.all(1.2),
+              badgeColor: Theme.of(context).colorScheme.surface,
+            ),
+            child: Icon(Symbols.deployed_code, color: color),
+          );
+        }
+      } else if (status!.installed != null) {
+        return Icon(Symbols.package_2, color: Theme.of(context).colorScheme.secondary);
+      } // else not explicit and not installed
+    }
+    return const Icon(Icons.token_outlined);
+  }
+}
+
 class PackageTile extends StatelessWidget {
   final BareModule module;
   final String? subtitle;
   final int index;
   final Widget? actionButton;
   final List<Widget> chips;
-  const PackageTile(this.module, this.index, {super.key, this.subtitle, this.actionButton, this.chips = const []});
+  final InstalledStatus? status;
+  const PackageTile(this.module, this.index, {super.key, this.subtitle, this.actionButton, this.chips = const [], this.status});
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: const Icon(Icons.token_outlined),
+      leading: InstalledStatusIcon(status),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
       subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: actionButton ?? Text('${index+1}'),
