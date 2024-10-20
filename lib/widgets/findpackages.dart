@@ -39,15 +39,14 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
     }
   }
 
-  static const double _appBarHeight = 130.0;  // TODO this is not the full app bar, but just bottom
+  static const double _toolBarHeight = 100.0;
+  static const double _appBarHeight = _toolBarHeight;
 
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          // Provide a standard title.
-          // title: Text('Title'),
           // Allows the user to reveal the app bar if they begin scrolling
           // back up the list of items.
           floating: true,
@@ -55,54 +54,51 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
           //flexibleSpace: Placeholder(),
           // Make the initial height of the SliverAppBar larger than normal.
           //expandedHeight: 200,
-          bottom: PreferredSize(preferredSize: const Size.fromHeight(_appBarHeight), child: Column(  // TODO avoid setting explicit size
+          toolbarHeight: _toolBarHeight,
+          title: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const SizedBox(height: 10),
-              SearchBar(
-                controller: _searchBarController,
-                padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
-                leading: const Icon(Icons.search),
-                // or onChanged for immediate feedback?
-                onSubmitted: (String query) => setState(() {
-                  widget.findPackages.searchTerm = query;
-                  _search();
-                }),  // TODO
-                trailing: [
-                  FutureBuilder<List<Map<String, dynamic>>>(
-                    future: futureJson,
-                    builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
-                  )
-                ],
-              ),
-              const SizedBox(height: 20),
               FutureBuilder(
                 future: World.world.profile!.channelStatsFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
-                  } else {
-                    return CategoryMenu(
-                      stats: snapshot.data,  // possibly null
-                      initialCategory: widget.findPackages.selectedCategory,
-                      menuHeight: max(300,
-                        MediaQuery.of(context).size.height - _appBarHeight - 80  // TODO magic number
-                        - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
-                      ),
-                      onSelected: (s) {
-                        setState(() {
-                          widget.findPackages.selectedCategory = s;
-                          _search();
-                        });
-                      },
-                    );
-                  }
+                  // if snapshot.hasError, this usually means /error/channels-not-available which can be ignored here
+                  return CategoryMenu(
+                    stats: snapshot.data,  // possibly null
+                    initialCategory: widget.findPackages.selectedCategory,
+                    menuHeight: max(300,
+                      MediaQuery.of(context).size.height - _appBarHeight
+                      - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                    ),
+                    onSelected: (s) {
+                      setState(() {
+                        widget.findPackages.selectedCategory = s;
+                        _search();
+                      });
+                    },
+                  );
                 },
               ),
-              // const SizedBox(height: 20),
-              // const Text('Placeholder text'),
+              const SizedBox(width: 20),
+              Expanded(
+                child: SearchBar(
+                  controller: _searchBarController,
+                  padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
+                  leading: const Icon(Icons.search),
+                  // or onChanged for immediate feedback?
+                  onSubmitted: (String query) => setState(() {
+                    widget.findPackages.searchTerm = query;
+                    _search();
+                  }),
+                  trailing: [
+                    FutureBuilder<List<Map<String, dynamic>>>(
+                      future: futureJson,
+                      builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
+                    )
+                  ],
+                ),
+              ),
             ],
-          )),
+          ),
         ),
         FutureBuilder<List<Map<String, dynamic>>>(
           future: futureJson,

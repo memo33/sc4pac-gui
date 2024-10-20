@@ -15,6 +15,7 @@ class ApiErrorWidget extends StatelessWidget {
   const ApiErrorWidget(this.error, {super.key});
   @override
   Widget build(BuildContext context) {
+    // TODO these widgets must be used with care as ListTile requires width constraints, so better replace with something more flexible
     if (error.detail.isNotEmpty) {
       return ExpansionTile(
         leading: const Icon(Icons.error_outline),
@@ -217,7 +218,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
     return DropdownMenu<String?>(
       controller: _controller,
       menuHeight: widget.menuHeight,
-      width: 400,
+      width: 260,
       onSelected: (s) {
         setState(() { selectedCategory = s; });
         if (widget.onSelected != null) {
