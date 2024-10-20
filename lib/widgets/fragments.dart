@@ -52,28 +52,26 @@ class PkgNameFragment extends StatelessWidget {
   final bool asButton;
   final bool isInstalled;
   final bool colored;
+  final String? localVariant;
   // final Widget? leading;
-  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.isInstalled = false, this.colored = true/*, this.leading*/});
+  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.isInstalled = false, this.colored = true, this.localVariant/*, this.leading*/});
 
   static const EdgeInsets padding = EdgeInsets.all(10);
 
   @override
   Widget build(BuildContext context) {
     final style = DefaultTextStyle.of(context).style; //.apply(fontFamily: GoogleFonts.notoSansMono().fontFamily);
+    final style1 = colored ? style : style.copyWith(color: Theme.of(context).hintColor);
+    final style2 = colored ? style.copyWith(color: Theme.of(context).primaryColor) : style;
     final text = RichText(
       text: TextSpan(
         style: style,
         children: [
           // if (leading != null) WidgetSpan(child: leading!),
           // if (leading != null) const WidgetSpan(child: SizedBox(width: 10)),
-          TextSpan(
-            text: '${module.group} : ',
-            style: colored ? style : style.copyWith(color: Theme.of(context).hintColor),
-          ),
-          TextSpan(
-            text: module.name,
-            style: colored ? style.copyWith(color: Theme.of(context).primaryColor) : style/*.copyWith(fontWeight: FontWeight.bold)*/,
-          ),
+          TextSpan(text: '${module.group} : ', style: style1),
+          TextSpan(text: module.name, style: style2),
+          if (localVariant != null) TextSpan(text: ' : $localVariant', style: style1),
         ],
       ),
     );

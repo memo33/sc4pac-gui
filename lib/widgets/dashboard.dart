@@ -430,10 +430,7 @@ class VariantsWidget extends StatelessWidget {
             } else if (!snapshot.hasData) {
               return const SizedBox();
             } else {
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: VariantsTable(snapshot.data!),
-              );
+              return VariantsTable(snapshot.data!);
             }
           },
         ),
@@ -458,38 +455,40 @@ class _VariantsTableState extends State<VariantsTable> {
         final result = a.keyParts.length.compareTo(b.keyParts.length);
         return result != 0 ? result : a.key.compareTo(b.key);
       });
-      return Table(
-        columnWidths: const {0: IntrinsicColumnWidth(), 1: IntrinsicColumnWidth(), 2: IntrinsicColumnWidth(), 3: IntrinsicColumnWidth(), 4: IntrinsicColumnWidth()},
+      return ConstrainedBox(constraints: const BoxConstraints(maxWidth: 800), child: Table(
+        columnWidths: const {
+          0: FlexColumnWidth(0.65),   // variant
+          1: IntrinsicColumnWidth(),  // arrow
+          2: FlexColumnWidth(0.35),   // value
+          3: IntrinsicColumnWidth(),  // remove-button
+        },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: entries.map((e) {
           return TableRow(
             children: [
               e.keyParts.length >= 3 ?
-                Text.rich(TextSpan(
-                  children: [
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: PkgNameFragment(BareModule(e.keyParts[0], e.keyParts[1]), asButton: true),
-                    ),
-                    TextSpan(text: e.keyParts.sublist(2).join(':')),
-                  ],
-                )) : Padding(padding: PkgNameFragment.padding, child: Text(e.key)),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: PkgNameFragment(BareModule(e.keyParts[0], e.keyParts[1]), asButton: true, localVariant: e.keyParts.sublist(2).join(':')),
+                ) : Padding(padding: PkgNameFragment.padding, child: Text(e.key)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_right_alt)),
-              Text("${e.value}"),
-              const SizedBox(width: 20),
-              Tooltip(message: 'Reset variant', child: IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: () {
-                  setState(() {
-                    widget.variants.remove(e.key);
-                    Api.variantsReset([e.key], profileId: World.world.profile!.id);  // we do not need to await result
-                  });
-                },
-              )),
+              Text(e.value.toString()),
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Tooltip(message: 'Reset variant', child: IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: () {
+                    setState(() {
+                      widget.variants.remove(e.key);
+                      Api.variantsReset([e.key], profileId: World.world.profile!.id);  // we do not need to await result
+                    });
+                  },
+                )),
+              ),
             ],
           );
         }).toList(),
-      );
+      ));
     }
   }
 }
