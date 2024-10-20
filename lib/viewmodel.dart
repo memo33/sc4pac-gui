@@ -53,6 +53,7 @@ class Profile {
 
 class FindPackages {
   String? searchTerm;
+  String? selectedCategory;
 }
 
 enum InstallStateType { markedForInstall, explicitlyInstalled, installedAsDependency }

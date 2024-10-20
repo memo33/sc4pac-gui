@@ -193,29 +193,41 @@ class PackageTile extends StatelessWidget {
 class CategoryMenu extends StatefulWidget {
   final ChannelStats? stats;
   final ValueChanged<String?>? onSelected;
-  const CategoryMenu({required this.stats, this.onSelected, super.key});
+  final String? initialCategory;
+  final double? menuHeight;
+  const CategoryMenu({required this.stats, this.onSelected, this.initialCategory, this.menuHeight, super.key});
   @override State<CategoryMenu> createState() => _CategoryMenuState();
 }
 class _CategoryMenuState extends State<CategoryMenu> {
-  String? selectedCategory = '';
+  late String? selectedCategory = widget.initialCategory;
+  late final TextEditingController _controller = TextEditingController(text: selectedCategory);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final allCategories = [
       (category: null, count: widget.stats?.totalPackageCount),  // All
       ...? widget.stats?.categories,
     ];
-    return DropdownMenu<String>(
+    return DropdownMenu<String?>(
+      controller: _controller,
+      menuHeight: widget.menuHeight,
       width: 400,
       onSelected: (s) {
-        // s == null means nothing was selected, s == '' means All was selected
         setState(() { selectedCategory = s; });
         if (widget.onSelected != null) {
           widget.onSelected!(s);
         }
       },
       leadingIcon: Icon(symbols[selectedCategory] ?? Symbols.category_search),
-      //initialSelection: '',
+      initialSelection: selectedCategory,
       label: const Text('Category'),
+      // enableFilter: true,
       // inputDecorationTheme: const InputDecorationTheme(
       //   contentPadding: EdgeInsets.symmetric(vertical: 5.0),
       // ),
@@ -223,8 +235,8 @@ class _CategoryMenuState extends State<CategoryMenu> {
         visualDensity: VisualDensity(horizontal: 0, vertical: -4),
       ),
       dropdownMenuEntries: allCategories.map((c) =>
-        DropdownMenuEntry<String>(
-          value: c.category ?? '',
+        DropdownMenuEntry<String?>(
+          value: c.category,
           label: c.category ?? "All",
           leadingIcon: Icon(symbols[c.category], color: Theme.of(context).hintColor),
           trailingIcon: Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(c.count?.toString() ?? '')),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 // import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'dart:math';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -19,7 +20,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
   @override
   void initState() {
     super.initState();
-    futureJson = Api.search(_searchBarController.text, profileId: World.world.profile!.id);
+    _search();
   }
 
   @override
@@ -27,6 +28,18 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
     _searchBarController.dispose();
     super.dispose();
   }
+
+  void _search() {
+    final q = widget.findPackages.searchTerm;
+    final c = widget.findPackages.selectedCategory;
+    if ((q?.isNotEmpty ?? false) || c != null) {
+      futureJson = Api.search(q ?? '', category: c, profileId: World.world.profile!.id);
+    } else {
+      futureJson = Future.value([]);
+    }
+  }
+
+  static const double _appBarHeight = 130.0;  // TODO this is not the full app bar, but just bottom
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +55,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
           //flexibleSpace: Placeholder(),
           // Make the initial height of the SliverAppBar larger than normal.
           //expandedHeight: 200,
-          bottom: PreferredSize(preferredSize: const Size.fromHeight(130.0), child: Column(  // TODO avoid setting explicit size
+          bottom: PreferredSize(preferredSize: const Size.fromHeight(_appBarHeight), child: Column(  // TODO avoid setting explicit size
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const SizedBox(height: 10),
@@ -52,8 +65,8 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 leading: const Icon(Icons.search),
                 // or onChanged for immediate feedback?
                 onSubmitted: (String query) => setState(() {
-                  futureJson = Api.search(query, profileId: World.world.profile!.id);
                   widget.findPackages.searchTerm = query;
+                  _search();
                 }),  // TODO
                 trailing: [
                   FutureBuilder<List<Map<String, dynamic>>>(
@@ -69,7 +82,20 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   if (snapshot.hasError) {
                     return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
                   } else {
-                    return CategoryMenu(stats: snapshot.data);  // possibly null
+                    return CategoryMenu(
+                      stats: snapshot.data,  // possibly null
+                      initialCategory: widget.findPackages.selectedCategory,
+                      menuHeight: max(300,
+                        MediaQuery.of(context).size.height - _appBarHeight - 80  // TODO magic number
+                        - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                      ),
+                      onSelected: (s) {
+                        setState(() {
+                          widget.findPackages.selectedCategory = s;
+                          _search();
+                        });
+                      },
+                    );
                   }
                 },
               ),
