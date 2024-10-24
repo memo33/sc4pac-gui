@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'dart:math';
 import '../data.dart';
 import '../model.dart';
 import '../viewmodel.dart';
@@ -13,31 +14,44 @@ class MyPluginsScreen extends StatefulWidget {
   State<MyPluginsScreen> createState() => _MyPluginsScreenState();
 }
 class _MyPluginsScreenState extends State<MyPluginsScreen> {
-  late Future<List<InstalledListItem>> futureJson;
-  late Future<List<InstalledListItem>> filteredList;
+  late Future<List<PluginsSearchResultItem>> futureJson;
+  late Future<List<PluginsSearchResultItem>> filteredList;
+  late final TextEditingController _searchBarController = TextEditingController(text: widget.myPlugins.searchTerm);
+  // late Future<List<InstalledListItem>> futureJson;
+  // late Future<List<InstalledListItem>> filteredList;
 
-  void _computeFilter() {
+  void _filter() {
     filteredList = futureJson.then((items) => items.where((pkg) =>
-      widget.myPlugins.installStateSelection.contains(pkg.explicit ? InstallStateType.explicitlyInstalled : InstallStateType.installedAsDependency)
+      widget.myPlugins.installStateSelection.contains(pkg.status.explicit ? InstallStateType.explicitlyInstalled : InstallStateType.installedAsDependency)
     ).toList());
   }
 
-  void _computeState() {
-    futureJson = Api.installed(profileId: World.world.profile!.id);
-    _computeFilter();
+  void _search() {
+    final q = widget.myPlugins.searchTerm;
+    final c = widget.myPlugins.selectedCategory;
+    futureJson = Api.pluginsSearch(q ?? '', category: c, profileId: World.world.profile!.id);
+    _filter();
   }
-
   @override
   void initState() {
     super.initState();
-    _computeState();
+    _search();
+  }
+
+  @override
+  void dispose() {
+    _searchBarController.dispose();
+    super.dispose();
   }
 
   void refresh() {
     setState(() {
-      _computeState();
+      _search();
     });
   }
+
+  static const double _toolBarHeight = 100.0;
+  static const double _toolbarBottomHeight = 40.0;
 
   @override
   Widget build(BuildContext context) {
@@ -45,59 +59,78 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
       slivers: [
         SliverAppBar(
           floating: true,
-          bottom: PreferredSize(preferredSize: const Size.fromHeight(180.0), child: Column(  // TODO avoid setting explicit size
+          // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
+          // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
+          toolbarHeight: _toolBarHeight,
+          title: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const SizedBox(height: 10),
-              SearchBar(
-                padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
-                leading: const Icon(Icons.search),
-                // or onChanged for immediate feedback?
-                onSubmitted: (String query) => setState(() { }),  // TODO
-                // trailing: [
-                //   FutureBuilder<List<Map<String, dynamic>>>(
-                //     future: filteredList,
-                //     builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
-                //   )
-                // ],
-              ),
-              const SizedBox(height: 20),
-              const DropdownMenu<String>(
-                width: 400,
-                leadingIcon: Icon(Symbols.category_search),
-                //initialSelection: '',
-                label: Text('Category'),
-                dropdownMenuEntries: [
-                  DropdownMenuEntry<String>(
-                    value: '',
-                    label: 'All',
-                  ),
-                  DropdownMenuEntry<String>(
-                    value: '150-mods',
-                    label: '150-mods',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              SegmentedButton<InstallStateType>(
-                segments: const [
-                  ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
-                  ButtonSegment(value: InstallStateType.explicitlyInstalled, label: Text('Explicitly installed'), icon: Icon(Icons.arrow_right)),
-                  ButtonSegment(value: InstallStateType.installedAsDependency, label: Text('Installed as dependency'), icon: Icon(Icons.arrow_right)),
-                ],
-                multiSelectionEnabled: true,
-                selected: widget.myPlugins.installStateSelection,
-                onSelectionChanged: (Set<InstallStateType> newSelection) {
-                  setState(() {
-                    widget.myPlugins.installStateSelection = newSelection;
-                    _computeFilter();
-                  });
+              FutureBuilder(
+                future: World.world.profile!.channelStatsFuture,
+                builder: (context, snapshot) {
+                  // if snapshot.hasError, this usually means /error/channels-not-available which can be ignored here
+                  return CategoryMenu(
+                    stats: snapshot.data,  // possibly null
+                    initialCategory: widget.myPlugins.selectedCategory,
+                    menuHeight: max(300,
+                      MediaQuery.of(context).size.height - _toolBarHeight
+                      - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                    ),
+                    onSelected: (s) {
+                      setState(() {
+                        widget.myPlugins.selectedCategory = s;
+                        _search();
+                      });
+                    },
+                  );
                 },
               ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: SearchBar(
+                  controller: _searchBarController,
+                  padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
+                  leading: const Icon(Icons.search),
+                  // or onChanged for immediate feedback?
+                  onSubmitted: (String query) => setState(() {
+                    widget.myPlugins.searchTerm = query;
+                    _search();
+                  }),
+                  trailing: [
+                    FutureBuilder<List<PluginsSearchResultItem>>(
+                      future: futureJson,
+                      builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
+                    )
+                  ],
+                ),
+              ),
             ],
-          )),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(_toolbarBottomHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                SegmentedButton<InstallStateType>(
+                  segments: const [
+                    ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
+                    ButtonSegment(value: InstallStateType.explicitlyInstalled, label: Text('Explicitly installed'), icon: Icon(Icons.arrow_right)),
+                    ButtonSegment(value: InstallStateType.installedAsDependency, label: Text('Installed as dependency'), icon: Icon(Icons.arrow_right)),
+                  ],
+                  multiSelectionEnabled: true,
+                  selected: widget.myPlugins.installStateSelection,
+                  onSelectionChanged: (Set<InstallStateType> newSelection) {
+                    setState(() {
+                      widget.myPlugins.installStateSelection = newSelection;
+                      _filter();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
-        FutureBuilder<List<InstalledListItem>>(
+        FutureBuilder<List<PluginsSearchResultItem>>(
           future: filteredList,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -112,15 +145,16 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                   (context, index) {
                     final pkg = snapshot.data![index];
                     final module = BareModule.parse(pkg.package);
-                    final sortedVariantKeys = pkg.variant.keys.toList();
+                    final sortedVariantKeys = pkg.status.installed?.variant.keys.toList() ?? [];
                     sortedVariantKeys.sort();
                     return PackageTile(
                       module,
                       index,
-                      subtitle: '${pkg.version} | summary…',
+                      subtitle: '${pkg.status.installed?.version} | ${pkg.summary} | ${pkg.status.timeLabel()}',
+                      status: pkg.status,
                       chips: [
-                        ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.variant[k]!)),
-                        if (pkg.explicit) PackageTileChip.explicit(onDeleted: () {
+                        ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!)),
+                        if (pkg.status.explicit) PackageTileChip.explicit(onDeleted: () {
                           Api.remove(module, profileId: World.world.profile!.id).then((_) {
                             refresh();
                           }, onError: ApiErrorWidget.dialog);  // TODO handle failure and success

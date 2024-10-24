@@ -2,6 +2,7 @@
 // and are used with the API.
 // The serialization code is auto-generated in `data.g.dart`.
 import 'package:json_annotation/json_annotation.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 part 'data.g.dart';  // access private members in generated code
 
@@ -119,6 +120,15 @@ class InstalledStatus {
   final ({String version, Map<String, String> variant, String installedAt, String updatedAt})? installed;
   InstalledStatus(this.explicit, this.installed);
   factory InstalledStatus.fromJson(Map<String, dynamic> json) => _$InstalledStatusFromJson(json);
+
+  String? timeLabel() {
+    if (installed != null) {
+      final prefix = installed!.installedAt == installed!.updatedAt ? 'installed' : 'updated';
+      return "$prefix ${timeago.format(DateTime.parse(installed!.updatedAt))}";
+    } else {
+      return null;
+    }
+  }
 }
 
 @JsonSerializable()

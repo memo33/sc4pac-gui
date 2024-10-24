@@ -59,6 +59,8 @@ class FindPackages {
 enum InstallStateType { markedForInstall, explicitlyInstalled, installedAsDependency }
 
 class MyPlugins {
+  String? searchTerm;
+  String? selectedCategory;
   Set<InstallStateType> installStateSelection =
     {InstallStateType.markedForInstall, InstallStateType.explicitlyInstalled, InstallStateType.installedAsDependency};
 }

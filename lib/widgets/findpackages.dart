@@ -41,20 +41,15 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
   }
 
   static const double _toolBarHeight = 100.0;
-  static const double _appBarHeight = _toolBarHeight;
 
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          // Allows the user to reveal the app bar if they begin scrolling
-          // back up the list of items.
           floating: true,
-          // Display a placeholder widget to visualize the shrinking size.
-          //flexibleSpace: Placeholder(),
-          // Make the initial height of the SliverAppBar larger than normal.
-          //expandedHeight: 200,
+          // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
+          // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -67,7 +62,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                     stats: snapshot.data,  // possibly null
                     initialCategory: widget.findPackages.selectedCategory,
                     menuHeight: max(300,
-                      MediaQuery.of(context).size.height - _appBarHeight
+                      MediaQuery.of(context).size.height - _toolBarHeight
                       - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
                     ),
                     onSelected: (s) {
