@@ -14,14 +14,14 @@ class MyPluginsScreen extends StatefulWidget {
   State<MyPluginsScreen> createState() => _MyPluginsScreenState();
 }
 class _MyPluginsScreenState extends State<MyPluginsScreen> {
-  late Future<List<PluginsSearchResultItem>> futureJson;
+  late Future<PluginsSearchResult> searchResultFuture;
   late Future<List<PluginsSearchResultItem>> filteredList;
   late final TextEditingController _searchBarController = TextEditingController(text: widget.myPlugins.searchTerm);
-  // late Future<List<InstalledListItem>> futureJson;
+  // late Future<List<InstalledListItem>> searchResultFuture;
   // late Future<List<InstalledListItem>> filteredList;
 
   void _filter() {
-    filteredList = futureJson.then((items) => items.where((pkg) =>
+    filteredList = searchResultFuture.then((searchResult) => searchResult.packages.where((pkg) =>
       widget.myPlugins.installStateSelection.contains(pkg.status.explicit ? InstallStateType.explicitlyInstalled : InstallStateType.installedAsDependency)
     ).toList());
   }
@@ -29,7 +29,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   void _search() {
     final q = widget.myPlugins.searchTerm;
     final c = widget.myPlugins.selectedCategory;
-    futureJson = Api.pluginsSearch(q ?? '', category: c, profileId: World.world.profile!.id);
+    searchResultFuture = Api.pluginsSearch(q ?? '', category: c, profileId: World.world.profile!.id);
     _filter();
   }
   @override
@@ -66,7 +66,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               FutureBuilder(
-                future: World.world.profile!.channelStatsFuture,
+                future: searchResultFuture.then((searchResult) => searchResult.stats),
                 builder: (context, snapshot) {
                   // if snapshot.hasError, this usually means /error/channels-not-available which can be ignored here
                   return CategoryMenu(
@@ -97,9 +97,9 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     _search();
                   }),
                   trailing: [
-                    FutureBuilder<List<PluginsSearchResultItem>>(
-                      future: futureJson,
-                      builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
+                    FutureBuilder<PluginsSearchResult>(
+                      future: searchResultFuture,
+                      builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.packages.length} packages' : ''),
                     )
                   ],
                 ),

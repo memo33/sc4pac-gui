@@ -150,3 +150,11 @@ class PluginsSearchResultItem {
   PluginsSearchResultItem(this.package, this.relevance, this.summary, this.status);
   factory PluginsSearchResultItem.fromJson(Map<String, dynamic> json) => _$PluginsSearchResultItemFromJson(json);
 }
+
+@JsonSerializable()
+class PluginsSearchResult {
+  final ChannelStats stats;
+  final List<PluginsSearchResultItem> packages;
+  PluginsSearchResult(this.stats, this.packages);
+  factory PluginsSearchResult.fromJson(Map<String, dynamic> json) => _$PluginsSearchResultFromJson(json);
+}
