@@ -116,7 +116,7 @@ class ChannelStats {
 @JsonSerializable()
 class InstalledStatus {
   final bool explicit;
-  final ({String version, Map<String, String> variant})? installed;
+  final ({String version, Map<String, String> variant, String installedAt, String updatedAt})? installed;
   InstalledStatus(this.explicit, this.installed);
   factory InstalledStatus.fromJson(Map<String, dynamic> json) => _$InstalledStatusFromJson(json);
 }
@@ -129,4 +129,14 @@ class PackageSearchResultItem {
   final InstalledStatus? status;
   PackageSearchResultItem(this.package, this.relevance, this.summary, this.status);
   factory PackageSearchResultItem.fromJson(Map<String, dynamic> json) => _$PackageSearchResultItemFromJson(json);
+}
+
+@JsonSerializable()
+class PluginsSearchResultItem {
+  final String package;
+  final int relevance;
+  final String summary;
+  final InstalledStatus status;  // TODO status.installed should not be null
+  PluginsSearchResultItem(this.package, this.relevance, this.summary, this.status);
+  factory PluginsSearchResultItem.fromJson(Map<String, dynamic> json) => _$PluginsSearchResultItemFromJson(json);
 }
