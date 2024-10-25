@@ -62,7 +62,7 @@ class MyPlugins {
   String? searchTerm;
   String? selectedCategory;
   Set<InstallStateType> installStateSelection =
-    {InstallStateType.markedForInstall, InstallStateType.explicitlyInstalled, InstallStateType.installedAsDependency};
+    {/*InstallStateType.markedForInstall,*/ InstallStateType.explicitlyInstalled, InstallStateType.installedAsDependency};
 }
 
 class Dashboard extends ChangeNotifier {

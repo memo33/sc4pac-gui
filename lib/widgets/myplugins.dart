@@ -113,7 +113,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
               children: <Widget>[
                 SegmentedButton<InstallStateType>(
                   segments: const [
-                    ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
+                    // ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
                     ButtonSegment(value: InstallStateType.explicitlyInstalled, label: Text('Explicitly installed'), icon: Icon(Icons.arrow_right)),
                     ButtonSegment(value: InstallStateType.installedAsDependency, label: Text('Installed as dependency'), icon: Icon(Icons.arrow_right)),
                   ],
