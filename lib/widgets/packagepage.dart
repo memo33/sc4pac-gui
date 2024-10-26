@@ -13,11 +13,11 @@ class PackagePage extends StatefulWidget {
   @override
   State<PackagePage> createState() => _PackagePageState();
 
-  static Future<dynamic> pushPkg(BuildContext context, BareModule module) {
+  static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage}) {
     return Navigator.push(
       context,
       MaterialPageRoute(barrierDismissible: true, builder: (context1) => PackagePage(module)),
-    );
+    ).then((_) => refreshPreviousPage());
   }
 }
 class _PackagePageState extends State<PackagePage> {
@@ -43,7 +43,7 @@ class _PackagePageState extends State<PackagePage> {
   }
 
   void _refresh() {
-    setState(_fetchInfo);  // TODO refetching not necessarily needed on this page, but on previous page
+    setState(_fetchInfo);
   }
 
   @override
@@ -52,7 +52,7 @@ class _PackagePageState extends State<PackagePage> {
       appBar: AppBar(
         title: CopyButton(
           copyableText: widget.module.toString(),
-          child: PkgNameFragment(widget.module, asButton: false, colored: false),
+          child: PkgNameFragment(widget.module, asButton: false, colored: false, refreshParent: _refresh),
         ),
         actions: [
           IconButton(icon: const Icon(Icons.close), tooltip: 'Close all', onPressed: () {
@@ -135,13 +135,13 @@ class _PackagePageState extends State<PackagePage> {
                       packageTableRow("Dependenies",
                         dependencies.isEmpty ? const Text('None') : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: dependencies.map((module) => PkgNameFragment(module, asButton: true, status: statuses[module.toString()])).toList(),
+                          children: dependencies.map((module) => PkgNameFragment(module, asButton: true, refreshParent: _refresh, status: statuses[module.toString()])).toList(),
                         )
                       ),
                       packageTableRow("Required By",
                         requiredBy.isEmpty ? const Text('None') : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: requiredBy.map((module) => PkgNameFragment(module, asButton: true, status: statuses[module.toString()])).toList(),
+                          children: requiredBy.map((module) => PkgNameFragment(module, asButton: true, refreshParent: _refresh, status: statuses[module.toString()])).toList(),
                         )
                       ),
                     ],

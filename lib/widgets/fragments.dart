@@ -55,7 +55,8 @@ class PkgNameFragment extends StatelessWidget {
   final bool colored;
   final String? localVariant;
   // final Widget? leading;
-  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.status, this.colored = true, this.localVariant/*, this.leading*/});
+  final void Function()? refreshParent;  // required if asButton
+  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.status, this.colored = true, this.localVariant/*, this.leading*/, this.refreshParent});
 
   static const EdgeInsets padding = EdgeInsets.all(10);
 
@@ -77,7 +78,7 @@ class PkgNameFragment extends StatelessWidget {
       ),
     );
     return !asButton ? text : TextButton.icon(
-      onPressed: () => PackagePage.pushPkg(context, module),
+      onPressed: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
       label: text,
       icon: status == null ? null : InstalledStatusIcon(status),
       iconAlignment: IconAlignment.start,
@@ -237,7 +238,8 @@ class PackageTile extends StatelessWidget {
   final List<Widget> chips;
   final InstalledStatus? status;
   final void Function(bool)? onToggled;
-  const PackageTile(this.module, this.index, {super.key, this.subtitle, /*this.actionButton,*/ this.chips = const [], this.status, this.onToggled});
+  final void Function() refreshParent;
+  const PackageTile(this.module, this.index, {super.key, this.subtitle, /*this.actionButton,*/ this.chips = const [], this.status, this.onToggled, required this.refreshParent});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
@@ -249,11 +251,11 @@ class PackageTile extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           // passing a key is important to trigger redraw of button if index of list tile changes (e.g. due to filtering)
-          if (onToggled != null) StarIconButton(explicit, onToggled: onToggled!, key: ValueKey(module)),
+          if (onToggled != null) StarIconButton(explicit, onToggled: onToggled!, key: ValueKey((module, explicit))),
           Text((index+1).toString()),
         ],
       ),
-      onTap: () => PackagePage.pushPkg(context, module),
+      onTap: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent),
     );
   }
 }

@@ -187,6 +187,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       index,
                       subtitle: '${pkg.status.installed?.version} | ${pkg.summary} | ${pkg.status.timeLabel()}',
                       status: pkg.status,
+                      refreshParent: _refresh,
                       onToggled: (checked) {
                         final task = checked ?
                             Api.add(module, profileId: World.world.profile!.id) :

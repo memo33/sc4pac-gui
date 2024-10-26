@@ -469,7 +469,11 @@ class _VariantsTableState extends State<VariantsTable> {
               e.keyParts.length >= 3 ?
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: PkgNameFragment(BareModule(e.keyParts[0], e.keyParts[1]), asButton: true, localVariant: e.keyParts.sublist(2).join(':')),
+                  child: PkgNameFragment(BareModule(e.keyParts[0], e.keyParts[1]),
+                    asButton: true,
+                    localVariant: e.keyParts.sublist(2).join(':'),
+                    refreshParent: null,  // for now, we do not pass a refresh callback, as package page just toggles explicit packages which currenty are not relevant for dashboard
+                  ),
                 ) : Padding(padding: PkgNameFragment.padding, child: Text(e.key)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_right_alt)),
               Text(e.value.toString()),

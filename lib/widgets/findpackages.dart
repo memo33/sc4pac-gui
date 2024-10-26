@@ -122,6 +122,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                     return PackageTile(module, index,
                       subtitle: item.summary,
                       status: item.status,
+                      refreshParent: _refresh,
                       onToggled: (checked) {
                         final task = checked ?
                             Api.add(module, profileId: World.world.profile!.id) :
