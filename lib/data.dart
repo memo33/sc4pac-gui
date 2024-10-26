@@ -2,6 +2,7 @@
 // and are used with the API.
 // The serialization code is auto-generated in `data.g.dart`.
 import 'package:json_annotation/json_annotation.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 part 'data.g.dart';  // access private members in generated code
 
@@ -116,9 +117,18 @@ class ChannelStats {
 @JsonSerializable()
 class InstalledStatus {
   final bool explicit;
-  final ({String version, Map<String, String> variant})? installed;
+  final ({String version, Map<String, String> variant, String installedAt, String updatedAt})? installed;
   InstalledStatus(this.explicit, this.installed);
   factory InstalledStatus.fromJson(Map<String, dynamic> json) => _$InstalledStatusFromJson(json);
+
+  String? timeLabel() {
+    if (installed != null) {
+      final prefix = installed!.installedAt == installed!.updatedAt ? 'installed' : 'updated';
+      return "$prefix ${timeago.format(DateTime.parse(installed!.updatedAt))}";
+    } else {
+      return null;
+    }
+  }
 }
 
 @JsonSerializable()
@@ -129,4 +139,22 @@ class PackageSearchResultItem {
   final InstalledStatus? status;
   PackageSearchResultItem(this.package, this.relevance, this.summary, this.status);
   factory PackageSearchResultItem.fromJson(Map<String, dynamic> json) => _$PackageSearchResultItemFromJson(json);
+}
+
+@JsonSerializable()
+class PluginsSearchResultItem {
+  final String package;
+  final int relevance;
+  final String summary;
+  final InstalledStatus status;  // TODO status.installed should not be null
+  PluginsSearchResultItem(this.package, this.relevance, this.summary, this.status);
+  factory PluginsSearchResultItem.fromJson(Map<String, dynamic> json) => _$PluginsSearchResultItemFromJson(json);
+}
+
+@JsonSerializable()
+class PluginsSearchResult {
+  final ChannelStats stats;
+  final List<PluginsSearchResultItem> packages;
+  PluginsSearchResult(this.stats, this.packages);
+  factory PluginsSearchResult.fromJson(Map<String, dynamic> json) => _$PluginsSearchResultFromJson(json);
 }

@@ -87,6 +87,19 @@ class Api {
     }
   }
 
+  static Future<PluginsSearchResult> pluginsSearch(String query, {String? category, required String profileId}) async {
+    final response = await http.get(Uri.http(host, '/plugins.search', {
+      'q': query,
+      'profile': profileId,
+      if (category != null && category.isNotEmpty) 'category': category
+    }));
+    if (response.statusCode == 200) {
+      return PluginsSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   static Future<void> add(BareModule module, {required String profileId}) async {
     final response = await http.post(Uri.http(host, '/plugins.add', {'profile': profileId}),
       body: jsonUtf8Encode([module.toString()]),

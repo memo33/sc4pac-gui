@@ -1,5 +1,6 @@
 import 'dart:collection' show LinkedHashSet;
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -165,8 +166,8 @@ class _AddPackageButtonState extends State<AddPackageButton> {
   @override
   Widget build(BuildContext context) {
     return FilledButton.icon(  // TODO use toggle button?
-      icon: Icon(addedExplicitly ? /*Icons.more_time*/ Icons.add_task : Icons.add),
-      label: Text(addedExplicitly ? "Remove from Plugins" : "Add to Plugins"),
+      icon: Icon(Symbols.star, fill: addedExplicitly ? /*Icons.more_time*/ 1 : 0),
+      label: Text(addedExplicitly ? "Added to Plugins" : "Add to Plugins"),
       onPressed: () {
         setState(() { addedExplicitly = !addedExplicitly; });
         Api.add(widget.module, profileId: World.world.profile!.id)  // async, but we do not need to await result (TODO maybe we should to avoid race?)

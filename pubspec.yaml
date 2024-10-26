@@ -47,6 +47,7 @@ dependencies:
   material_symbols_icons: ^4.2789.0
   open_file: ^3.5.9
   badges: ^3.1.2
+  timeago: ^3.7.0
 
 dev_dependencies:
   flutter_test:

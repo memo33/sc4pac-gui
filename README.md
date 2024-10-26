@@ -101,7 +101,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 
 - [x] configuring variants: should be part of the dashboard.
 
-- [ ] filtering: limiting search results to selected categories. This might require some API changes to avoid unwieldy computations in the GUI.
+- [x] filtering: limiting search results to selected categories. This might require some API changes to avoid unwieldy computations in the GUI.
   Searching only among installed packages is not implemented yet either.
 
 - [ ] displaying whether a dependency is already installed or not: This would probably best be added to the `packages.info` API.
