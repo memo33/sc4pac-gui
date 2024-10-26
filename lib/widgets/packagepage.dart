@@ -4,6 +4,7 @@ import 'package:material_symbols_icons/material_symbols_icons.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
+import '../data.dart';
 
 class PackagePage extends StatefulWidget {
   final BareModule module;
@@ -20,7 +21,7 @@ class PackagePage extends StatefulWidget {
   }
 }
 class _PackagePageState extends State<PackagePage> {
-  late Future<Map<String, dynamic>> futureJson;
+  late Future<PackageInfoResult> futureJson;
 
   static TableRow packageTableRow(String label, Widget child) {
     return TableRow(
@@ -34,7 +35,15 @@ class _PackagePageState extends State<PackagePage> {
   @override
   void initState() {
     super.initState();
-    futureJson = Api.info(widget.module, profileId: World.world.profile!.id);  // TODO
+    _fetchInfo();
+  }
+
+  void _fetchInfo() {
+    futureJson = Api.info(widget.module, profileId: World.world.profile!.id);
+  }
+
+  void _refresh() {
+    setState(_fetchInfo);  // TODO refetching not necessarily needed on this page, but on previous page
   }
 
   @override
@@ -51,7 +60,7 @@ class _PackagePageState extends State<PackagePage> {
           }),
         ],
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
+      body: FutureBuilder<PackageInfoResult>(
         future: futureJson,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -59,7 +68,9 @@ class _PackagePageState extends State<PackagePage> {
           } else if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           } else {
-            final dependencies = LinkedHashSet<BareModule>.from(switch (snapshot.data) {
+            final remote = snapshot.data!.remote;
+            final statuses = snapshot.data!.local.statuses;
+            final dependencies = LinkedHashSet<BareModule>.from(switch (remote) {
               {'variants': List<dynamic> variants} =>
                 variants.expand((variant) => switch (variant) {
                   {'dependencies': List<dynamic> deps} =>
@@ -68,17 +79,17 @@ class _PackagePageState extends State<PackagePage> {
                 }),
               _ => <BareModule>[]
             });
-            final Iterable<BareModule> requiredBy = switch (snapshot.data) {
+            final Iterable<BareModule> requiredBy = switch (remote) {
               {'info': {'requiredBy': List<dynamic> mods }} =>
                 mods.map((s) => BareModule.parse(s as String)).whereType<BareModule>(),
               _ => <BareModule>[]
             };
-            final Map<String, Map<String, String>> descriptions = switch (snapshot.data) {
+            final Map<String, Map<String, String>> descriptions = switch (remote) {
               {'variantDescriptions': Map<String, dynamic> descs} =>
                 descs.map((label, values) => MapEntry(label, (values as Map<String, dynamic>).cast<String, String>())),
               _ => {},
             };
-            final List<Iterable<({String label, String value, String? desc})>> variants = switch (snapshot.data) {
+            final List<Iterable<({String label, String value, String? desc})>> variants = switch (remote) {
               {'variants': List<dynamic> vds} =>
                 vds.map((vd) => switch (vd) {
                   {'variant': Map<String, dynamic> variant} =>
@@ -87,7 +98,7 @@ class _PackagePageState extends State<PackagePage> {
                 }).toList(),
               _ => []
             };
-            bool addedExplicitly = false; // TODO compute this or change api
+            bool addedExplicitly = statuses[widget.module.toString()]?.explicit ?? false;
 
             return LayoutBuilder(builder: (context, constraint) =>
               SingleChildScrollView(child: Align(alignment: const Alignment(-0.75, 0), child: ConstrainedBox(
@@ -96,21 +107,21 @@ class _PackagePageState extends State<PackagePage> {
                   child: Table(
                     columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
                     children: <TableRow>[
-                      packageTableRow("", AddPackageButton(widget.module, addedExplicitly)),  // TODO positioning
-                      packageTableRow("Version", Text(switch (snapshot.data) { {'version': String v} => v, _ => 'Unknown' })),
-                      if (snapshot.data case {'info': dynamic info})
+                      packageTableRow("", AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),  // TODO positioning
+                      packageTableRow("Version", Text(switch (remote) { {'version': String v} => v, _ => 'Unknown' })),
+                      if (remote case {'info': dynamic info})
                         packageTableRow("Summary", switch (info) { {'summary': String text} => MarkdownText(text), _ => const Text('-') }),
-                      if (snapshot.data case {'info': {'description': String text}})
+                      if (remote case {'info': {'description': String text}})
                         packageTableRow("Description", MarkdownText(text)),
-                      if (snapshot.data case {'info': {'warning': String text}})
+                      if (remote case {'info': {'warning': String text}})
                         packageTableRow("Warning", MarkdownText(text)),
-                      if (snapshot.data case {'info': dynamic info})
+                      if (remote case {'info': dynamic info})
                         packageTableRow("Conflicts", switch (info) { {'conflicts': String text} => MarkdownText(text), _ => const Text('None') }),
-                      if (snapshot.data case {'info': {'author': String text}})
+                      if (remote case {'info': {'author': String text}})
                         packageTableRow("Author", Text(text)),
-                      if (snapshot.data case {'info': {'website': String text}})
+                      if (remote case {'info': {'website': String text}})
                         packageTableRow("Website", CopyButton(copyableText: text, child: Hyperlink(url: text))),
-                      packageTableRow("Subfolder", Text(switch (snapshot.data) { {'subfolder': String v} => v, _ => 'Unknown' })),
+                      packageTableRow("Subfolder", Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' })),
                       packageTableRow("Variants",
                         variants.isEmpty || variants.length == 1 && variants[0].isEmpty ? const Text('None') : Wrap(
                           direction: Axis.vertical,
@@ -124,13 +135,13 @@ class _PackagePageState extends State<PackagePage> {
                       packageTableRow("Dependenies",
                         dependencies.isEmpty ? const Text('None') : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: dependencies.map((module) => PkgNameFragment(module, asButton: true, isInstalled: true)).toList(),  // TODO
+                          children: dependencies.map((module) => PkgNameFragment(module, asButton: true, status: statuses[module.toString()])).toList(),
                         )
                       ),
                       packageTableRow("Required By",
                         requiredBy.isEmpty ? const Text('None') : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: requiredBy.map((module) => PkgNameFragment(module, asButton: true, isInstalled: true)).toList(),  // TODO
+                          children: requiredBy.map((module) => PkgNameFragment(module, asButton: true, status: statuses[module.toString()])).toList(),
                         )
                       ),
                     ],
@@ -148,30 +159,29 @@ class _PackagePageState extends State<PackagePage> {
 class AddPackageButton extends StatefulWidget {
   final BareModule module;
   final bool initialAddedExplicitly;
+  final void Function() refreshParent;
   //bool isInstalled;
-  const AddPackageButton(this.module, this.initialAddedExplicitly, {super.key});
+  const AddPackageButton(this.module, this.initialAddedExplicitly, {required this.refreshParent, super.key});
 
   @override
   State<AddPackageButton> createState() => _AddPackageButtonState();
 }
 class _AddPackageButtonState extends State<AddPackageButton> {
-  late bool addedExplicitly;
-
-  @override
-  void initState() {
-    super.initState();
-    addedExplicitly = widget.initialAddedExplicitly;  // TODO
-  }
+  late bool _addedExplicitly = widget.initialAddedExplicitly;
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.icon(  // TODO use toggle button?
-      icon: Icon(Symbols.star, fill: addedExplicitly ? /*Icons.more_time*/ 1 : 0),
-      label: Text(addedExplicitly ? "Added to Plugins" : "Add to Plugins"),
+    return FilledButton.icon(
+      icon: Icon(Symbols.star, fill: _addedExplicitly ? 1 : 0),
+      label: Text(_addedExplicitly ? "Added to Plugins explicitly" : "Add to Plugins explicitly"),
       onPressed: () {
-        setState(() { addedExplicitly = !addedExplicitly; });
-        Api.add(widget.module, profileId: World.world.profile!.id)  // async, but we do not need to await result (TODO maybe we should to avoid race?)
-          .catchError(ApiErrorWidget.dialog);
+        setState(() {
+          _addedExplicitly = !_addedExplicitly;
+          final task = _addedExplicitly ?
+              Api.add(widget.module, profileId: World.world.profile!.id) :
+              Api.remove(widget.module, profileId: World.world.profile!.id);
+          task.then((_) => widget.refreshParent()).catchError(ApiErrorWidget.dialog);  // async, but we do not need to await result
+        });
       },
     );
   }

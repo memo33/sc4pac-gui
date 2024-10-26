@@ -84,7 +84,6 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 ## Roadmap
 
 - [ ] managing multiple Plugins folders/profiles:
-  The API requires some changes for this, as currently the server can only handle a single profile.
   The GUI needs to implement the initialization of new profiles, in particular, as well as switching of profiles.
 
 - [x] persistent profile-independent storage, such as GUI settings:
@@ -104,7 +103,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 - [x] filtering: limiting search results to selected categories. This might require some API changes to avoid unwieldy computations in the GUI.
   Searching only among installed packages is not implemented yet either.
 
-- [ ] displaying whether a dependency is already installed or not: This would probably best be added to the `packages.info` API.
+- [x] displaying whether a dependency is already installed or not: This would probably best be added to the `packages.info` API.
 
 - [ ] images: should be displayed with the package details.
 

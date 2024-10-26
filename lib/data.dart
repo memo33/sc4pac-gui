@@ -158,3 +158,11 @@ class PluginsSearchResult {
   PluginsSearchResult(this.stats, this.packages);
   factory PluginsSearchResult.fromJson(Map<String, dynamic> json) => _$PluginsSearchResultFromJson(json);
 }
+
+@JsonSerializable()
+class PackageInfoResult {
+  final ({Map<String, InstalledStatus> statuses}) local;
+  final Map<String, dynamic> remote;
+  PackageInfoResult(this.local, this.remote);
+  factory PackageInfoResult.fromJson(Map<String, dynamic> json) => _$PackageInfoResultFromJson(json);
+}

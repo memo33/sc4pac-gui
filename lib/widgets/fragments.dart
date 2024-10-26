@@ -51,11 +51,11 @@ class ApiErrorWidget extends StatelessWidget {
 class PkgNameFragment extends StatelessWidget {
   final BareModule module;
   final bool asButton;
-  final bool isInstalled;
+  final InstalledStatus? status;
   final bool colored;
   final String? localVariant;
   // final Widget? leading;
-  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.isInstalled = false, this.colored = true, this.localVariant/*, this.leading*/});
+  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.status, this.colored = true, this.localVariant/*, this.leading*/});
 
   static const EdgeInsets padding = EdgeInsets.all(10);
 
@@ -79,7 +79,7 @@ class PkgNameFragment extends StatelessWidget {
     return !asButton ? text : TextButton.icon(
       onPressed: () => PackagePage.pushPkg(context, module),
       label: text,
-      icon: !isInstalled ? null : const Tooltip(message: 'Installed', child: Icon(Icons.download_done)),  // TODO installed or added/marked for installation?
+      icon: status == null ? null : InstalledStatusIcon(status),
       iconAlignment: IconAlignment.start,
       style: TextButton.styleFrom(padding: PkgNameFragment.padding),
     );

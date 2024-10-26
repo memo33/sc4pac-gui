@@ -63,10 +63,10 @@ class Api {
     }
   }
 
-  static Future<Map<String, dynamic>> info(BareModule module, {required String profileId}) async {
+  static Future<PackageInfoResult> info(BareModule module, {required String profileId}) async {
     final response = await http.get(Uri.http(host, '/packages.info', {'pkg': module.toString(), 'profile': profileId}));
     if (response.statusCode == 200) {
-      return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+      return PackageInfoResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }
