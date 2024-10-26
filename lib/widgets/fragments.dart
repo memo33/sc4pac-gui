@@ -150,8 +150,8 @@ class PackageTileChip extends StatelessWidget {
   const PackageTileChip({required this.label, super.key, this.onDeleted, this.filled = false, this.description});
   PackageTileChip.variant(String label, String value, {Key? key, String? description}) :
       this(label: Text('$label: $value'), key: key, description: description);
-  const PackageTileChip.explicit({Key? key, void Function()? onDeleted}) :
-      this(label: const Text('explicitly installed'), key: key, onDeleted: onDeleted, filled: true);
+  // const PackageTileChip.explicit({Key? key, void Function()? onDeleted}) :
+  //     this(label: const Text('explicitly installed'), key: key, onDeleted: onDeleted, filled: true);
 
   @override
   Widget build(BuildContext context) {
@@ -176,13 +176,17 @@ class InstalledStatusIcon extends StatelessWidget {
   const InstalledStatusIcon(this.status, {super.key});
   @override
   Widget build(BuildContext context) {
+    String tooltip = "Not installed";
+    Widget? icon;
     if (status != null) {
       if (status!.explicit) {
         if (status!.installed == null) {
-          return Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
+          tooltip = "Update pending";
+          icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
         } else {
           final color = Theme.of(context).colorScheme.secondary;
-          return badges.Badge(
+          tooltip = "Installed explicitly";
+          icon = badges.Badge(
             badgeContent: Icon(Icons.star, size: 13, color: color),
             position: badges.BadgePosition.bottomEnd(bottom: -3, end: -2),
             badgeStyle: badges.BadgeStyle(
@@ -193,10 +197,34 @@ class InstalledStatusIcon extends StatelessWidget {
           );
         }
       } else if (status!.installed != null) {
-        return Icon(Symbols.package_2, color: Theme.of(context).colorScheme.secondary);
+        tooltip = "Installed as dependency";
+        icon = Icon(Symbols.package_2, color: Theme.of(context).colorScheme.secondary);
       } // else not explicit and not installed
     }
-    return const Icon(Icons.token_outlined);
+    return Tooltip(message: tooltip, child: icon ?? const Icon(Icons.token_outlined));
+  }
+}
+
+class StarIconButton extends StatefulWidget {
+  final bool initialCheckedValue;
+  final void Function(bool) onToggled;
+  const StarIconButton(this.initialCheckedValue, {required this.onToggled, super.key});
+  @override State<StarIconButton> createState() => _StarIconButtonState();
+}
+class _StarIconButtonState extends State<StarIconButton> {
+  late bool _checked = widget.initialCheckedValue;
+  @override Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(Symbols.star, fill: _checked ? 1 : 0),
+      color: _checked ? Theme.of(context).colorScheme.secondary : null,
+      tooltip: _checked ? "Remove from explicit Plugins" : "Add to Plugins explicitly",
+      onPressed: () {
+        setState(() {
+          _checked = !_checked;
+          widget.onToggled(_checked);  // finishes quickly, i.e. not awaiting async computation
+        });
+      }
+    );
   }
 }
 
@@ -204,17 +232,26 @@ class PackageTile extends StatelessWidget {
   final BareModule module;
   final String? subtitle;
   final int index;
-  final Widget? actionButton;
+  // final Widget? actionButton;
   final List<Widget> chips;
   final InstalledStatus? status;
-  const PackageTile(this.module, this.index, {super.key, this.subtitle, this.actionButton, this.chips = const [], this.status});
+  final void Function(bool)? onToggled;
+  const PackageTile(this.module, this.index, {super.key, this.subtitle, /*this.actionButton,*/ this.chips = const [], this.status, this.onToggled});
   @override
   Widget build(BuildContext context) {
+    final explicit = status?.explicit ?? false;
     return ListTile(
       leading: InstalledStatusIcon(status),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
       subtitle: subtitle != null ? Text(subtitle!) : null,
-      trailing: actionButton ?? Text('${index+1}'),
+      trailing: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // passing a key is important to trigger redraw of button if index of list tile changes (e.g. due to filtering)
+          if (onToggled != null) StarIconButton(explicit, onToggled: onToggled!, key: ValueKey(module)),
+          Text((index+1).toString()),
+        ],
+      ),
       onTap: () => PackagePage.pushPkg(context, module),
     );
   }

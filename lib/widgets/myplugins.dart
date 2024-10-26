@@ -44,7 +44,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
     super.dispose();
   }
 
-  void refresh() {
+  void _refresh() {
     setState(() {
       _search();
     });
@@ -152,13 +152,19 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       index,
                       subtitle: '${pkg.status.installed?.version} | ${pkg.summary} | ${pkg.status.timeLabel()}',
                       status: pkg.status,
+                      onToggled: (checked) {
+                        final task = checked ?
+                            Api.add(module, profileId: World.world.profile!.id) :
+                            Api.remove(module, profileId: World.world.profile!.id);
+                        task.then((_) => _refresh(), onError: ApiErrorWidget.dialog);
+                      },
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!)),
-                        if (pkg.status.explicit) PackageTileChip.explicit(onDeleted: () {
-                          Api.remove(module, profileId: World.world.profile!.id).then((_) {
-                            refresh();
-                          }, onError: ApiErrorWidget.dialog);  // TODO handle failure and success
-                        }),
+                        // if (pkg.status.explicit) PackageTileChip.explicit(onDeleted: () {
+                        //   Api.remove(module, profileId: World.world.profile!.id).then((_) {
+                        //     _refresh();
+                        //   }, onError: ApiErrorWidget.dialog);  // TODO handle failure and success
+                        // }),
                       ],
                     );
                   },

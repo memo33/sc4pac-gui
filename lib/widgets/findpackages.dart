@@ -40,6 +40,12 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
     }
   }
 
+  void _refresh() {
+    setState(() {
+      _search();
+    });
+  }
+
   static const double _toolBarHeight = 100.0;
 
   @override
@@ -113,7 +119,16 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   (context, index) {
                     final item = snapshot.data![index];
                     final module = BareModule.parse(item.package);
-                    return PackageTile(module, index, subtitle: item.summary, status: item.status /*actionButton: AddPackageButton(module, false /*TODO*/)*/);
+                    return PackageTile(module, index,
+                      subtitle: item.summary,
+                      status: item.status,
+                      onToggled: (checked) {
+                        final task = checked ?
+                            Api.add(module, profileId: World.world.profile!.id) :
+                            Api.remove(module, profileId: World.world.profile!.id);
+                        task.then((_) => _refresh(), onError: ApiErrorWidget.dialog);
+                      },
+                    );
                   },
                   childCount: snapshot.data!.length,
                 ),
