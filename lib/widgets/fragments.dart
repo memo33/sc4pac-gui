@@ -189,6 +189,7 @@ class InstalledStatusIcon extends StatelessWidget {
           icon = badges.Badge(
             badgeContent: Icon(Icons.star, size: 13, color: color),
             position: badges.BadgePosition.bottomEnd(bottom: -3, end: -2),
+            badgeAnimation: const badges.BadgeAnimation.scale(),
             badgeStyle: badges.BadgeStyle(
               padding: const EdgeInsets.all(1.2),
               badgeColor: Theme.of(context).colorScheme.surface,

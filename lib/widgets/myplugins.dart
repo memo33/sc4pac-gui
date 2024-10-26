@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'dart:math';
+import 'package:collection/collection.dart' show mergeSort;
+import 'package:badges/badges.dart' as badges;
 import '../data.dart';
 import '../model.dart';
 import '../viewmodel.dart';
@@ -20,10 +22,34 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   // late Future<List<InstalledListItem>> searchResultFuture;
   // late Future<List<InstalledListItem>> filteredList;
 
+  static int _compareDates(DateTime? t1, DateTime? t2) {
+    // null dates are sorted to the front, recent dates to the back
+    if (t2 != null) {
+      return t1?.compareTo(t2) ?? -1;
+    } else {
+      return t1 != null ? 1 : 0;
+    }
+  }
+
   void _filter() {
-    filteredList = searchResultFuture.then((searchResult) => searchResult.packages.where((pkg) =>
-      widget.myPlugins.installStateSelection.contains(pkg.status.explicit ? InstallStateType.explicitlyInstalled : InstallStateType.installedAsDependency)
-    ).toList());
+    filteredList = searchResultFuture.then((searchResult) {
+      final pkgs = searchResult.packages.where((pkg) =>
+        widget.myPlugins.installStateSelection.contains(pkg.status.explicit ? InstallStateType.explicitlyInstalled : InstallStateType.installedAsDependency)
+      ).toList();
+      switch (widget.myPlugins.sortOrder) {
+        case SortOrder.relevance:
+          break;  // use default order as returned by Api
+        case SortOrder.installed:
+          // stable sort
+          mergeSort(pkgs, compare: (pkg1, pkg2) => _compareDates(pkg2.status.installed?.installedAt, pkg1.status.installed?.installedAt));
+          break;
+        case SortOrder.updated:
+          // stable sort
+          mergeSort(pkgs, compare: (pkg1, pkg2) => _compareDates(pkg2.status.installed?.updatedAt, pkg1.status.installed?.updatedAt));
+          break;
+      }
+      return pkgs;
+    });
   }
 
   void _search() {
@@ -108,8 +134,9 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(_toolbarBottomHeight),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 5,
               children: <Widget>[
                 SegmentedButton<InstallStateType>(
                   segments: const [
@@ -126,6 +153,14 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     });
                   },
                 ),
+                SortMenu(
+                  selected: widget.myPlugins.sortOrder,
+                  onSelectionChanged: (newOrder) {
+                  setState(() {
+                    widget.myPlugins.sortOrder = newOrder;
+                    _filter();
+                  });
+                }),
               ],
             ),
           ),
@@ -175,6 +210,70 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
           },
         ),
       ],
+    );
+  }
+}
+
+class SortMenu extends StatefulWidget {
+  final SortOrder selected;  // initial value
+  final void Function(SortOrder) onSelectionChanged;
+  const SortMenu({required this.selected, required this.onSelectionChanged, super.key});
+  @override State<SortMenu> createState() => _SortMenuState();
+}
+
+class _SortMenuState extends State<SortMenu> {
+  late SortOrder _sortOrder = widget.selected;
+
+  static const _sortSymbol = {
+    SortOrder.relevance: Symbols.sort_by_alpha,
+    SortOrder.updated: Icons.update,
+    SortOrder.installed: Symbols.playlist_add
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return MenuAnchor(
+      builder: (BuildContext context, MenuController controller, Widget? child) {
+        return IconButton(
+          onPressed: () {
+            if (controller.isOpen) {
+              controller.close();
+            } else {
+              controller.open();
+            }
+          },
+          icon: badges.Badge(
+            badgeContent: Icon(_sortSymbol[_sortOrder], size: 16),
+            position: badges.BadgePosition.bottomEnd(bottom: -3, end: -6),
+            badgeAnimation: const badges.BadgeAnimation.scale(),
+            badgeStyle: badges.BadgeStyle(
+              padding: const EdgeInsets.all(1.2),
+              badgeColor: Theme.of(context).colorScheme.surface,
+            ),
+            child: const Icon(Symbols.sort),
+          ),
+          tooltip: 'Sort',
+        );
+      },
+      menuChildren: List<MenuItemButton>.generate(
+        SortOrder.values.length,
+        (int index) {
+          final newOrder = SortOrder.values[index];
+          return MenuItemButton(
+            onPressed: () {
+              if (_sortOrder != newOrder) {
+                setState(() => _sortOrder = newOrder);
+                widget.onSelectionChanged(newOrder);
+              }
+            },
+            leadingIcon: Icon(_sortSymbol[newOrder], color: _sortOrder == newOrder ? Theme.of(context).primaryColor : null),
+            child: Text(
+              switch (newOrder) { SortOrder.relevance => "Relevance", SortOrder.updated => "Updated recently", SortOrder.installed => "Installed recently" },
+              style: _sortOrder == newOrder ? DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).primaryColor) : null,
+            ),
+          );
+        }
+      ),
     );
   }
 }

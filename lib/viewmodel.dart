@@ -57,12 +57,14 @@ class FindPackages {
 }
 
 enum InstallStateType { markedForInstall, explicitlyInstalled, installedAsDependency }
+enum SortOrder { relevance, updated, installed }
 
 class MyPlugins {
   String? searchTerm;
   String? selectedCategory;
   Set<InstallStateType> installStateSelection =
     {/*InstallStateType.markedForInstall,*/ InstallStateType.explicitlyInstalled, InstallStateType.installedAsDependency};
+  SortOrder sortOrder = SortOrder.relevance;  // default order as returned by Api
 }
 
 class Dashboard extends ChangeNotifier {

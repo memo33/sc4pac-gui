@@ -117,14 +117,14 @@ class ChannelStats {
 @JsonSerializable()
 class InstalledStatus {
   final bool explicit;
-  final ({String version, Map<String, String> variant, String installedAt, String updatedAt})? installed;
+  final ({String version, Map<String, String> variant, DateTime installedAt, DateTime updatedAt})? installed;
   InstalledStatus(this.explicit, this.installed);
   factory InstalledStatus.fromJson(Map<String, dynamic> json) => _$InstalledStatusFromJson(json);
 
   String? timeLabel() {
     if (installed != null) {
       final prefix = installed!.installedAt == installed!.updatedAt ? 'installed' : 'updated';
-      return "$prefix ${timeago.format(DateTime.parse(installed!.updatedAt))}";
+      return "$prefix ${timeago.format(installed!.updatedAt)}";
     } else {
       return null;
     }
