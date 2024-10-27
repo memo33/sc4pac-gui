@@ -129,6 +129,15 @@ class InstalledStatus {
       return null;
     }
   }
+
+  String? timeLabel2() {
+    if (installed != null) {
+      final String updatedAgo = installed!.updatedAt == installed!.installedAt ? "never" : timeago.format(installed!.updatedAt);
+      return "Installed ${timeago.format(installed!.installedAt)}, updated $updatedAgo";
+    } else {
+      return null;
+    }
+  }
 }
 
 @JsonSerializable()

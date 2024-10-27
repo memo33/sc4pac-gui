@@ -23,11 +23,17 @@ class PackagePage extends StatefulWidget {
 class _PackagePageState extends State<PackagePage> {
   late Future<PackageInfoResult> futureJson;
 
-  static TableRow packageTableRow(String label, Widget child) {
+  static TableRow packageTableRow(Widget? label, Widget child) {
     return TableRow(
       children: [
-        Padding(padding: const EdgeInsets.fromLTRB(10, 5, 20, 5), child: Text(label)),
-        Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: child),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 5, 20, 5),
+          child: label ?? const SizedBox(),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: child,
+        ),
       ],
     );
   }
@@ -48,10 +54,11 @@ class _PackagePageState extends State<PackagePage> {
 
   @override
   Widget build(BuildContext context) {
+    final moduleStr = widget.module.toString();
     return Scaffold(
       appBar: AppBar(
         title: CopyButton(
-          copyableText: widget.module.toString(),
+          copyableText: moduleStr,
           child: PkgNameFragment(widget.module, asButton: false, colored: false, refreshParent: _refresh),
         ),
         actions: [
@@ -98,7 +105,10 @@ class _PackagePageState extends State<PackagePage> {
                 }).toList(),
               _ => []
             };
-            bool addedExplicitly = statuses[widget.module.toString()]?.explicit ?? false;
+            final status = statuses[moduleStr];
+            bool addedExplicitly = status?.explicit ?? false;
+            final installDates = status?.timeLabel2() ?? "Not installed";
+            final installedVersion = status?.installed?.version;
 
             return LayoutBuilder(builder: (context, constraint) =>
               SingleChildScrollView(child: Align(alignment: const Alignment(-0.75, 0), child: ConstrainedBox(
@@ -107,22 +117,26 @@ class _PackagePageState extends State<PackagePage> {
                   child: Table(
                     columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
                     children: <TableRow>[
-                      packageTableRow("", AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),  // TODO positioning
-                      packageTableRow("Version", Text(switch (remote) { {'version': String v} => v, _ => 'Unknown' })),
+                      packageTableRow(null, AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),  // TODO positioning
+                      packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
+                      packageTableRow(const Text("Version"), Text(switch (remote) {
+                        {'version': String v} => installedVersion != null && installedVersion != v ? "$v (currently installed: $installedVersion)" : v,
+                        _ => 'Unknown'
+                      })),
                       if (remote case {'info': dynamic info})
-                        packageTableRow("Summary", switch (info) { {'summary': String text} => MarkdownText(text), _ => const Text('-') }),
+                        packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => MarkdownText(text), _ => const Text('-') }),
                       if (remote case {'info': {'description': String text}})
-                        packageTableRow("Description", MarkdownText(text)),
+                        packageTableRow(const Text("Description"), MarkdownText(text)),
                       if (remote case {'info': {'warning': String text}})
-                        packageTableRow("Warning", MarkdownText(text)),
+                        packageTableRow(const Text("Warning"), MarkdownText(text)),
                       if (remote case {'info': dynamic info})
-                        packageTableRow("Conflicts", switch (info) { {'conflicts': String text} => MarkdownText(text), _ => const Text('None') }),
+                        packageTableRow(const Text("Conflicts"), switch (info) { {'conflicts': String text} => MarkdownText(text), _ => const Text('None') }),
                       if (remote case {'info': {'author': String text}})
-                        packageTableRow("Author", Text(text)),
+                        packageTableRow(const Text("Author"), Text(text)),
                       if (remote case {'info': {'website': String text}})
-                        packageTableRow("Website", CopyButton(copyableText: text, child: Hyperlink(url: text))),
-                      packageTableRow("Subfolder", Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' })),
-                      packageTableRow("Variants",
+                        packageTableRow(const Text("Website"), CopyButton(copyableText: text, child: Hyperlink(url: text))),
+                      packageTableRow(const Text("Subfolder"), Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' })),
+                      packageTableRow(const Text("Variants"),
                         variants.isEmpty || variants.length == 1 && variants[0].isEmpty ? const Text('None') : Wrap(
                           direction: Axis.vertical,
                           spacing: 12,
@@ -132,13 +146,13 @@ class _PackagePageState extends State<PackagePage> {
                           ).toList())).toList()
                         )
                       ),
-                      packageTableRow("Dependenies",
+                      packageTableRow(const Text("Dependenies"),
                         dependencies.isEmpty ? const Text('None') : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: dependencies.map((module) => PkgNameFragment(module, asButton: true, refreshParent: _refresh, status: statuses[module.toString()])).toList(),
                         )
                       ),
-                      packageTableRow("Required By",
+                      packageTableRow(const Text("Required By"),
                         requiredBy.isEmpty ? const Text('None') : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: requiredBy.map((module) => PkgNameFragment(module, asButton: true, refreshParent: _refresh, status: statuses[module.toString()])).toList(),
