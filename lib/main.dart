@@ -28,6 +28,7 @@ class Sc4pacGuiApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       navigatorKey: NavigationService.navigatorKey,  // allows to access global context for popup dialogs
+      title: "sc4pac GUI",
 
       // Theme config for FlexColorScheme version 7.3.x. Make sure you use
       // same or higher package version, but still same major version. If you

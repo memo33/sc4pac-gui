@@ -4,6 +4,8 @@ DART=./vendor/flutter/bin/dart
 
 build-linux:
 	$(FLUTTER) build linux --release
+build-web:
+	$(FLUTTER) build web --release
 run-linux:
 	$(FLUTTER) run --device-id linux
 run-web:

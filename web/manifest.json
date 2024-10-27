@@ -1,6 +1,6 @@
 {
-    "name": "sc4pac_gui",
-    "short_name": "sc4pac_gui",
+    "name": "sc4pac GUI",
+    "short_name": "sc4pac",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
