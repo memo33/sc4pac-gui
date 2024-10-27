@@ -9,6 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
+import 'widgets/fragments.dart';
 
 class World extends ChangeNotifier {
   Profile? profile;
@@ -84,9 +85,35 @@ class Dashboard extends ChangeNotifier {
     variantsFuture = Api.variantsList(profileId: profile.id);
     notifyListeners();
   }
-}
 
-class Variants extends ChangeNotifier {
+  final Map<BareModule, bool> pendingUpdates = {};  // these are used as overrides of package installation states in the UI
+  // Mark the explicit-install state for a package. If the star button is toggled twice, this removes the package from `pendingUpdates` again.
+  void setPendingUpdate(BareModule pkg, bool explicit) {
+    final previous = pendingUpdates[pkg];
+    if (previous == null) {
+      pendingUpdates[pkg] = explicit;
+      notifyListeners();
+    } else if (previous != explicit) {
+      pendingUpdates.remove(pkg);
+      notifyListeners();
+    } else {
+      // values are identical, so no change needed
+    }
+  }
+  void clearPendingUpdates() {
+    pendingUpdates.clear();
+    notifyListeners();
+  }
+
+  onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
+    final task = checked ?
+        Api.add(module, profileId: profile.id) :
+        Api.remove(module, profileId: profile.id);
+    task.then((_) {
+      setPendingUpdate(module, checked);
+      refreshParent();
+    }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+  }
 }
 
 enum UpdateStatus { running, finished, finishedWithError, canceled }
@@ -112,11 +139,11 @@ class UpdateProcess {
   set status(UpdateStatus status) {
     _status = status;
     if (_status != UpdateStatus.running) {
-      onFinished();
+      onFinished(_status);
     }
   }
 
-  final void Function() onFinished;
+  final void Function(UpdateStatus) onFinished;
 
   UpdateProcess({required this.onFinished}) {
     _ws = Api.update(profileId: World.world.profile!.id);

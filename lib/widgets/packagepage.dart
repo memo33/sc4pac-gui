@@ -191,10 +191,7 @@ class _AddPackageButtonState extends State<AddPackageButton> {
       onPressed: () {
         setState(() {
           _addedExplicitly = !_addedExplicitly;
-          final task = _addedExplicitly ?
-              Api.add(widget.module, profileId: World.world.profile!.id) :
-              Api.remove(widget.module, profileId: World.world.profile!.id);
-          task.then((_) => widget.refreshParent()).catchError(ApiErrorWidget.dialog);  // async, but we do not need to await result
+          World.world.profile!.dashboard.onToggledStarButton(widget.module, _addedExplicitly, refreshParent: widget.refreshParent);
         });
       },
     );

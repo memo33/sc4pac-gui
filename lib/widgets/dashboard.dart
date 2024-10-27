@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:open_file/open_file.dart';
+import 'package:badges/badges.dart' as badges;
 import '../data.dart';
 import '../model.dart';
 import '../viewmodel.dart';
@@ -211,7 +212,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (context, child) => VariantsWidget(widget.dashboard.variantsFuture),
           ),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 5),
             child: FilledButton.icon(
               icon: const Icon(Icons.refresh),
               onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () {
@@ -220,7 +221,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // when the current screen is disposed.
                 setState(() {
                   widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
-                    onFinished: () => setState(() {  // triggers rebuild of DashboardScreen
+                    onFinished: (status) => setState(() {  // triggers rebuild of DashboardScreen
+                      if (status == UpdateStatus.finished) {  // no error/no canceled
+                        widget.dashboard.clearPendingUpdates();
+                      }
                       widget.dashboard.fetchVariants();
                     }),
                   );
@@ -244,6 +248,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
       )/*,
     )*/
     /*)*/;
+  }
+}
+
+class DashboardIcon extends StatelessWidget {
+  final bool selected;
+  final Dashboard dashboard;
+  const DashboardIcon(this.dashboard, {required this.selected, super.key});
+  @override Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: dashboard,
+      builder: (context, child) {
+        final icon = Icon(selected ? Icons.speed : Icons.speed_outlined);
+        if (dashboard.pendingUpdates.isEmpty) {
+          return icon;
+        } else {
+          return badges.Badge(
+            badgeContent: Text(
+              dashboard.pendingUpdates.length.toString(),
+              style: DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).colorScheme.onSecondary),
+            ),
+            badgeAnimation: const badges.BadgeAnimation.scale(),
+            badgeStyle: badges.BadgeStyle(badgeColor: Theme.of(context).colorScheme.secondary),
+            child: icon,
+          );
+        }
+      },
+    );
   }
 }
 

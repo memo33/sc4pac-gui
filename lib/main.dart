@@ -330,23 +330,23 @@ class _NavRailState extends State<NavRail> {
                       });
                     },
                     labelType: NavigationRailLabelType.all,  // or selected,
-                    destinations: const <NavigationRailDestination>[
+                    destinations: <NavigationRailDestination>[
                       NavigationRailDestination(
-                        icon: Icon(Icons.speed_outlined),
-                        selectedIcon: Icon(Icons.speed),
-                        label: Text('Dashboard'),
+                        icon: DashboardIcon(widget.world.profile!.dashboard, selected: false),
+                        selectedIcon: DashboardIcon(widget.world.profile!.dashboard, selected: true),
+                        label: const Text('Dashboard'),
                       ),
-                      NavigationRailDestination(
+                      const NavigationRailDestination(
                         icon: Icon(Icons.travel_explore_outlined),
                         selectedIcon: Icon(Icons.travel_explore),
                         label: Text('Find Packages'),
                       ),
-                      NavigationRailDestination(
+                      const NavigationRailDestination(
                         icon: Icon(Icons.widgets_outlined),
                         selectedIcon: Icon(Icons.widgets),
                         label: Text('My Plugins'),
                       ),
-                      NavigationRailDestination(
+                      const NavigationRailDestination(
                         icon: Icon(Icons.settings_outlined),
                         selectedIcon: Icon(Icons.settings),
                         label: Text('Settings'),
