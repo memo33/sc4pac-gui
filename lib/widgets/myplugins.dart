@@ -139,11 +139,27 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
               spacing: 5,
               children: <Widget>[
                 SegmentedButton<InstallStateType>(
-                  segments: const [
+                  segments: [
                     // ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
-                    ButtonSegment(value: InstallStateType.explicitlyInstalled, label: Text('Explicitly installed'), icon: Icon(Icons.arrow_right)),
-                    ButtonSegment(value: InstallStateType.installedAsDependency, label: Text('Installed as dependency'), icon: Icon(Icons.arrow_right)),
+                    ButtonSegment(
+                      value: InstallStateType.explicitlyInstalled,
+                      label: const Text("Stars"),
+                      tooltip: "Explicitly installed packages",
+                      icon: InstalledStatusIconExplicit(
+                        badgeColor: Theme.of(context).segmentedButtonTheme.style?.backgroundColor?.resolve(
+                          widget.myPlugins.installStateSelection.contains(InstallStateType.explicitlyInstalled) ? {WidgetState.selected} : {}
+                        ),
+                        badgeScale: 0.75,
+                      ),
+                    ),
+                    const ButtonSegment(
+                      value: InstallStateType.installedAsDependency,
+                      label: Text("Dependencies"),
+                      tooltip: "Packages installed as dependency",
+                      icon: InstalledStatusIconDependency(),
+                    ),
                   ],
+                  showSelectedIcon: false,
                   multiSelectionEnabled: true,
                   selected: widget.myPlugins.installStateSelection,
                   onSelectionChanged: (Set<InstallStateType> newSelection) {

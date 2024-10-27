@@ -185,25 +185,40 @@ class InstalledStatusIcon extends StatelessWidget {
           tooltip = "Update pending";
           icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
         } else {
-          final color = Theme.of(context).colorScheme.secondary;
           tooltip = "Installed explicitly";
-          icon = badges.Badge(
-            badgeContent: Icon(Icons.star, size: 13, color: color),
-            position: badges.BadgePosition.bottomEnd(bottom: -3, end: -2),
-            badgeAnimation: const badges.BadgeAnimation.scale(),
-            badgeStyle: badges.BadgeStyle(
-              padding: const EdgeInsets.all(1.2),
-              badgeColor: Theme.of(context).colorScheme.surface,
-            ),
-            child: Icon(Symbols.deployed_code, color: color),
-          );
+          icon = InstalledStatusIconExplicit(color: Theme.of(context).colorScheme.secondary);
         }
       } else if (status!.installed != null) {
         tooltip = "Installed as dependency";
-        icon = Icon(Symbols.package_2, color: Theme.of(context).colorScheme.secondary);
+        icon = InstalledStatusIconDependency(color: Theme.of(context).colorScheme.secondary);
       } // else not explicit and not installed
     }
     return Tooltip(message: tooltip, child: icon ?? const Icon(Icons.token_outlined));
+  }
+}
+class InstalledStatusIconExplicit extends StatelessWidget {
+  final Color? color;
+  final Color? badgeColor;
+  final double badgeScale;
+  const InstalledStatusIconExplicit({this.color, this.badgeColor, this.badgeScale = 1.0, super.key});
+  @override Widget build(BuildContext context) {
+    return badges.Badge(
+      badgeContent: Icon(Icons.star, size: 13 * badgeScale, color: color),
+      position: badges.BadgePosition.bottomEnd(bottom: -3 * badgeScale, end: -2 * badgeScale),
+      badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
+      badgeStyle: badges.BadgeStyle(
+        padding: EdgeInsets.all(1.2 * badgeScale),
+        badgeColor: badgeColor ?? Theme.of(context).colorScheme.surface,
+      ),
+      child: Icon(Symbols.deployed_code, color: color),
+    );
+  }
+}
+class InstalledStatusIconDependency extends StatelessWidget {
+  final Color? color;
+  const InstalledStatusIconDependency({this.color, super.key});
+  @override Widget build(BuildContext context) {
+    return Icon(Symbols.package_2, color: color);
   }
 }
 
