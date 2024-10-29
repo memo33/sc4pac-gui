@@ -85,6 +85,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
       slivers: [
         SliverAppBar(
           floating: true,
+          // pinned: true,  // TODO consider pinning to avoid scroll physics auto-scrolling to top when touching app bar
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,

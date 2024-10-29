@@ -1,11 +1,12 @@
 # FLUTTER=flutter
 FLUTTER=./vendor/flutter/bin/flutter
 DART=./vendor/flutter/bin/dart
+BASEHREF=/webapp/
 
 build-linux:
 	$(FLUTTER) build linux --release
 build-web:
-	$(FLUTTER) build web --release
+	$(FLUTTER) build web --base-href=$(BASEHREF) --release
 run-linux:
 	$(FLUTTER) run --device-id linux
 run-web:

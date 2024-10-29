@@ -35,8 +35,9 @@ class ApiError {
   }
 }
 
+// TODO refactor to make use of http.Client for keep-alive connections
 class Api {
-  static const host = 'localhost:51515';
+  static const host = 'localhost:51515';  // TODO make port configurable
   static const wsUrl = 'ws://$host';
 
   static Future<({bool initialized, Map<String, dynamic> data})> profileRead({required String profileId}) async {
