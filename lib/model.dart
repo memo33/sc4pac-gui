@@ -39,6 +39,7 @@ enum ClientStatus { connecting, connected, serverNotRunning, lostConnection }
 
 // TODO refactor to make use of http.Client for keep-alive connections
 class Sc4pacClient /*extends ChangeNotifier*/ {
+  static const defaultPort = 51515;
   final String authority;
   final String wsUrl;
   final WebSocketChannel connection;

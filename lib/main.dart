@@ -3,6 +3,7 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:file_picker/file_picker.dart' show FilePicker;
+import 'dart:io';
 import 'model.dart';
 import 'data.dart';
 import 'viewmodel.dart';
@@ -11,8 +12,49 @@ import 'widgets/findpackages.dart';
 import 'widgets/myplugins.dart';
 import 'widgets/fragments.dart';
 
-void main() {
-  runApp(Sc4pacGuiApp());
+void main(List<String> args) {
+  final cmdArgs = CommandlineArgs(args);
+  if (cmdArgs.help) {
+    stdout.writeln(
+"""Usage: sc4pac-gui [options]
+
+Options
+  --port number  Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
+  --host IP      Hostname of sc4pac server (default: localhost)
+  -h, --help     Print help message and exit"""
+    );
+    exit(0);
+  } else {
+    runApp(Sc4pacGuiApp(World(args: cmdArgs)));
+  }
+}
+
+class CommandlineArgs {
+  bool help = false;
+  int? port;
+  String? host;
+  CommandlineArgs(List<String> args) {
+    while (args.isNotEmpty) {
+      switch (args) {
+        case ["--port", var p, ...(var rest)]:
+          port = int.tryParse(p);
+          args = rest;
+          break;
+        case ["--host", var h, ...(var rest)]:
+          host = h;
+          args = rest;
+          break;
+        case ["--help" || "-h", ...(var rest)]:
+          help = true;
+          args = rest;
+          break;
+        default:
+          stderr.writeln("Unknown trailing arguments (try --help): ${args.join(" ")}");
+          args = [];
+          exit(1);
+      }
+    }
+  }
 }
 
 class NavigationService {
@@ -20,8 +62,8 @@ class NavigationService {
 }
 
 class Sc4pacGuiApp extends StatelessWidget {
-  final World _world = World();
-  Sc4pacGuiApp({super.key});
+  final World _world;
+  const Sc4pacGuiApp(this._world, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +184,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                           helperText: "Enter \"host:port\" for local sc4pac backend server to connect to.",
                           errorText: _isValid ? null : "Enter \"host:port\" for local sc4pac backend server to connect to.",
                           helperMaxLines: 10,
-                          hintText: "localhost:51515 or 127.0.0.1:51515",
+                          hintText: "localhost:${Sc4pacClient.defaultPort} or 127.0.0.1:${Sc4pacClient.defaultPort}",
                         ),
                         onSubmitted: (String text) {
                           if (text.isNotEmpty) {

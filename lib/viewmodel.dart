@@ -11,10 +11,12 @@ import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
 import 'widgets/fragments.dart';
+import 'main.dart' show CommandlineArgs;
 
 enum InitPhase { connecting, loadingProfiles, initializingProfile, initialized }
 
 class World extends ChangeNotifier {
+  final CommandlineArgs args;
   late InitPhase initPhase;
   late String authority;
   late Future<Map<String, dynamic>> initialServerStatus;
@@ -71,12 +73,18 @@ class World extends ChangeNotifier {
 
   static late World world;
 
-  World() {
+  World({required this.args}) {
     World.world = this;  // TODO for simplicity of access, we store a static reference to the one world
-    if (kIsWeb) {
-      authority = Uri.base.authority;  // TODO make configurable
+
+    const envPort = bool.hasEnvironment("port") ? int.fromEnvironment("port") : null;
+    const envHost = bool.hasEnvironment("host") ? String.fromEnvironment("host") : null;
+    if (args.host != null || args.port != null || envHost != null || envPort != null) {
+      final h = args.host ?? envHost ?? "localhost";
+      final p = args.port ?? envPort ?? Sc4pacClient.defaultPort;
+      authority = "$h:$p";
     } else {
-      authority = "localhost:51515";  // TODO make configurable
+      // for web, api server and webapp server are identical by default
+      authority = kIsWeb ? Uri.base.authority : "localhost:${Sc4pacClient.defaultPort}";
     }
     updateConnection(authority, notify: false);
   }
