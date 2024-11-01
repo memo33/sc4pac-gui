@@ -217,7 +217,7 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
   }
 
   void _submit() {
-    Api.addProfile(_profileNameController.text).then(
+    widget.world.client.addProfile(_profileNameController.text).then(
       (p) => widget.world.updateProfile(p),  // switches to next initPhase
       onError: ApiErrorWidget.dialog,
     );
@@ -321,7 +321,7 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
   }
 
   void _submit() {
-    Api.profileInit(
+    widget.world.client.profileInit(
       profileId: widget.world.profile!.id,
       paths: (plugins: _pluginsPathController.text, cache: _cachePathController.text),
     ).then(

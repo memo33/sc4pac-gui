@@ -18,6 +18,7 @@ class World extends ChangeNotifier {
   late InitPhase initPhase;
   late String authority;
   late Future<Map<String, dynamic>> initialServerStatus;
+  late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
 
@@ -25,14 +26,14 @@ class World extends ChangeNotifier {
   // themeMode
   // server
   // other gui settings
-  final Sc4pacClient client = Sc4pacClient();
 
   void updateConnection(String authority, {required bool notify}) {
     initPhase = InitPhase.connecting;
     this.authority = authority;
-    initialServerStatus = Api.serverStatus(authority);
+    initialServerStatus = Sc4pacClient.serverStatus(authority);
     initialServerStatus.then(
       (_) {  // connection succeeded, so proceed to next phase
+        client = Sc4pacClient(authority);
         _switchToLoadingProfiles();
       },
       onError: (_) {},  // connection failed, so stay in InitPhase.connecting
@@ -44,7 +45,7 @@ class World extends ChangeNotifier {
 
   void _switchToLoadingProfiles() {
     initPhase = InitPhase.loadingProfiles;
-    profilesFuture = Api.profiles();
+    profilesFuture = client.profiles();
     notifyListeners();
   }
 
@@ -55,7 +56,7 @@ class World extends ChangeNotifier {
 
   void _switchToInitialzingProfile() {
     initPhase = InitPhase.initializingProfile;
-    readProfileFuture = Api.profileRead(profileId: profile!.id);
+    readProfileFuture = client.profileRead(profileId: profile!.id);
     notifyListeners();
   }
 
@@ -91,7 +92,7 @@ class Profile {
   late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
-  late Future<ChannelStats> channelStatsFuture = Api.channelsStats(profileId: id);
+  late Future<ChannelStats> channelStatsFuture = World.world.client.channelsStats(profileId: id);
   Profile(this.id, this.name);
 }
 
@@ -125,7 +126,7 @@ class Dashboard extends ChangeNotifier {
   }
 
   void fetchVariants() {
-    variantsFuture = Api.variantsList(profileId: profile.id);
+    variantsFuture = World.world.client.variantsList(profileId: profile.id);
     notifyListeners();
   }
 
@@ -150,8 +151,8 @@ class Dashboard extends ChangeNotifier {
 
   onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
     final task = checked ?
-        Api.add(module, profileId: profile.id) :
-        Api.remove(module, profileId: profile.id);
+        World.world.client.add(module, profileId: profile.id) :
+        World.world.client.remove(module, profileId: profile.id);
     task.then((_) {
       setPendingUpdate(module, checked);
       refreshParent();
@@ -189,7 +190,7 @@ class UpdateProcess {
   final void Function(UpdateStatus) onFinished;
 
   UpdateProcess({required this.onFinished}) {
-    _ws = Api.update(profileId: World.world.profile!.id);
+    _ws = World.world.client.update(profileId: World.world.profile!.id);
     stream =
       _ws.ready
         .then((_) => true, onError: (e) {

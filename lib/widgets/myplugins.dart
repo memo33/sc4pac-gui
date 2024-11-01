@@ -55,7 +55,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   void _search() {
     final q = widget.myPlugins.searchTerm;
     final c = widget.myPlugins.selectedCategory;
-    searchResultFuture = Api.pluginsSearch(q ?? '', category: c, profileId: World.world.profile!.id);
+    searchResultFuture = World.world.client.pluginsSearch(q ?? '', category: c, profileId: World.world.profile!.id);
     _filter();
   }
   @override
@@ -209,7 +209,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!)),
                         // if (pkg.status.explicit) PackageTileChip.explicit(onDeleted: () {
-                        //   Api.remove(module, profileId: World.world.profile!.id).then((_) {
+                        //   World.world.client.remove(module, profileId: World.world.profile!.id).then((_) {
                         //     _refresh();
                         //   }, onError: ApiErrorWidget.dialog);  // TODO handle failure and success
                         // }),

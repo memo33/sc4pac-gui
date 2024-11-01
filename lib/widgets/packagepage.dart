@@ -45,7 +45,7 @@ class _PackagePageState extends State<PackagePage> {
   }
 
   void _fetchInfo() {
-    futureJson = Api.info(widget.module, profileId: World.world.profile!.id);
+    futureJson = World.world.client.info(widget.module, profileId: World.world.profile!.id);
   }
 
   void _refresh() {

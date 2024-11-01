@@ -34,7 +34,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
     final q = widget.findPackages.searchTerm;
     final c = widget.findPackages.selectedCategory;
     if ((q?.isNotEmpty ?? false) || c != null) {
-      futureJson = Api.search(q ?? '', category: c, profileId: World.world.profile!.id);
+      futureJson = World.world.client.search(q ?? '', category: c, profileId: World.world.profile!.id);
     } else {
       futureJson = Future.value([]);
     }
