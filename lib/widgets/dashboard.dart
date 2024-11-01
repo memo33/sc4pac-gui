@@ -156,18 +156,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // mainAxisAlignment: MainAxisAlignment.start,
         // crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Card(
-            child: ListenableBuilder(
-              listenable: widget.client,
-              builder: (context, child) =>
-                switch (widget.client.status) {
-                  ClientStatus.connecting => const ListTile(leading: Icon(Icons.wifi_tethering_off), title: Text('Connecting to local sc4pac server...')),
-                  ClientStatus.connected => const ListTile(leading: Icon(Icons.wifi_tethering), title: Text('Connected to local sc4pac server.')),
-                  ClientStatus.serverNotRunning => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Local sc4pac server is not running. (reconnect not yet implemented)')),
-                  ClientStatus.lostConnection => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Lost connection to local sc4pac server. (reconnect not yet implemented)')),
-                }
-            ),
-          ),
+          // Card(
+          //   child: ListenableBuilder(
+          //     listenable: widget.client,
+          //     builder: (context, child) =>
+          //       switch (widget.client.status) {
+          //         ClientStatus.connecting => const ListTile(leading: Icon(Icons.wifi_tethering_off), title: Text('Connecting to local sc4pac server...')),
+          //         ClientStatus.connected => const ListTile(leading: Icon(Icons.wifi_tethering), title: Text('Connected to local sc4pac server.')),
+          //         ClientStatus.serverNotRunning => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Local sc4pac server is not running. (reconnect not yet implemented)')),
+          //         ClientStatus.lostConnection => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Lost connection to local sc4pac server. (reconnect not yet implemented)')),
+          //       }
+          //   ),
+          // ),
           ListTile(
             leading: const Icon(Symbols.person_pin_circle),
             title: Text('Profile: ${widget.dashboard.profile.name}')

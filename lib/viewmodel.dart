@@ -32,7 +32,7 @@ class World extends ChangeNotifier {
     initialServerStatus = Sc4pacClient.serverStatus(authority);
     initialServerStatus.then(
       (_) {  // connection succeeded, so proceed to next phase
-        client = Sc4pacClient(authority);
+        client = Sc4pacClient(authority, onConnectionLost: () => updateConnection(authority, notify: true));
         _switchToLoadingProfiles();
       },
       onError: (_) {},  // connection failed, so stay in InitPhase.connecting

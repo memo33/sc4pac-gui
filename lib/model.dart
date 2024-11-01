@@ -38,31 +38,33 @@ class ApiError {
 enum ClientStatus { connecting, connected, serverNotRunning, lostConnection }
 
 // TODO refactor to make use of http.Client for keep-alive connections
-class Sc4pacClient extends ChangeNotifier {
+class Sc4pacClient /*extends ChangeNotifier*/ {
   final String authority;
   final String wsUrl;
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
+  final void Function() onConnectionLost;
 
-  Sc4pacClient(this.authority) :
+  Sc4pacClient(this.authority, {required this.onConnectionLost}) :
     wsUrl = 'ws://$authority',
     connection = serverConnect('ws://$authority')  // TODO appears to unregister automatically when application exits
   {
     connection.ready
       .then((_) {
         status = ClientStatus.connected;
-        notifyListeners();
+        // notifyListeners();
         // next monitor potential closing of the websocket
         connection.stream.drain<String>('done')
           .then((_) {
             status = ClientStatus.lostConnection;
-            notifyListeners();
+            // notifyListeners();
+            onConnectionLost();
           }, onError: (e) {
             debugPrint("Unexpected websocket stream error: $e");  // should not happen
           });
       }, onError: (_) {  // in this case, we must not listen to the stream
         status = ClientStatus.serverNotRunning;
-        notifyListeners();
+        // notifyListeners();
       });
   }
 

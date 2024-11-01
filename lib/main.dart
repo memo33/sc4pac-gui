@@ -115,7 +115,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   @override build(BuildContext context) {
     return Dialog.fullscreen(
       child: Scaffold(
-        appBar: AppBar(centerTitle: true, title: const Text('Connection')),
+        appBar: AppBar(centerTitle: true, title: const Text("Establish connection")),
         body: FutureBuilder(
           future: widget.world.initialServerStatus,
           builder: (context, snapshot) {
@@ -128,6 +128,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                       const Spacer(),
                       ExpansionTile(
                         trailing: const Icon(Icons.info_outlined),
+                        leading: const Icon(Icons.wifi_tethering_error),
                         title: Text("Connection to local sc4pac server not possible at ${widget.world.authority}"),
                         children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system. "
                           "The local backend server is either not running or the GUI does not know its address.")],
