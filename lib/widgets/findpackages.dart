@@ -34,7 +34,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
     final q = widget.findPackages.searchTerm;
     final c = widget.findPackages.selectedCategory;
     if ((q?.isNotEmpty ?? false) || c != null) {
-      futureJson = World.world.client.search(q ?? '', category: c, profileId: World.world.profile!.id);
+      futureJson = World.world.client.search(q ?? '', category: c, profileId: World.world.profile.id);
     } else {
       futureJson = Future.value([]);
     }
@@ -62,7 +62,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               FutureBuilder(
-                future: World.world.profile!.channelStatsFuture,
+                future: World.world.profile.channelStatsFuture,
                 builder: (context, snapshot) {
                   // if snapshot.hasError, this usually means /error/channels-not-available which can be ignored here
                   return CategoryMenu(
@@ -124,7 +124,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       subtitle: item.summary,
                       status: item.status,
                       refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile!.dashboard.onToggledStarButton(module, checked, refreshParent: _refresh),
+                      onToggled: (checked) => World.world.profile.dashboard.onToggledStarButton(module, checked, refreshParent: _refresh),
                     );
                   },
                   childCount: snapshot.data!.length,

@@ -20,9 +20,8 @@ class World extends ChangeNotifier {
   late Future<Map<String, dynamic>> initialServerStatus;
   late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
+  late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
-
-  Profile? profile;
   // themeMode
   // server
   // other gui settings
@@ -56,15 +55,13 @@ class World extends ChangeNotifier {
 
   void _switchToInitialzingProfile() {
     initPhase = InitPhase.initializingProfile;
-    readProfileFuture = client.profileRead(profileId: profile!.id);
+    readProfileFuture = client.profileRead(profileId: profile.id);
     notifyListeners();
   }
 
   void updatePaths(({String plugins, String cache}) paths) {
-    if (profile != null) {
-      profile?.paths = paths;
-      _switchToInitialized();
-    }
+    profile.paths = paths;
+    _switchToInitialized();
   }
 
   void _switchToInitialized() {
@@ -190,7 +187,7 @@ class UpdateProcess {
   final void Function(UpdateStatus) onFinished;
 
   UpdateProcess({required this.onFinished}) {
-    _ws = World.world.client.update(profileId: World.world.profile!.id);
+    _ws = World.world.client.update(profileId: World.world.profile.id);
     stream =
       _ws.ready
         .then((_) => true, onError: (e) {

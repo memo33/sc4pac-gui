@@ -45,7 +45,7 @@ class _PackagePageState extends State<PackagePage> {
   }
 
   void _fetchInfo() {
-    futureJson = World.world.client.info(widget.module, profileId: World.world.profile!.id);
+    futureJson = World.world.client.info(widget.module, profileId: World.world.profile.id);
   }
 
   void _refresh() {
@@ -191,7 +191,7 @@ class _AddPackageButtonState extends State<AddPackageButton> {
       onPressed: () {
         setState(() {
           _addedExplicitly = !_addedExplicitly;
-          World.world.profile!.dashboard.onToggledStarButton(widget.module, _addedExplicitly, refreshParent: widget.refreshParent);
+          World.world.profile.dashboard.onToggledStarButton(widget.module, _addedExplicitly, refreshParent: widget.refreshParent);
         });
       },
     );

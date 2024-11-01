@@ -322,7 +322,7 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
 
   void _submit() {
     widget.world.client.profileInit(
-      profileId: widget.world.profile!.id,
+      profileId: widget.world.profile.id,
       paths: (plugins: _pluginsPathController.text, cache: _cachePathController.text),
     ).then(
       (data) => widget.world.updatePaths((plugins: data['pluginsRoot'], cache: data['cacheRoot'])),  // switches to next initPhase
@@ -437,8 +437,8 @@ class _NavRailState extends State<NavRail> {
                     labelType: NavigationRailLabelType.all,  // or selected,
                     destinations: <NavigationRailDestination>[
                       NavigationRailDestination(
-                        icon: DashboardIcon(widget.world.profile!.dashboard, selected: false),
-                        selectedIcon: DashboardIcon(widget.world.profile!.dashboard, selected: true),
+                        icon: DashboardIcon(widget.world.profile.dashboard, selected: false),
+                        selectedIcon: DashboardIcon(widget.world.profile.dashboard, selected: true),
                         label: const Text('Dashboard'),
                       ),
                       const NavigationRailDestination(
@@ -465,9 +465,9 @@ class _NavRailState extends State<NavRail> {
             // This is the main content.
             Expanded(
               child:
-                _selectedIndex == 0 ? DashboardScreen(widget.world.profile!.dashboard, widget.world.client) :
-                _selectedIndex == 1 ? FindPackagesScreen(widget.world.profile!.findPackages) :
-                _selectedIndex == 2 ? MyPluginsScreen(widget.world.profile!.myPlugins) : Column(
+                _selectedIndex == 0 ? DashboardScreen(widget.world.profile.dashboard, widget.world.client) :
+                _selectedIndex == 1 ? FindPackagesScreen(widget.world.profile.findPackages) :
+                _selectedIndex == 2 ? MyPluginsScreen(widget.world.profile.myPlugins) : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
                     Text('selectedIndex: $_selectedIndex'),

@@ -515,7 +515,7 @@ class _VariantsTableState extends State<VariantsTable> {
                   onPressed: () {
                     setState(() {
                       widget.variants.remove(e.key);
-                      World.world.client.variantsReset([e.key], profileId: World.world.profile!.id);  // we do not need to await result
+                      World.world.client.variantsReset([e.key], profileId: World.world.profile.id);  // we do not need to await result
                     });
                   },
                 )),
@@ -539,7 +539,7 @@ class _ChannelsListState extends State<ChannelsList> {
 
   @override void initState() {
     super.initState();
-    urlsFuture = World.world.client.channelsList(profileId: World.world.profile!.id);
+    urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id);
   }
 
   List<String> _parseUrls(String text) => text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
@@ -547,10 +547,10 @@ class _ChannelsListState extends State<ChannelsList> {
   String _stringifyUrls(List<String> urls) => urls.isEmpty ? "" : "${urls.join('\n')}\n";
 
   void _submit(List<String> urls) {
-    World.world.client.channelsSet(urls, profileId: World.world.profile!.id).then(
+    World.world.client.channelsSet(urls, profileId: World.world.profile.id).then(
       (_) {
         setState(() {
-          urlsFuture = World.world.client.channelsList(profileId: World.world.profile!.id);
+          urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id);
           changed = false;
         });
       },
