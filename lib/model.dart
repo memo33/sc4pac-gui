@@ -182,12 +182,17 @@ class Api {
     return ws;
   }
 
-  static Future<Map<String, dynamic>> serverStatus() async {
-    final response = await http.get(Uri.http(host, '/server.status'));
+  static Future<Map<String, dynamic>> serverStatus(String authority) async {
+    final response = await http.get(Uri.http(authority, '/server.status'));
     if (response.statusCode == 200) {
-      return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+      try {
+        return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+      } on FormatException {
+        throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
+      }
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      // throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
     }
   }
 

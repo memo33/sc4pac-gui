@@ -74,58 +74,128 @@ class Sc4pacGuiApp extends StatelessWidget {
 
       home: ListenableBuilder(
         listenable: _world,
-        builder: (context, child) => _world.profile == null ? FutureBuilder<Profiles>(
-          future: Api.profiles(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
-            } else if (!snapshot.hasData) {
-              return const Center(child: Card(child: ListTile(leading: CircularProgressIndicator(), title: Text("Loading profiles"))));
-            } else {
-              final data = snapshot.data!;
-              if (data.currentProfileId.isEmpty) {
-                return CreateProfileDialog(_world);
-              } else {
-                final String id = data.currentProfileId.first;
-                final p = data.profiles.firstWhere((p) => p.id == id);
-                _world.updateProfile(p, notify: false);
-                return InitProfileWrapper(_world);
-              }
-            }
-          },
-        ) : _world.profile!.paths == null ? InitProfileWrapper(_world) : NavRail(_world)
+        builder: (context, child) => switch (_world.initPhase) {
+          InitPhase.initialized => NavRail(_world),
+          InitPhase.connecting => ConnectionScreen(_world),
+          InitPhase.loadingProfiles => LoadingProfilesScreen(_world),
+          InitPhase.initializingProfile => ReadingProfileScreen(_world),
+        },
       ),
     );
   }
 }
 
-class InitProfileWrapper extends StatelessWidget {
+class ConnectionScreen extends StatefulWidget {
   final World world;
-  const InitProfileWrapper(this.world, {super.key});
+  const ConnectionScreen(this.world, {super.key});
+  @override State<ConnectionScreen> createState() => _ConnectionScreenState();
+}
+class _ConnectionScreenState extends State<ConnectionScreen> {
+  late final TextEditingController _controller = TextEditingController();
+  bool _isValid = true;
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Api.profileRead(profileId: world.profile!.id),
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text;
+    final uri = Uri.tryParse(text.startsWith('http://') || text.startsWith('https://') ? text : "http://$text");
+    setState(() {
+      _isValid = uri != null;
+      if (uri != null) {
+        _controller.text = uri.authority;
+        widget.world.updateConnection(uri.authority, notify: true);
+      }
+    });
+  }
+
+  @override build(BuildContext context) {
+    return Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(centerTitle: true, title: const Text('Connection')),
+        body: FutureBuilder(
+          future: widget.world.initialServerStatus,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Column(
+                    children: [
+                      const Spacer(),
+                      ExpansionTile(
+                        trailing: const Icon(Icons.info_outlined),
+                        title: Text("Connection to local sc4pac server not possible at ${widget.world.authority}"),
+                        children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system. "
+                          "The local backend server is either not running or the GUI does not know its address.")],
+                      ),
+                      const SizedBox(height: 15),
+                      TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          icon: const Icon(Icons.edit),
+                          labelText: "Host and Port",
+                          helperText: "Enter \"host:port\" for local sc4pac backend server to connect to.",
+                          errorText: _isValid ? null : "Enter \"host:port\" for local sc4pac backend server to connect to.",
+                          helperMaxLines: 10,
+                          hintText: "localhost:51515 or 127.0.0.1:51515",
+                        ),
+                        onSubmitted: (String text) {
+                          if (text.isNotEmpty) {
+                            _submit();
+                          }
+                        }
+                      ),
+                      const SizedBox(height: 20),
+                      ListenableBuilder(
+                        listenable: _controller,
+                        builder: (context, child) => FilledButton(
+                          onPressed: _controller.text.isEmpty ? null : _submit,
+                          child: child,
+                        ),
+                        child: const Text("Connect")
+                      ),
+                      const Spacer(),
+                    ],
+                  ),
+                ),
+              );
+            } else {
+              // connecting (or connection established; we don't care about the result, as initPhase change triggers next screen)
+              return const Center(child: Card(child: ListTile(title: Text("Connecting…"))));
+            }
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class LoadingProfilesScreen extends StatelessWidget {
+  final World world;
+  const LoadingProfilesScreen(this.world, {super.key});
+  @override build(BuildContext context) {
+    return FutureBuilder<Profiles>(
+      future: world.profilesFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
-        } else if (!snapshot.hasData) {
-          return const Center(child: Card(child: ListTile(leading: CircularProgressIndicator(), title: Text("Loading profile data"))));
         } else {
-          final profileData = snapshot.data!;
-          if (profileData.initialized) {
-            final paths = (plugins: profileData.data['pluginsRoot'] as String, cache: profileData.data['cacheRoot'] as String);
-            world.updatePaths(paths, notify: false);
-            return NavRail(world);
-          } else {
-            final defaults = profileData.data['platformDefaults'];
-            return InitProfileDialog(
-              world,
-              initialPluginsPath: defaults['plugins'].first as String,
-              initialCachePath: defaults['cache'].first as String,
-            );
+          if (snapshot.hasData) {
+            final data = snapshot.data!;
+            if (data.currentProfileId.isEmpty) {
+              return CreateProfileDialog(world);
+            }
+            final String id = data.currentProfileId.first;
+            final p = data.profiles.firstWhere((p) => p.id == id);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              world.updateProfile(p);  // switches to next initPhase
+            });
           }
+          return const Center(child: Card(child: ListTile(title: Text("Loading profiles…"))));
         }
       },
     );
@@ -135,8 +205,7 @@ class InitProfileWrapper extends StatelessWidget {
 class CreateProfileDialog extends StatefulWidget {
   final World world;
   const CreateProfileDialog(this.world, {super.key});
-  @override
-  State<CreateProfileDialog> createState() => _CreateProfileDialogState();
+  @override State<CreateProfileDialog> createState() => _CreateProfileDialogState();
 }
 class _CreateProfileDialogState extends State<CreateProfileDialog> {
   late final TextEditingController _profileNameController = TextEditingController();
@@ -149,7 +218,7 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
 
   void _submit() {
     Api.addProfile(_profileNameController.text).then(
-      (p) => widget.world.updateProfile(p, notify: true),
+      (p) => widget.world.updateProfile(p),  // switches to next initPhase
       onError: ApiErrorWidget.dialog,
     );
   }
@@ -197,36 +266,37 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
   }
 }
 
-class FolderPathEdit extends StatelessWidget {
-  final TextEditingController controller;
-  final String? labelText;
-  final void Function() onSelected;
-  const FolderPathEdit(this.controller, {this.labelText, required this.onSelected, super.key});
+class ReadingProfileScreen extends StatelessWidget {
+  final World world;
+  const ReadingProfileScreen(this.world, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(child:
-          TextField(
-            controller: controller,
-            decoration: InputDecoration(labelText: labelText),
-            readOnly: true,
-          ),
-        ),
-        const SizedBox(width: 10),
-        OutlinedButton.icon(
-          icon: const Icon(Symbols.bookmark_manager),
-          onPressed: () async {
-            String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: controller.text);
-            if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
-              controller.text = selectedDirectory;
-              onSelected();
+    return FutureBuilder(
+      future: world.readProfileFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
+        } else {
+          if (snapshot.hasData) {
+            final profileData = snapshot.data!;
+            if (!profileData.initialized) {
+              final defaults = profileData.data['platformDefaults'];
+              return InitProfileDialog(
+                world,
+                initialPluginsPath: defaults['plugins'].first as String,
+                initialCachePath: defaults['cache'].first as String,
+              );
+            } else {
+              final paths = (plugins: profileData.data['pluginsRoot'] as String, cache: profileData.data['cacheRoot'] as String);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                world.updatePaths(paths);  // switches to next initPhase
+              });
             }
-          },
-          label: const Text("Edit"),
-        ),
-      ],
+          }
+          return const Center(child: Card(child: ListTile(title: Text("Loading profile data…"))));
+        }
+      },
     );
   }
 }
@@ -255,7 +325,7 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
       profileId: widget.world.profile!.id,
       paths: (plugins: _pluginsPathController.text, cache: _cachePathController.text),
     ).then(
-      (data) => widget.world.updatePaths((plugins: data['pluginsRoot'], cache: data['cacheRoot']), notify: true),
+      (data) => widget.world.updatePaths((plugins: data['pluginsRoot'], cache: data['cacheRoot'])),  // switches to next initPhase
       onError: ApiErrorWidget.dialog,
     );
   }
@@ -299,6 +369,40 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class FolderPathEdit extends StatelessWidget {
+  final TextEditingController controller;
+  final String? labelText;
+  final void Function() onSelected;
+  const FolderPathEdit(this.controller, {this.labelText, required this.onSelected, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(child:
+          TextField(
+            controller: controller,
+            decoration: InputDecoration(labelText: labelText),
+            readOnly: true,
+          ),
+        ),
+        const SizedBox(width: 10),
+        OutlinedButton.icon(
+          icon: const Icon(Symbols.bookmark_manager),
+          onPressed: () async {
+            String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: controller.text);
+            if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
+              controller.text = selectedDirectory;
+              onSelected();
+            }
+          },
+          label: const Text("Edit"),
+        ),
+      ],
     );
   }
 }

@@ -6,38 +6,81 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
 import 'widgets/fragments.dart';
 
+enum InitPhase { connecting, loadingProfiles, initializingProfile, initialized }
+
 class World extends ChangeNotifier {
+  late InitPhase initPhase;
+  late String authority;
+  late Future<Map<String, dynamic>> initialServerStatus;
+  late Future<Profiles> profilesFuture;
+  late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
+
   Profile? profile;
   // themeMode
   // server
   // other gui settings
   final Sc4pacClient client = Sc4pacClient();
 
-  void updateProfile(({String id, String name}) p, {required bool notify}) {
-    profile = Profile(p.id, p.name);
+  void updateConnection(String authority, {required bool notify}) {
+    initPhase = InitPhase.connecting;
+    this.authority = authority;
+    initialServerStatus = Api.serverStatus(authority);
+    initialServerStatus.then(
+      (_) {  // connection succeeded, so proceed to next phase
+        _switchToLoadingProfiles();
+      },
+      onError: (_) {},  // connection failed, so stay in InitPhase.connecting
+    );
     if (notify) {
       notifyListeners();
     }
   }
 
-  void updatePaths(({String plugins, String cache}) paths, {required bool notify}) {
+  void _switchToLoadingProfiles() {
+    initPhase = InitPhase.loadingProfiles;
+    profilesFuture = Api.profiles();
+    notifyListeners();
+  }
+
+  void updateProfile(({String id, String name}) p) {
+    profile = Profile(p.id, p.name);
+    _switchToInitialzingProfile();
+  }
+
+  void _switchToInitialzingProfile() {
+    initPhase = InitPhase.initializingProfile;
+    readProfileFuture = Api.profileRead(profileId: profile!.id);
+    notifyListeners();
+  }
+
+  void updatePaths(({String plugins, String cache}) paths) {
     if (profile != null) {
       profile?.paths = paths;
-      if (notify) {
-        notifyListeners();
-      }
+      _switchToInitialized();
     }
+  }
+
+  void _switchToInitialized() {
+    initPhase = InitPhase.initialized;
+    notifyListeners();
   }
 
   static late World world;
 
   World() {
     World.world = this;  // TODO for simplicity of access, we store a static reference to the one world
+    if (kIsWeb) {
+      authority = Uri.base.authority;  // TODO make configurable
+    } else {
+      authority = "localhost:51515";  // TODO make configurable
+    }
+    updateConnection(authority, notify: false);
   }
 }
 
