@@ -15,13 +15,18 @@ import 'widgets/fragments.dart';
 void main(List<String> args) {
   final cmdArgs = CommandlineArgs(args);
   if (cmdArgs.help) {
+    final segments = File(Platform.resolvedExecutable).uri.pathSegments;
+    final exeName = segments.isEmpty ? "sc4pac-gui" : segments.last;
     stdout.writeln(
-"""Usage: sc4pac-gui [options]
+"""Usage: $exeName [options]
 
 Options
-  --port number  Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
-  --host IP      Hostname of sc4pac server (default: localhost)
-  -h, --help     Print help message and exit"""
+  --port number           Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
+  --host IP               Hostname of sc4pac server (default: localhost)
+  --launch-server=false   Do not launch sc4pac server from GUI, but connect to external process instead (default: true)
+  --profiles-dir path     Profiles directory for sc4pac server (default: BUNDLEDIR/profiles), resolved relative to current directory
+  --sc4pac-cli-dir path   Contains sc4pac CLI scripts for launching the server (default: BUNDLEDIR/cli), resolved relative to current directory
+  -h, --help              Print help message and exit"""
     );
     exit(0);
   } else {
@@ -33,21 +38,19 @@ class CommandlineArgs {
   bool help = false;
   int? port;
   String? host;
+  String? profilesDir;
+  String? cliDir;
+  bool launchServer = true;
   CommandlineArgs(List<String> args) {
     while (args.isNotEmpty) {
       switch (args) {
-        case ["--port", var p, ...(var rest)]:
-          port = int.tryParse(p);
-          args = rest;
-          break;
-        case ["--host", var h, ...(var rest)]:
-          host = h;
-          args = rest;
-          break;
-        case ["--help" || "-h", ...(var rest)]:
-          help = true;
-          args = rest;
-          break;
+        case ["--port", var p, ...(var rest)]:           port = int.tryParse(p); args = rest; break;
+        case ["--host", var h, ...(var rest)]:           host = h;               args = rest; break;
+        case ["--profiles-dir", var p, ...(var rest)]:   profilesDir = p;        args = rest; break;
+        case ["--sc4pac-cli-dir", var p, ...(var rest)]: cliDir = p;             args = rest; break;
+        case ["--launch-server=true",  ...(var rest)]:   launchServer = true;    args = rest; break;
+        case ["--launch-server=false", ...(var rest)]:   launchServer = false;   args = rest; break;
+        case ["--help" || "-h", ...(var rest)]:          help = true;            args = rest; break;
         default:
           stderr.writeln("Unknown trailing arguments (try --help): ${args.join(" ")}");
           args = [];
@@ -208,7 +211,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               );
             } else {
               // connecting (or connection established; we don't care about the result, as initPhase change triggers next screen)
-              return const Center(child: Card(child: ListTile(title: Text("Connecting…"))));
+              final text = widget.world.server?.status == ServerStatus.launching ? "Launching sc4pac…" : "Connecting…";
+              return Center(child: Card(child: ListTile(title: Text(text))));
             }
           },
         ),

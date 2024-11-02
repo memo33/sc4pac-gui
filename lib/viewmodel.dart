@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io';
 import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
@@ -19,19 +20,20 @@ class World extends ChangeNotifier {
   final CommandlineArgs args;
   late InitPhase initPhase;
   late String authority;
+  late Sc4pacServer? server;
   late Future<Map<String, dynamic>> initialServerStatus;
   late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
   // themeMode
-  // server
   // other gui settings
 
   void updateConnection(String authority, {required bool notify}) {
     initPhase = InitPhase.connecting;
     this.authority = authority;
-    initialServerStatus = Sc4pacClient.serverStatus(authority);
+    // we call `serverStatus`, even if `ready` resolved to false (launching server failed), to allow connecting to external server process instead
+    initialServerStatus = (server?.ready ?? Future.value(true)).then((_) => Sc4pacClient.serverStatus(authority));
     initialServerStatus.then(
       (_) {  // connection succeeded, so proceed to next phase
         client = Sc4pacClient(authority, onConnectionLost: () => updateConnection(authority, notify: true));
@@ -78,14 +80,26 @@ class World extends ChangeNotifier {
 
     const envPort = bool.hasEnvironment("port") ? int.fromEnvironment("port") : null;
     const envHost = bool.hasEnvironment("host") ? String.fromEnvironment("host") : null;
+    final int port = args.port ?? envPort ?? Sc4pacClient.defaultPort;
     if (args.host != null || args.port != null || envHost != null || envPort != null) {
       final h = args.host ?? envHost ?? "localhost";
-      final p = args.port ?? envPort ?? Sc4pacClient.defaultPort;
-      authority = "$h:$p";
+      authority = "$h:$port";
     } else {
       // for web, api server and webapp server are identical by default
-      authority = kIsWeb ? Uri.base.authority : "localhost:${Sc4pacClient.defaultPort}";
+      authority = kIsWeb ? Uri.base.authority : "localhost:$port";
     }
+
+    if (!kIsWeb && args.launchServer) {
+      final String bundleRoot = FileSystemEntity.parentOf(Platform.resolvedExecutable);
+      server = Sc4pacServer(
+        cliDir: args.cliDir ?? "$bundleRoot/cli",
+        profilesDir: args.profilesDir ?? "$bundleRoot/profiles",
+        port: port,
+      );
+    } else {
+      server = null;
+    }
+
     updateConnection(authority, notify: false);
   }
 }

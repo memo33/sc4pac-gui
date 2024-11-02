@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:equatable/equatable.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:io';
+import 'dart:async';
 import 'data.dart';
 
 final Converter<List<int>, Object?> _jsonUtf8Decoder = const Utf8Decoder().fuse(const JsonDecoder());
@@ -32,6 +34,57 @@ class ApiError {
   factory ApiError.unexpected(String title, String detail) => ApiError({'\$type': '/error/unexpected', 'title': title, 'detail': detail});
   factory ApiError.from(Object err) {
     return err is ApiError ? err : ApiError.unexpected('Unexpected error', err.toString());
+  }
+}
+
+enum ServerStatus { launching, listening, terminated }
+
+// server is launched from desktop GUI, but not from webapp
+class Sc4pacServer {
+  final String cliDir;
+  final String profilesDir;
+  ServerStatus status = ServerStatus.launching;
+  late final Future<Process> process;
+  late final Future<bool> ready;  // true once server listens, false if launching server did not work (This future never fails)
+
+  Sc4pacServer({required this.cliDir, required this.profilesDir, required int port}) {
+    const readyTag = "[LISTENING]";
+    final completer = Completer<bool>();
+    ready = completer.future;
+    process = Process.start(
+      Platform.isWindows ? "$cliDir/sc4pac.bat" : "$cliDir/sc4pac",
+      [
+        "server",
+        "--port", port.toString(),
+        "--profiles-dir", profilesDir,
+        "--auto-shutdown",
+        "--startup-tag", readyTag,
+      ],
+    )
+    ..then((process) {
+      stdout.writeln("Sc4pac server PID: ${process.pid}");
+      // it's important to consume both stdout and stderr to avoid freezes
+      process.stdout.transform(utf8.decoder).forEach((String line) {
+        if (status == ServerStatus.launching && line.contains(readyTag)) {
+          status = ServerStatus.listening;
+          completer.complete(true);
+        }
+        stdout.writeln(line);
+      });
+      stderr.addStream(process.stderr);
+      process.exitCode.then((exitCode) {
+        stdout.writeln("Sc4pac server exited with code $exitCode");
+        status = ServerStatus.terminated;
+      }).whenComplete(() {  // whenComplete runs regardless of whether future succeeded or failed
+        if (!completer.isCompleted) {
+          completer.complete(false);
+        }
+      });
+    }, onError: (err) {
+      stderr.writeln(err);  // failed to launch server, probably because cliDir is wrong
+      status = ServerStatus.terminated;
+      completer.complete(false);
+    });
   }
 }
 
