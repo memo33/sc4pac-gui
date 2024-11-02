@@ -4,7 +4,7 @@ project(sc4pac_gui LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "sc4pac_gui")
+set(BINARY_NAME "sc4pac-gui")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
