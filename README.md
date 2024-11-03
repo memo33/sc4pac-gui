@@ -115,7 +115,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 
 - [ ] color scheme.
 
-- [ ] deployment: launch scripts for each platform for reliably starting both server and client.
+- [x] deployment: launch scripts for each platform for reliably starting both server and client.
   If one of the processes terminates, this should be handled gracefully by the other.
 
 - [ ] split-pane layout for wide screens: list of packages on the left, individual package details on the right (similar to an email app).

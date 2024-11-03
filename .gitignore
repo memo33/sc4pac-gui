@@ -2,6 +2,9 @@
 *.g.dart
 /cli
 /profiles/
+/scripts/cli
+/scripts/profiles
+/scripts/webapp
 
 # Miscellaneous
 *.class
