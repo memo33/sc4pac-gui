@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'dart:io';
 import 'model.dart';
@@ -425,6 +426,7 @@ class FolderPathEdit extends StatelessWidget {
   final String? labelText;
   final void Function() onSelected;
   const FolderPathEdit(this.controller, {this.labelText, required this.onSelected, super.key});
+  static const supportsDirectoryPicker = !kIsWeb;
 
   @override
   Widget build(BuildContext context) {
@@ -433,15 +435,20 @@ class FolderPathEdit extends StatelessWidget {
         Expanded(child:
           TextField(
             controller: controller,
-            decoration: InputDecoration(labelText: labelText),
-            readOnly: true,
+            decoration: InputDecoration(
+              labelText: labelText,
+              helperMaxLines: 10,
+              helperText: supportsDirectoryPicker ? null :
+                "To change this, open your file explorer and copy the full path of a directory to paste it in here.",
+            ),
+            readOnly: supportsDirectoryPicker,
           ),
         ),
         const SizedBox(width: 10),
-        OutlinedButton.icon(
+        if (supportsDirectoryPicker) OutlinedButton.icon(
           icon: const Icon(Symbols.bookmark_manager),
           onPressed: () async {
-            String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: controller.text);
+            String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: controller.text);  // does not work in web
             if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
               controller.text = selectedDirectory;
               onSelected();

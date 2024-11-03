@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:open_file/open_file.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:badges/badges.dart' as badges;
 import '../data.dart';
 import '../model.dart';
@@ -190,12 +191,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                   ),
-                  Tooltip(message: 'Open in file browser', child: IconButton(
-                    icon: const Icon(Symbols.open_in_new_down),
-                    onPressed: widget.dashboard.profile.paths == null ? null : () {
-                      OpenFile.open(widget.dashboard.profile.paths?.plugins);  // TODO does not work in web
-                    },
-                  )),
+                  if (!kIsWeb)
+                    Tooltip(message: 'Open in file browser', child: IconButton(
+                      icon: const Icon(Symbols.open_in_new_down),
+                      onPressed: widget.dashboard.profile.paths == null ? null : () {
+                        OpenFile.open(widget.dashboard.profile.paths?.plugins);  // does not work in web
+                      },
+                    )),
                 ],
               ),
             ],
