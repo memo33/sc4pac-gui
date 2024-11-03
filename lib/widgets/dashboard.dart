@@ -156,18 +156,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // mainAxisAlignment: MainAxisAlignment.start,
         // crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Card(
-            child: ListenableBuilder(
-              listenable: widget.client,
-              builder: (context, child) =>
-                switch (widget.client.status) {
-                  ClientStatus.connecting => const ListTile(leading: Icon(Icons.wifi_tethering_off), title: Text('Connecting to local sc4pac server...')),
-                  ClientStatus.connected => const ListTile(leading: Icon(Icons.wifi_tethering), title: Text('Connected to local sc4pac server.')),
-                  ClientStatus.serverNotRunning => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Local sc4pac server is not running. (reconnect not yet implemented)')),
-                  ClientStatus.lostConnection => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Lost connection to local sc4pac server. (reconnect not yet implemented)')),
-                }
-            ),
-          ),
+          // Card(
+          //   child: ListenableBuilder(
+          //     listenable: widget.client,
+          //     builder: (context, child) =>
+          //       switch (widget.client.status) {
+          //         ClientStatus.connecting => const ListTile(leading: Icon(Icons.wifi_tethering_off), title: Text('Connecting to local sc4pac server...')),
+          //         ClientStatus.connected => const ListTile(leading: Icon(Icons.wifi_tethering), title: Text('Connected to local sc4pac server.')),
+          //         ClientStatus.serverNotRunning => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Local sc4pac server is not running. (reconnect not yet implemented)')),
+          //         ClientStatus.lostConnection => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Lost connection to local sc4pac server. (reconnect not yet implemented)')),
+          //       }
+          //   ),
+          // ),
           ListTile(
             leading: const Icon(Symbols.person_pin_circle),
             title: Text('Profile: ${widget.dashboard.profile.name}')
@@ -515,7 +515,7 @@ class _VariantsTableState extends State<VariantsTable> {
                   onPressed: () {
                     setState(() {
                       widget.variants.remove(e.key);
-                      Api.variantsReset([e.key], profileId: World.world.profile!.id);  // we do not need to await result
+                      World.world.client.variantsReset([e.key], profileId: World.world.profile.id);  // we do not need to await result
                     });
                   },
                 )),
@@ -539,7 +539,7 @@ class _ChannelsListState extends State<ChannelsList> {
 
   @override void initState() {
     super.initState();
-    urlsFuture = Api.channelsList(profileId: World.world.profile!.id);
+    urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id);
   }
 
   List<String> _parseUrls(String text) => text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
@@ -547,10 +547,10 @@ class _ChannelsListState extends State<ChannelsList> {
   String _stringifyUrls(List<String> urls) => urls.isEmpty ? "" : "${urls.join('\n')}\n";
 
   void _submit(List<String> urls) {
-    Api.channelsSet(urls, profileId: World.world.profile!.id).then(
+    World.world.client.channelsSet(urls, profileId: World.world.profile.id).then(
       (_) {
         setState(() {
-          urlsFuture = Api.channelsList(profileId: World.world.profile!.id);
+          urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id);
           changed = false;
         });
       },

@@ -55,7 +55,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   void _search() {
     final q = widget.myPlugins.searchTerm;
     final c = widget.myPlugins.selectedCategory;
-    searchResultFuture = Api.pluginsSearch(q ?? '', category: c, profileId: World.world.profile!.id);
+    searchResultFuture = World.world.client.pluginsSearch(q ?? '', category: c, profileId: World.world.profile.id);
     _filter();
   }
   @override
@@ -85,6 +85,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
       slivers: [
         SliverAppBar(
           floating: true,
+          // pinned: true,  // TODO consider pinning to avoid scroll physics auto-scrolling to top when touching app bar
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
@@ -204,11 +205,11 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       subtitle: '${pkg.status.installed?.version} | ${pkg.summary} | ${pkg.status.timeLabel()}',
                       status: pkg.status,
                       refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile!.dashboard.onToggledStarButton(module, checked, refreshParent: _refresh),
+                      onToggled: (checked) => World.world.profile.dashboard.onToggledStarButton(module, checked, refreshParent: _refresh),
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!)),
                         // if (pkg.status.explicit) PackageTileChip.explicit(onDeleted: () {
-                        //   Api.remove(module, profileId: World.world.profile!.id).then((_) {
+                        //   World.world.client.remove(module, profileId: World.world.profile.id).then((_) {
                         //     _refresh();
                         //   }, onError: ApiErrorWidget.dialog);  // TODO handle failure and success
                         // }),

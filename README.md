@@ -69,12 +69,12 @@ vendor/
    (If you are in a Windows terminal, create a copy of `sc4pac.bat` and edit it to adjust the path to the jar file:
    `./vendor/sc4pac-tools/target/scala-<x.y.z>/sc4pac-cli.jar`)
    ```sh
-   ./vendor/sc4pac-tools/sc4pac server --indent 1 --profiles-dir profiles
+   ./vendor/sc4pac-tools/sc4pac server --profiles-dir profiles
    ```
 
 4. **Always:** Finally, build and run the GUI.
    ```sh
-   ./vendor/flutter/bin/flutter run             # you can directly choose a device with `--device-id <id>`
+   ./vendor/flutter/bin/flutter run --dart-define=port=51515 --dart-entrypoint-args --launch-server=false    # you can directly choose a device with `--device-id <id>`
    ```
 
 Flutter supports hot-reloading, so that changes of the source code become visible in an instant.
@@ -115,7 +115,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 
 - [ ] color scheme.
 
-- [ ] deployment: launch scripts for each platform for reliably starting both server and client.
+- [x] deployment: launch scripts for each platform for reliably starting both server and client.
   If one of the processes terminates, this should be handled gracefully by the other.
 
 - [ ] split-pane layout for wide screens: list of packages on the left, individual package details on the right (similar to an email app).

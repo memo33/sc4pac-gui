@@ -6,38 +6,101 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io';
 import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
 import 'widgets/fragments.dart';
+import 'main.dart' show CommandlineArgs;
+
+enum InitPhase { connecting, loadingProfiles, initializingProfile, initialized }
 
 class World extends ChangeNotifier {
-  Profile? profile;
+  final CommandlineArgs args;
+  late InitPhase initPhase;
+  late String authority;
+  late Sc4pacServer? server;
+  late Future<Map<String, dynamic>> initialServerStatus;
+  late Sc4pacClient client;
+  late Future<Profiles> profilesFuture;
+  late Profile profile;
+  late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
   // themeMode
-  // server
   // other gui settings
-  final Sc4pacClient client = Sc4pacClient();
 
-  void updateProfile(({String id, String name}) p, {required bool notify}) {
-    profile = Profile(p.id, p.name);
+  void updateConnection(String authority, {required bool notify}) {
+    initPhase = InitPhase.connecting;
+    this.authority = authority;
+    // we call `serverStatus`, even if `ready` resolved to false (launching server failed), to allow connecting to external server process instead
+    initialServerStatus = (server?.ready ?? Future.value(true)).then((_) => Sc4pacClient.serverStatus(authority));
+    initialServerStatus.then(
+      (_) {  // connection succeeded, so proceed to next phase
+        client = Sc4pacClient(authority, onConnectionLost: () => updateConnection(authority, notify: true));
+        _switchToLoadingProfiles();
+      },
+      onError: (_) {},  // connection failed, so stay in InitPhase.connecting
+    );
     if (notify) {
       notifyListeners();
     }
   }
 
-  void updatePaths(({String plugins, String cache}) paths, {required bool notify}) {
-    if (profile != null) {
-      profile?.paths = paths;
-      if (notify) {
-        notifyListeners();
-      }
-    }
+  void _switchToLoadingProfiles() {
+    initPhase = InitPhase.loadingProfiles;
+    profilesFuture = client.profiles();
+    notifyListeners();
+  }
+
+  void updateProfile(({String id, String name}) p) {
+    profile = Profile(p.id, p.name);
+    _switchToInitialzingProfile();
+  }
+
+  void _switchToInitialzingProfile() {
+    initPhase = InitPhase.initializingProfile;
+    readProfileFuture = client.profileRead(profileId: profile.id);
+    notifyListeners();
+  }
+
+  void updatePaths(({String plugins, String cache}) paths) {
+    profile.paths = paths;
+    _switchToInitialized();
+  }
+
+  void _switchToInitialized() {
+    initPhase = InitPhase.initialized;
+    notifyListeners();
   }
 
   static late World world;
 
-  World() {
+  World({required this.args}) {
     World.world = this;  // TODO for simplicity of access, we store a static reference to the one world
+
+    const envPort = bool.hasEnvironment("port") ? int.fromEnvironment("port") : null;
+    const envHost = bool.hasEnvironment("host") ? String.fromEnvironment("host") : null;
+    final int port = args.port ?? envPort ?? Sc4pacClient.defaultPort;
+    if (args.host != null || args.port != null || envHost != null || envPort != null) {
+      final h = args.host ?? envHost ?? "localhost";
+      authority = "$h:$port";
+    } else {
+      // for web, api server and webapp server are identical by default
+      authority = kIsWeb ? Uri.base.authority : "localhost:$port";
+    }
+
+    if (!kIsWeb && args.launchServer) {
+      final String bundleRoot = FileSystemEntity.parentOf(Platform.resolvedExecutable);
+      server = Sc4pacServer(
+        cliDir: args.cliDir ?? "$bundleRoot/cli",
+        profilesDir: args.profilesDir ?? "$bundleRoot/profiles",
+        port: port,
+      );
+    } else {
+      server = null;
+    }
+
+    updateConnection(authority, notify: false);
   }
 }
 
@@ -48,7 +111,7 @@ class Profile {
   late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
-  late Future<ChannelStats> channelStatsFuture = Api.channelsStats(profileId: id);
+  late Future<ChannelStats> channelStatsFuture = World.world.client.channelsStats(profileId: id);
   Profile(this.id, this.name);
 }
 
@@ -82,7 +145,7 @@ class Dashboard extends ChangeNotifier {
   }
 
   void fetchVariants() {
-    variantsFuture = Api.variantsList(profileId: profile.id);
+    variantsFuture = World.world.client.variantsList(profileId: profile.id);
     notifyListeners();
   }
 
@@ -107,8 +170,8 @@ class Dashboard extends ChangeNotifier {
 
   onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
     final task = checked ?
-        Api.add(module, profileId: profile.id) :
-        Api.remove(module, profileId: profile.id);
+        World.world.client.add(module, profileId: profile.id) :
+        World.world.client.remove(module, profileId: profile.id);
     task.then((_) {
       setPendingUpdate(module, checked);
       refreshParent();
@@ -146,7 +209,7 @@ class UpdateProcess {
   final void Function(UpdateStatus) onFinished;
 
   UpdateProcess({required this.onFinished}) {
-    _ws = Api.update(profileId: World.world.profile!.id);
+    _ws = World.world.client.update(profileId: World.world.profile.id);
     stream =
       _ws.ready
         .then((_) => true, onError: (e) {
