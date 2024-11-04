@@ -32,6 +32,8 @@ linter:
 analyzer:
   exclude:
   - build/**
+  - profiles/**
+  - scripts/**
   - vendor/**
   - .dart_tool/**
   language:

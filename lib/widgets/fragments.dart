@@ -275,6 +275,28 @@ class PackageTile extends StatelessWidget {
   }
 }
 
+class CenteredFullscreenDialog extends StatelessWidget {
+  final Widget? title;
+  final Widget child;
+  const CenteredFullscreenDialog({this.title, required this.child, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: title == null ? null : AppBar(centerTitle: true, title: title),
+      body: Center(  // vertically centered
+        child: SingleChildScrollView(  // both Center widgets are needed so that scrollbars appear on the very outside
+          child: Center(  // horizontally centered
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class CategoryMenu extends StatefulWidget {
   final ChannelStats? stats;
   final ValueChanged<String?>? onSelected;

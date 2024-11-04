@@ -159,65 +159,56 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   }
 
   @override build(BuildContext context) {
-    return Dialog.fullscreen(
-      child: Scaffold(
-        appBar: AppBar(centerTitle: true, title: const Text("Establish connection")),
-        body: FutureBuilder(
-          future: widget.world.initialServerStatus,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Column(
-                    children: [
-                      const Spacer(),
-                      ExpansionTile(
-                        trailing: const Icon(Icons.info_outlined),
-                        leading: const Icon(Icons.wifi_tethering_error),
-                        title: Text("Connection to local sc4pac server not possible at ${widget.world.authority}"),
-                        children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system. "
-                          "The local backend server is either not running or the GUI does not know its address.")],
-                      ),
-                      const SizedBox(height: 15),
-                      TextField(
-                        controller: _controller,
-                        decoration: InputDecoration(
-                          icon: const Icon(Icons.edit),
-                          labelText: "Host and Port",
-                          helperText: "Enter \"host:port\" for local sc4pac backend server to connect to.",
-                          errorText: _isValid ? null : "Enter \"host:port\" for local sc4pac backend server to connect to.",
-                          helperMaxLines: 10,
-                          hintText: "localhost:${Sc4pacClient.defaultPort} or 127.0.0.1:${Sc4pacClient.defaultPort}",
-                        ),
-                        onSubmitted: (String text) {
-                          if (text.isNotEmpty) {
-                            _submit();
-                          }
-                        }
-                      ),
-                      const SizedBox(height: 20),
-                      ListenableBuilder(
-                        listenable: _controller,
-                        builder: (context, child) => FilledButton(
-                          onPressed: _controller.text.isEmpty ? null : _submit,
-                          child: child,
-                        ),
-                        child: const Text("Connect")
-                      ),
-                      const Spacer(),
-                    ],
-                  ),
+    return FutureBuilder(
+      future: widget.world.initialServerStatus,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return CenteredFullscreenDialog(
+            title: const Text("Establish connection"),
+            child: Column(
+              children: [
+                ExpansionTile(
+                  trailing: const Icon(Icons.info_outlined),
+                  leading: const Icon(Icons.wifi_tethering_error),
+                  title: Text("Connection to local sc4pac server not possible at ${widget.world.authority}"),
+                  children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system. "
+                    "The local backend server is either not running or the GUI does not know its address.")],
                 ),
-              );
-            } else {
-              // connecting (or connection established; we don't care about the result, as initPhase change triggers next screen)
-              final text = widget.world.server?.status == ServerStatus.launching ? "Launching sc4pac…" : "Connecting…";
-              return Center(child: Card(child: ListTile(title: Text(text))));
-            }
-          },
-        ),
-      ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(
+                    icon: const Icon(Icons.edit),
+                    labelText: "Host and Port",
+                    helperText: "Enter \"host:port\" for local sc4pac backend server to connect to.",
+                    errorText: _isValid ? null : "Enter \"host:port\" for local sc4pac backend server to connect to.",
+                    helperMaxLines: 10,
+                    hintText: "localhost:${Sc4pacClient.defaultPort} or 127.0.0.1:${Sc4pacClient.defaultPort}",
+                  ),
+                  onSubmitted: (String text) {
+                    if (text.isNotEmpty) {
+                      _submit();
+                    }
+                  }
+                ),
+                const SizedBox(height: 20),
+                ListenableBuilder(
+                  listenable: _controller,
+                  builder: (context, child) => FilledButton(
+                    onPressed: _controller.text.isEmpty ? null : _submit,
+                    child: child,
+                  ),
+                  child: const Text("Connect")
+                ),
+              ],
+            ),
+          );
+        } else {
+          // connecting (or connection established; we don't care about the result, as initPhase change triggers next screen)
+          final text = widget.world.server?.status == ServerStatus.launching ? "Launching sc4pac…" : "Connecting…";
+          return Center(child: Card(child: ListTile(title: Text(text))));
+        }
+      },
     );
   }
 }
@@ -273,42 +264,35 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('Create a new profile')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            children: [
-              const Spacer(),
-              TextField(
-                controller: _profileNameController,
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.edit),
-                  labelText: "Profile name",
-                  helperText: "Each profile corresponds to a Plugins folder. This allows you to manage multiple Plugins folders for different regions.",
-                  helperMaxLines: 10,
-                  hintText: "Timbuktu, London-with-CAM, Futuristic, …",
-                ),
-                onSubmitted: (String name) {
-                  if (name.isNotEmpty) {
-                    _submit();
-                  }
-                }
-              ),
-              const SizedBox(height: 20),
-              ListenableBuilder(
-                listenable: _profileNameController,
-                builder: (context, child) => FilledButton(
-                  onPressed: _profileNameController.text.isEmpty ? null : _submit,
-                  child: child,
-                ),
-                child: const Text("Create profile")
-              ),
-              const Spacer(),
-            ],
+    return CenteredFullscreenDialog(
+      title: const Text('Create a new profile'),
+      child: Column(
+        children: [
+          TextField(
+            controller: _profileNameController,
+            decoration: const InputDecoration(
+              icon: Icon(Icons.edit),
+              labelText: "Profile name",
+              helperText: "Each profile corresponds to a Plugins folder. This allows you to manage multiple Plugins folders for different regions.",
+              helperMaxLines: 10,
+              hintText: "Timbuktu, London-with-CAM, Futuristic, …",
+            ),
+            onSubmitted: (String name) {
+              if (name.isNotEmpty) {
+                _submit();
+              }
+            }
           ),
-        ),
+          const SizedBox(height: 20),
+          ListenableBuilder(
+            listenable: _profileNameController,
+            builder: (context, child) => FilledButton(
+              onPressed: _profileNameController.text.isEmpty ? null : _submit,
+              child: child,
+            ),
+            child: const Text("Create profile")
+          ),
+        ],
       ),
     );
   }
@@ -380,42 +364,35 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(centerTitle: true, title: Text('Select folders for profile "${widget.world.profile?.name}"')),
-      body: SingleChildScrollView(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              children: [
-                const ExpansionTile(
-                  trailing: Icon(Icons.info_outlined),
-                  title: Text("Plugins folder"),
-                  children: [Text("This folder is going to contain all the SimCity 4 mods and assets you choose to install."
-                    " If your Plugins folder is not empty, check the documentation on how to migrate your existing plugin files before continuing.")],
-                ),
-                const SizedBox(height: 15),
-                FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", onSelected: () => setState(() {})),
-                const SizedBox(height: 30),
-                const ExpansionTile(
-                  trailing: Icon(Icons.info_outlined),
-                  title: Text("Cache folder"),
-                  children: [Text("The Cache folder stores all the files that are downloaded."
-                    " It requires several gigabytes of space."
-                    " To avoid unnecessary downloads, it is best to keep the default location for the cache, so that all your profiles share the same Cache folder.")],
-                ),
-                const SizedBox(height: 15),
-                FolderPathEdit(_cachePathController, labelText: "Cache folder path", onSelected: () => setState(() {})),
-                const SizedBox(height: 30),
-                FilledButton(
-                  onPressed: _submit,
-                  child: const Text("OK"),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
+    return CenteredFullscreenDialog(
+      title: Text('Select folders for profile "${widget.world.profile.name}"'),
+      child: Column(
+        children: [
+          const ExpansionTile(
+            trailing: Icon(Icons.info_outlined),
+            title: Text("Plugins folder"),
+            children: [Text("This folder is going to contain all the SimCity 4 mods and assets you choose to install."
+              " If your Plugins folder is not empty, check the documentation on how to migrate your existing plugin files before continuing.")],
           ),
-        ),
+          const SizedBox(height: 15),
+          FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", onSelected: () => setState(() {})),
+          const SizedBox(height: 30),
+          const ExpansionTile(
+            trailing: Icon(Icons.info_outlined),
+            title: Text("Cache folder"),
+            children: [Text("The Cache folder stores all the files that are downloaded."
+              " It requires several gigabytes of space."
+              " To avoid unnecessary downloads, it is best to keep the default location for the cache, so that all your profiles share the same Cache folder.")],
+          ),
+          const SizedBox(height: 15),
+          FolderPathEdit(_cachePathController, labelText: "Cache folder path", onSelected: () => setState(() {})),
+          const SizedBox(height: 30),
+          FilledButton(
+            onPressed: _submit,
+            child: const Text("OK"),
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
