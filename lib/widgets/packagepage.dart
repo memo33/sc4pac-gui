@@ -1,6 +1,7 @@
 import 'dart:collection' show LinkedHashSet;
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -91,6 +92,10 @@ class _PackagePageState extends State<PackagePage> {
                 mods.map((s) => BareModule.parse(s as String)).whereType<BareModule>(),
               _ => <BareModule>[]
             };
+            final List<String> images = switch (remote) {
+              {'info': {'images': List<dynamic> images }} => List<String>.from(images),
+              _ => <String>[],
+            };
             final Map<String, Map<String, String>> descriptions = switch (remote) {
               {'variantDescriptions': Map<String, dynamic> descs} =>
                 descs.map((label, values) => MapEntry(label, (values as Map<String, dynamic>).cast<String, String>())),
@@ -117,6 +122,8 @@ class _PackagePageState extends State<PackagePage> {
                   child: Table(
                     columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
                     children: <TableRow>[
+                      if (images.isNotEmpty)
+                        packageTableRow(null, ImageCarousel(images)),
                       packageTableRow(null, AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),  // TODO positioning
                       packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
                       packageTableRow(const Text("Version"), Text(switch (remote) {
@@ -194,6 +201,38 @@ class _AddPackageButtonState extends State<AddPackageButton> {
           World.world.profile.dashboard.onToggledStarButton(widget.module, _addedExplicitly, refreshParent: widget.refreshParent);
         });
       },
+    );
+  }
+}
+
+// TODO this was quickly put together, with room for improvement
+class ImageCarousel extends StatelessWidget {
+  final List<String> images;
+  const ImageCarousel(this.images, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    return CarouselSlider.builder(
+      options: CarouselOptions(
+        height: 150,
+        enableInfiniteScroll: false,
+        viewportFraction: 0.5,
+      ),
+      itemCount: images.length,
+      itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) =>
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 5.0),
+          child: Center(
+            child: Image.network(images[itemIndex], fit: BoxFit.cover, width: 250),
+          ),
+        ),
+            // return Container(
+            //   width: MediaQuery.of(context).size.width,
+            //   margin: const EdgeInsets.symmetric(horizontal: 5.0),
+            //   decoration: BoxDecoration(
+            //     color: Colors.amber
+            //   ),
+            //   child: Text('text $i', style: const TextStyle(fontSize: 16.0),)
+            // );
     );
   }
 }
