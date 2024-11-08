@@ -2,6 +2,7 @@ import 'dart:collection' show LinkedHashSet;
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -206,33 +207,71 @@ class _AddPackageButtonState extends State<AddPackageButton> {
 }
 
 // TODO this was quickly put together, with room for improvement
-class ImageCarousel extends StatelessWidget {
+class ImageCarousel extends StatefulWidget {
   final List<String> images;
-  const ImageCarousel(this.images, {super.key});
+  final int initialIndex;
+  const ImageCarousel(this.images, {this.initialIndex = 0, super.key});
+  @override State<ImageCarousel> createState() => _ImageCarouselState();
+}
+class _ImageCarouselState extends State<ImageCarousel> {
+  late int currentIndex = widget.initialIndex;
+  late final _controller = CarouselSliderController();
+
   @override
   Widget build(BuildContext context) {
-    return CarouselSlider.builder(
-      options: CarouselOptions(
-        height: 150,
-        enableInfiniteScroll: false,
-        viewportFraction: 0.5,
-      ),
-      itemCount: images.length,
-      itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) =>
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 5.0),
-          child: Center(
-            child: Image.network(images[itemIndex], fit: BoxFit.cover, width: 250),
+    return Column(
+      children: [
+        CarouselSlider.builder(
+          carouselController: _controller,
+          options: CarouselOptions(
+            height: 150,
+            enableInfiniteScroll: false,
+            viewportFraction: 0.5,
+            onPageChanged: (index, reason) => setState(() => currentIndex = index),
           ),
+          itemCount: widget.images.length,
+          itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) =>
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 5.0),
+              child: Center(
+                child: Image.network(widget.images[itemIndex], fit: BoxFit.cover, width: 250),
+              ),
+            ),
+                // return Container(
+                //   width: MediaQuery.of(context).size.width,
+                //   margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                //   decoration: BoxDecoration(
+                //     color: Colors.amber
+                //   ),
+                //   child: Text('text $i', style: const TextStyle(fontSize: 16.0),)
+                // );
         ),
-            // return Container(
-            //   width: MediaQuery.of(context).size.width,
-            //   margin: const EdgeInsets.symmetric(horizontal: 5.0),
-            //   decoration: BoxDecoration(
-            //     color: Colors.amber
-            //   ),
-            //   child: Text('text $i', style: const TextStyle(fontSize: 16.0),)
-            // );
+        Row(
+          children: [
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
+              onPressed: _controller.previousPage,
+            ),
+            AnimatedSmoothIndicator(
+              activeIndex: currentIndex,
+              count: widget.images.length,
+              effect: SlideEffect(
+                dotColor: Theme.of(context).colorScheme.outlineVariant,
+                activeDotColor: Theme.of(context).colorScheme.onSurface,
+                dotHeight: 12,
+                dotWidth: 12,
+              ),
+              onDotClicked: _controller.animateToPage,
+            ),
+            IconButton(
+              icon: const Icon(Symbols.arrow_forward_ios, size: 16),
+              onPressed: _controller.nextPage,
+            ),
+            const Spacer(),
+          ],
+        ),
+      ],
     );
   }
 }
