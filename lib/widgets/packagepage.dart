@@ -226,25 +226,26 @@ class _ImageCarouselState extends State<ImageCarousel> {
           options: CarouselOptions(
             height: 150,
             enableInfiniteScroll: false,
-            viewportFraction: 0.5,
+            viewportFraction: 0.6,
             onPageChanged: (index, reason) => setState(() => currentIndex = index),
           ),
           itemCount: widget.images.length,
-          itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) =>
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 5.0),
+          itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) {
+            return Container(
+              // width: 400,
+              margin: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Center(
-                child: Image.network(widget.images[itemIndex], fit: BoxFit.cover, width: 250),
+                child: GestureDetector(
+                  onTap: () => showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (context) => ImageDialog(images: widget.images, initialIndex: itemIndex),
+                  ),
+                  child: Image.network(widget.images[itemIndex], fit: BoxFit.cover, width: 280, height: 150),
+                ),
               ),
-            ),
-                // return Container(
-                //   width: MediaQuery.of(context).size.width,
-                //   margin: const EdgeInsets.symmetric(horizontal: 5.0),
-                //   decoration: BoxDecoration(
-                //     color: Colors.amber
-                //   ),
-                //   child: Text('text $i', style: const TextStyle(fontSize: 16.0),)
-                // );
+            );
+          }
         ),
         Row(
           children: [
@@ -272,6 +273,41 @@ class _ImageCarouselState extends State<ImageCarousel> {
           ],
         ),
       ],
+    );
+  }
+}
+
+class ImageDialog extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+  const ImageDialog({required this.images, required this.initialIndex, super.key});
+  @override State<ImageDialog> createState() => _ImageDialogState();
+}
+class _ImageDialogState extends State<ImageDialog> {
+  late int index = widget.initialIndex;
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      content: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
+            onPressed: index <= 0 ? null : () => setState(() => index -= 1),
+          ),
+          const SizedBox(width: 8),
+          Flexible(  // important to fit the image tightly within the row
+            child: Center(
+              heightFactor: 1,
+              child: Image.network(widget.images[index], fit: BoxFit.scaleDown),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Symbols.arrow_forward_ios, size: 16),
+            onPressed: index >= widget.images.length - 1 ? null : () => setState(() => index += 1),
+          ),
+        ],
+      ),
     );
   }
 }
