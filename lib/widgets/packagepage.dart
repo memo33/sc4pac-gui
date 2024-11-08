@@ -206,7 +206,6 @@ class _AddPackageButtonState extends State<AddPackageButton> {
   }
 }
 
-// TODO this was quickly put together, with room for improvement
 class ImageCarousel extends StatefulWidget {
   final List<String> images;
   final int initialIndex;
@@ -241,7 +240,10 @@ class _ImageCarouselState extends State<ImageCarousel> {
                     barrierDismissible: true,
                     builder: (context) => ImageDialog(images: widget.images, initialIndex: itemIndex),
                   ),
-                  child: Image.network(widget.images[itemIndex], fit: BoxFit.cover, width: 280, height: 150),
+                  child: Image.network(widget.images[itemIndex],
+                    fit: BoxFit.cover, width: 280, height: 150,
+                    loadingBuilder: ImageDialog.imageLoadingBuilder,
+                  ),
                 ),
               ),
             );
@@ -282,6 +284,14 @@ class ImageDialog extends StatefulWidget {
   final int initialIndex;
   const ImageDialog({required this.images, required this.initialIndex, super.key});
   @override State<ImageDialog> createState() => _ImageDialogState();
+
+  static Widget imageLoadingBuilder(BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+    return loadingProgress == null ? child : CircularProgressIndicator(
+        value: loadingProgress.expectedTotalBytes != null
+            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+            : null,
+    );
+  }
 }
 class _ImageDialogState extends State<ImageDialog> {
   late int index = widget.initialIndex;
@@ -295,10 +305,13 @@ class _ImageDialogState extends State<ImageDialog> {
             onPressed: index <= 0 ? null : () => setState(() => index -= 1),
           ),
           const SizedBox(width: 8),
-          Flexible(  // important to fit the image tightly within the row
+          Flexible(  // important to fit the image tightly within the surrounding row
             child: Center(
               heightFactor: 1,
-              child: Image.network(widget.images[index], fit: BoxFit.scaleDown),
+              child: Image.network(widget.images[index],
+                fit: BoxFit.scaleDown,
+                loadingBuilder: ImageDialog.imageLoadingBuilder,
+              ),
             ),
           ),
           const SizedBox(width: 8),
