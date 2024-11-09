@@ -1,5 +1,6 @@
 import 'dart:collection' show LinkedHashSet;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey, KeyDownEvent, KeyRepeatEvent;
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -254,7 +255,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
             const Spacer(),
             IconButton(
               icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
-              onPressed: _controller.previousPage,
+              onPressed: currentIndex > 0 ? _controller.previousPage : null,
             ),
             AnimatedSmoothIndicator(
               activeIndex: currentIndex,
@@ -269,7 +270,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
             ),
             IconButton(
               icon: const Icon(Symbols.arrow_forward_ios, size: 16),
-              onPressed: _controller.nextPage,
+              onPressed: currentIndex < widget.images.length - 1 ? _controller.nextPage : null,
             ),
             const Spacer(),
           ],
@@ -296,6 +297,19 @@ class ImageDialog extends StatefulWidget {
 class _ImageDialogState extends State<ImageDialog> {
   late int index = widget.initialIndex;
   late Set<int> prefetched = {widget.initialIndex};
+  late final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    Future.delayed(const Duration(seconds: 0), () => _focusNode.requestFocus());  // gain focus to be able to handle arrow keys
+    super.initState();
+  }
 
   void _prefetch(int nextIndex) {
     if (!prefetched.contains(nextIndex)) {
@@ -312,29 +326,46 @@ class _ImageDialogState extends State<ImageDialog> {
     if (hasNext) {
       _prefetch(index + 1);
     }
+    final moveLeft = index > 0 ? () => setState(() => index -= 1) : null;
+    final moveRight = hasNext ? () => setState(() => index += 1) : null;
     return AlertDialog(
-      content: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
-            onPressed: index > 0 ? () => setState(() => index -= 1) : null,
-          ),
-          const SizedBox(width: 8),
-          Flexible(  // important to fit the image tightly within the surrounding row
-            child: Center(
-              heightFactor: 1,
-              child: Image.network(widget.images[index],
-                fit: BoxFit.scaleDown,
-                loadingBuilder: ImageDialog.imageLoadingBuilder,
+      content: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: (FocusNode node, KeyEvent event) {
+          if (event is KeyDownEvent || event is KeyRepeatEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              if (moveLeft != null) moveLeft();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              if (moveRight != null) moveRight();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
+              onPressed: moveLeft,
+            ),
+            const SizedBox(width: 8),
+            Flexible(  // important to fit the image tightly within the surrounding row
+              child: Center(
+                heightFactor: 1,
+                child: Image.network(widget.images[index],
+                  fit: BoxFit.scaleDown,
+                  loadingBuilder: ImageDialog.imageLoadingBuilder,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Symbols.arrow_forward_ios, size: 16),
-            onPressed: hasNext ? () => setState(() => index += 1) : null,
-          ),
-        ],
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Symbols.arrow_forward_ios, size: 16),
+              onPressed: moveRight,
+            ),
+          ],
+        ),
       ),
     );
   }
