@@ -295,14 +295,29 @@ class ImageDialog extends StatefulWidget {
 }
 class _ImageDialogState extends State<ImageDialog> {
   late int index = widget.initialIndex;
+  late Set<int> prefetched = {widget.initialIndex};
+
+  void _prefetch(int nextIndex) {
+    if (!prefetched.contains(nextIndex)) {
+      prefetched.add(nextIndex);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+          precacheImage(NetworkImage(widget.images[nextIndex]), context);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasNext = index < widget.images.length - 1;
+    if (hasNext) {
+      _prefetch(index + 1);
+    }
     return AlertDialog(
       content: Row(
         children: [
           IconButton(
             icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
-            onPressed: index <= 0 ? null : () => setState(() => index -= 1),
+            onPressed: index > 0 ? () => setState(() => index -= 1) : null,
           ),
           const SizedBox(width: 8),
           Flexible(  // important to fit the image tightly within the surrounding row
@@ -317,7 +332,7 @@ class _ImageDialogState extends State<ImageDialog> {
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Symbols.arrow_forward_ios, size: 16),
-            onPressed: index >= widget.images.length - 1 ? null : () => setState(() => index += 1),
+            onPressed: hasNext ? () => setState(() => index += 1) : null,
           ),
         ],
       ),
