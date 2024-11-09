@@ -244,6 +244,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
                   child: Image.network(widget.images[itemIndex],
                     fit: BoxFit.cover, width: 280, height: 150,
                     loadingBuilder: ImageDialog.imageLoadingBuilder,
+                    errorBuilder: ImageDialog.imageErrorBuilder,
                   ),
                 ),
               ),
@@ -292,6 +293,11 @@ class ImageDialog extends StatefulWidget {
             ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
             : null,
     );
+  }
+
+  static Widget imageErrorBuilder(BuildContext context, Object error, StackTrace? stackTrace) {
+    // return ApiErrorWidget(ApiError.from(error));
+    return Tooltip(message: "Image failed to load", child: Icon(Symbols.broken_image, size: 48, color: Theme.of(context).disabledColor));
   }
 }
 class _ImageDialogState extends State<ImageDialog> {
@@ -356,6 +362,7 @@ class _ImageDialogState extends State<ImageDialog> {
                 child: Image.network(widget.images[index],
                   fit: BoxFit.scaleDown,
                   loadingBuilder: ImageDialog.imageLoadingBuilder,
+                  errorBuilder: ImageDialog.imageErrorBuilder,
                 ),
               ),
             ),
