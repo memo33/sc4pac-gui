@@ -1,9 +1,11 @@
 import 'dart:collection' show LinkedHashSet;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey, KeyDownEvent, KeyRepeatEvent;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:badges/badges.dart' as badges;
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -243,7 +245,8 @@ class _ImageCarouselState extends State<ImageCarousel> {
                   ),
                   child: Image.network(widget.images[itemIndex],
                     fit: BoxFit.cover, width: 280, height: 150,
-                    loadingBuilder: ImageDialog.imageLoadingBuilder,
+                    frameBuilder: ImageDialog.imageFrameBuilder,
+                    loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
                     errorBuilder: ImageDialog.imageErrorBuilder,
                   ),
                 ),
@@ -281,11 +284,41 @@ class _ImageCarouselState extends State<ImageCarousel> {
   }
 }
 
+class ImagePlaceholder extends StatelessWidget {
+  final bool isError;
+  const ImagePlaceholder({this.isError = false, super.key});
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).disabledColor;
+    final icon = Icon(isError ? Symbols.broken_image : Symbols.image, size: 48, color: color);
+    return Tooltip(
+      message: isError ? "Image failed to load" : "Loading image",
+      child: isError ? icon : badges.Badge(
+        badgeContent: Icon(Symbols.downloading, size: 28, color: color),
+        position: badges.BadgePosition.bottomEnd(bottom: -7, end: -9),
+        badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
+        badgeStyle: badges.BadgeStyle(
+          padding: const EdgeInsets.all(1),
+          borderRadius: BorderRadius.circular(4),
+          badgeColor: Theme.of(context).colorScheme.surface,
+        ),
+        child: icon,
+      ),
+    );
+  }
+}
+
 class ImageDialog extends StatefulWidget {
   final List<String> images;
   final int initialIndex;
   const ImageDialog({required this.images, required this.initialIndex, super.key});
   @override State<ImageDialog> createState() => _ImageDialogState();
+
+  static const bool redirectImages = kIsWeb;  // redirect to solve CORS problems and show no dynamic loading progress as image is not loaded incrementally
+
+  static Widget imageFrameBuilder(BuildContext context, Widget child, int? frame, bool wasSynchronouslyLoaded) {
+    return frame == null ? const ImagePlaceholder() : child;
+  }
 
   static Widget imageLoadingBuilder(BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
     return loadingProgress == null ? child : CircularProgressIndicator(
@@ -297,7 +330,7 @@ class ImageDialog extends StatefulWidget {
 
   static Widget imageErrorBuilder(BuildContext context, Object error, StackTrace? stackTrace) {
     // return ApiErrorWidget(ApiError.from(error));
-    return Tooltip(message: "Image failed to load", child: Icon(Symbols.broken_image, size: 48, color: Theme.of(context).disabledColor));
+    return const ImagePlaceholder(isError: true);
   }
 }
 class _ImageDialogState extends State<ImageDialog> {
@@ -361,7 +394,8 @@ class _ImageDialogState extends State<ImageDialog> {
                 heightFactor: 1,
                 child: Image.network(widget.images[index],
                   fit: BoxFit.scaleDown,
-                  loadingBuilder: ImageDialog.imageLoadingBuilder,
+                  frameBuilder: ImageDialog.imageFrameBuilder,
+                  loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
                   errorBuilder: ImageDialog.imageErrorBuilder,
                 ),
               ),
