@@ -306,4 +306,9 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
   }
 
+  // this redirection via API solves CORS errors in web browser (canvaskit renderer only)
+  Uri redirectImageUrl(String url) {
+    return Uri.http(authority, '/image.fetch', {'url': url});
+  }
+
 }

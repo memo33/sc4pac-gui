@@ -97,7 +97,11 @@ class _PackagePageState extends State<PackagePage> {
               _ => <BareModule>[]
             };
             final List<String> images = switch (remote) {
-              {'info': {'images': List<dynamic> images }} => List<String>.from(images),
+              {'info': {'images': List<dynamic> images }} =>
+                images.map((url) => ImageDialog.redirectImages
+                  ? World.world.client.redirectImageUrl(url as String).toString()
+                  : url as String  // on non-web platforms there's no CORS issue, so prefer direct url for incremental loading progress indicator
+                ).toList(),
               _ => <String>[],
             };
             final Map<String, Map<String, String>> descriptions = switch (remote) {
