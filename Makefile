@@ -8,6 +8,8 @@ build-linux:
 	$(FLUTTER) build linux --release
 build-web:
 	$(FLUTTER) build web --base-href=$(BASEHREF) --release
+build-windows:
+	$(FLUTTER) build windows --release
 
 # For fast debugging on desktop, we connect to external sc4pac process (the release version instead launches the server)
 run-linux:

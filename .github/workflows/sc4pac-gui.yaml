@@ -1,0 +1,133 @@
+name: sc4pac-gui CI
+
+on:
+  push:
+    tags: [ '*' ]
+    branches: [ "main", "action" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:  # for manually triggering the workflow from Actions tab
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Checkout sc4pac-tools submodule  # we do not need large flutter submodule for this job
+        run: git submodule update --init --depth 1 -- vendor/sc4pac-tools
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'sbt'
+      - uses: sbt/setup-sbt@v1
+      - name: Build sc4pac CLI distributable
+        run: cd vendor/sc4pac-tools && make dist && ./sc4pac --version && cp -p target/dist/sc4pac-*.zip sc4pac-cli.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sc4pac-cli-artifact
+          path: vendor/sc4pac-tools/sc4pac-cli.zip
+          retention-days: 7
+
+  build-gui:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            artifact_name: sc4pac-gui-windows-x64-artifact
+            build_output_path: build/windows/x64/runner/Release
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: sc4pac-gui-linux-x64-artifact
+            build_output_path: build/linux/x64/release/bundle
+          - os: ubuntu-latest
+            platform: web
+            artifact_name: sc4pac-gui-web-artifact
+            build_output_path: build/web
+
+    runs-on: ${{ matrix.os }}
+    name: build-gui.${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Find pinned Flutter version
+        shell: bash
+        run: echo "FLUTTER_COMMIT_SHA1=$(git ls-tree --object-only HEAD -- vendor/flutter)" >> "$GITHUB_ENV"
+      - name: Setup Flutter with pinned version
+        uses: subosito/flutter-action@v2
+        with:
+          channel: master
+          flutter-version: ${{ env.FLUTTER_COMMIT_SHA1 }}
+          cache: true
+      - name: Install additional dependencies for linux
+        if: ${{ matrix.platform == 'linux' }}
+        # see https://github.com/marketplace/actions/flutter-action#build-for-linux-desktop
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build libgtk-3-dev
+      - run: flutter config --no-analytics
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Autogenerate code
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Build GUI
+        shell: bash
+        run: make FLUTTER=flutter DART=dart build-${{ matrix.platform }}
+      - name: Tar files  # to preserve permissions
+        shell: bash
+        run: tar -cvf ${{ matrix.artifact_name }}.tar --directory ${{ matrix.build_output_path }} .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}.tar
+          retention-days: 7
+
+  deploy:  # only runs on tags
+    if: ${{ github.repository == 'memo33/sc4pac-gui' && startsWith(github.ref, 'refs/tags/') }}
+    needs: [ build-cli, build-gui ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4  # downloads all artifacts uploaded during this run
+        with:
+          merge-multiple: true  # downloads artifacts into same directory .
+
+      - name: Package linux
+        run: |
+          mkdir dist-linux-x64
+          tar -xvf sc4pac-gui-linux-x64-artifact.tar --directory dist-linux-x64
+          unzip -d dist-linux-x64/cli sc4pac-cli.zip
+          (cd dist-linux-x64 && zip -r ../sc4pac-gui-linux-x64.zip .)
+      - name: Package windows
+        run: |
+          mkdir dist-windows-x64
+          tar -xvf sc4pac-gui-windows-x64-artifact.tar --directory dist-windows-x64
+          unzip -d dist-windows-x64/cli sc4pac-cli.zip
+          (cd dist-windows-x64 && zip -r ../sc4pac-gui-windows-x64.zip .)
+      - name: Package web
+        run: |
+          mkdir -p dist-web/webapp
+          tar -xvf sc4pac-gui-web-artifact.tar --directory dist-web/webapp
+          unzip -d dist-web/cli sc4pac-cli.zip
+          cp -p scripts/launch-GUI-web* dist-web/
+          (cd dist-web && zip -r ../sc4pac-gui-webapp-crossplatform.zip .)
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          draft: true
+          files: |
+            sc4pac-gui-linux-x64.zip
+            sc4pac-gui-windows-x64.zip
+            sc4pac-gui-webapp-crossplatform.zip
