@@ -495,12 +495,15 @@ class _NavRailState extends State<NavRail> {
             // const VerticalDivider(thickness: 1, width: 1),
             // This is the main content.
             Expanded(
-              child:
-                _selectedIndex == 0 ? DashboardScreen(widget.world.profile.dashboard, widget.world.client) :
-                _selectedIndex == 1 ? FindPackagesScreen(widget.world.profile.findPackages) :
-                _selectedIndex == 2 ? MyPluginsScreen(widget.world.profile.myPlugins) : Column(
+              child: switch (_selectedIndex) {
+                0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
+                1 => FindPackagesScreen(widget.world.profile.findPackages),
+                2 => MyPluginsScreen(widget.world.profile.myPlugins),
+                _ => const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
+                    Text("Not implemented yet")
+                    /*
                     Text('selectedIndex: $_selectedIndex'),
                     const SizedBox(height: 20),
                     OverflowBar(
@@ -518,8 +521,10 @@ class _NavRailState extends State<NavRail> {
                     ),
                     PackageTile(const BareModule("group", "name"), 0, subtitle: "summary", refreshParent: () {}),
                     PackageTile(const BareModule("group", "name"), 1, subtitle: "summary", refreshParent: () {}),
+                    */
                   ],
                 ),
+              },
             ),
           ],
         ),
