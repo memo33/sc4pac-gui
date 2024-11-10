@@ -105,10 +105,11 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 
 - [x] displaying whether a dependency is already installed or not: This would probably best be added to the `packages.info` API.
 
-- [ ] images: should be displayed with the package details.
+- [x] images: should be displayed with the package details.
 
 - [ ] image cache: should be implemented in sc4pac-tools to conserve external resources.
   The images for a package only need to be refreshed when a package is updated, i.e. when the package JSON checksum changes.
+  (Flutter already caches downloaded images internally which might be sufficient.)
 
 - [ ] inter-channel reverse dependencies (non-GUI related): for the "required by" field to show dependencies from other channels,
   each channel must provide a list of packages that it depends on, as well as a JSON file for each such package that contains the reverse dependencies.

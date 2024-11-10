@@ -1,6 +1,11 @@
 import 'dart:collection' show LinkedHashSet;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey, KeyDownEvent, KeyRepeatEvent;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:badges/badges.dart' as badges;
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -91,6 +96,14 @@ class _PackagePageState extends State<PackagePage> {
                 mods.map((s) => BareModule.parse(s as String)).whereType<BareModule>(),
               _ => <BareModule>[]
             };
+            final List<String> images = switch (remote) {
+              {'info': {'images': List<dynamic> images }} =>
+                images.map((url) => ImageDialog.redirectImages
+                  ? World.world.client.redirectImageUrl(url as String).toString()
+                  : url as String  // on non-web platforms there's no CORS issue, so prefer direct url for incremental loading progress indicator
+                ).toList(),
+              _ => <String>[],
+            };
             final Map<String, Map<String, String>> descriptions = switch (remote) {
               {'variantDescriptions': Map<String, dynamic> descs} =>
                 descs.map((label, values) => MapEntry(label, (values as Map<String, dynamic>).cast<String, String>())),
@@ -117,6 +130,8 @@ class _PackagePageState extends State<PackagePage> {
                   child: Table(
                     columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
                     children: <TableRow>[
+                      if (images.isNotEmpty)
+                        packageTableRow(null, ImageCarousel(images)),
                       packageTableRow(null, AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),  // TODO positioning
                       packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
                       packageTableRow(const Text("Version"), Text(switch (remote) {
@@ -194,6 +209,209 @@ class _AddPackageButtonState extends State<AddPackageButton> {
           World.world.profile.dashboard.onToggledStarButton(widget.module, _addedExplicitly, refreshParent: widget.refreshParent);
         });
       },
+    );
+  }
+}
+
+class ImageCarousel extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+  const ImageCarousel(this.images, {this.initialIndex = 0, super.key});
+  @override State<ImageCarousel> createState() => _ImageCarouselState();
+}
+class _ImageCarouselState extends State<ImageCarousel> {
+  late int currentIndex = widget.initialIndex;
+  late final _controller = CarouselSliderController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        CarouselSlider.builder(
+          carouselController: _controller,
+          options: CarouselOptions(
+            height: 150,
+            enableInfiniteScroll: false,
+            viewportFraction: 0.6,
+            onPageChanged: (index, reason) => setState(() => currentIndex = index),
+          ),
+          itemCount: widget.images.length,
+          itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) {
+            return Container(
+              // width: 400,
+              margin: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (context) => ImageDialog(images: widget.images, initialIndex: itemIndex),
+                  ),
+                  child: Image.network(widget.images[itemIndex],
+                    fit: BoxFit.cover, width: 280, height: 150,
+                    frameBuilder: ImageDialog.imageFrameBuilder,
+                    loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
+                    errorBuilder: ImageDialog.imageErrorBuilder,
+                  ),
+                ),
+              ),
+            );
+          }
+        ),
+        Row(
+          children: [
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
+              onPressed: currentIndex > 0 ? _controller.previousPage : null,
+            ),
+            AnimatedSmoothIndicator(
+              activeIndex: currentIndex,
+              count: widget.images.length,
+              effect: SlideEffect(
+                dotColor: Theme.of(context).colorScheme.outlineVariant,
+                activeDotColor: Theme.of(context).colorScheme.onSurface,
+                dotHeight: 12,
+                dotWidth: 12,
+              ),
+              onDotClicked: _controller.animateToPage,
+            ),
+            IconButton(
+              icon: const Icon(Symbols.arrow_forward_ios, size: 16),
+              onPressed: currentIndex < widget.images.length - 1 ? _controller.nextPage : null,
+            ),
+            const Spacer(),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class ImagePlaceholder extends StatelessWidget {
+  final bool isError;
+  const ImagePlaceholder({this.isError = false, super.key});
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).disabledColor;
+    final icon = Icon(isError ? Symbols.broken_image : Symbols.image, size: 48, color: color);
+    return Tooltip(
+      message: isError ? "Image failed to load" : "Loading image",
+      child: isError ? icon : badges.Badge(
+        badgeContent: Icon(Symbols.downloading, size: 28, color: color),
+        position: badges.BadgePosition.bottomEnd(bottom: -7, end: -9),
+        badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
+        badgeStyle: badges.BadgeStyle(
+          padding: const EdgeInsets.all(1),
+          borderRadius: BorderRadius.circular(4),
+          badgeColor: Theme.of(context).colorScheme.surface,
+        ),
+        child: icon,
+      ),
+    );
+  }
+}
+
+class ImageDialog extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+  const ImageDialog({required this.images, required this.initialIndex, super.key});
+  @override State<ImageDialog> createState() => _ImageDialogState();
+
+  static const bool redirectImages = kIsWeb;  // redirect to solve CORS problems and show no dynamic loading progress as image is not loaded incrementally
+
+  static Widget imageFrameBuilder(BuildContext context, Widget child, int? frame, bool wasSynchronouslyLoaded) {
+    return frame == null ? const ImagePlaceholder() : child;
+  }
+
+  static Widget imageLoadingBuilder(BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+    return loadingProgress == null ? child : CircularProgressIndicator(
+        value: loadingProgress.expectedTotalBytes != null
+            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+            : null,
+    );
+  }
+
+  static Widget imageErrorBuilder(BuildContext context, Object error, StackTrace? stackTrace) {
+    // return ApiErrorWidget(ApiError.from(error));
+    return const ImagePlaceholder(isError: true);
+  }
+}
+class _ImageDialogState extends State<ImageDialog> {
+  late int index = widget.initialIndex;
+  late Set<int> prefetched = {widget.initialIndex};
+  late final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    Future.delayed(const Duration(seconds: 0), () => _focusNode.requestFocus());  // gain focus to be able to handle arrow keys
+    super.initState();
+  }
+
+  void _prefetch(int nextIndex) {
+    if (!prefetched.contains(nextIndex)) {
+      prefetched.add(nextIndex);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+          precacheImage(NetworkImage(widget.images[nextIndex]), context);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasNext = index < widget.images.length - 1;
+    if (hasNext) {
+      _prefetch(index + 1);
+    }
+    final moveLeft = index > 0 ? () => setState(() => index -= 1) : null;
+    final moveRight = hasNext ? () => setState(() => index += 1) : null;
+    return AlertDialog(
+      content: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: (FocusNode node, KeyEvent event) {
+          if (event is KeyDownEvent || event is KeyRepeatEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              if (moveLeft != null) moveLeft();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              if (moveRight != null) moveRight();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
+              onPressed: moveLeft,
+            ),
+            const SizedBox(width: 8),
+            Flexible(  // important to fit the image tightly within the surrounding row
+              child: Center(
+                heightFactor: 1,
+                child: Image.network(widget.images[index],
+                  fit: BoxFit.scaleDown,
+                  frameBuilder: ImageDialog.imageFrameBuilder,
+                  loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
+                  errorBuilder: ImageDialog.imageErrorBuilder,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Symbols.arrow_forward_ios, size: 16),
+              onPressed: moveRight,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
