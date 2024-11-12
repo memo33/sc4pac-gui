@@ -122,7 +122,7 @@ class DashboardScreen extends StatefulWidget {
   static Future<String?> showVariantDialog(ChoiceUpdateVariant msg) {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
-      barrierDismissible: false,
+      barrierDismissible: true,  // allow to cancel update process without selecting a variant
       builder: (context) => SimpleDialog(
         title: Column(
           children: [

@@ -265,7 +265,13 @@ class UpdateProcess {
       } else if (type == '/prompt/choice/update/variant') {
         final msg = ChoiceUpdateVariant.fromJson(data);
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          DashboardScreen.showVariantDialog(msg).then((choice) => _ws.sink.add(jsonEncode(msg.responses[choice])));
+          DashboardScreen.showVariantDialog(msg).then((choice) {
+            if (choice == null) {
+              cancel();
+            } else {
+              _ws.sink.add(jsonEncode(msg.responses[choice]));
+            }
+          });
         });
       } else if (type.startsWith('/progress/download/')) {
         switch (type) {
