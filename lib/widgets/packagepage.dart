@@ -126,7 +126,8 @@ class _PackagePageState extends State<PackagePage> {
             return LayoutBuilder(builder: (context, constraint) =>
               SingleChildScrollView(child: Align(alignment: const Alignment(-0.75, 0), child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraint.maxHeight, maxWidth: 600),
-                child: IntrinsicHeight(
+                child: IntrinsicHeight(child: Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 50),  // sometimes the end of the table is cut off, so we add some space
                   child: Table(
                     columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
                     children: <TableRow>[
@@ -175,7 +176,7 @@ class _PackagePageState extends State<PackagePage> {
                       ),
                     ],
                   ),
-                ),
+                )),
               ))),
             );
           }
