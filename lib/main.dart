@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart' show FilePicker;
-import 'dart:io';
+import 'dart:io' as io;
 import 'model.dart';
 import 'data.dart';
 import 'viewmodel.dart';
@@ -16,9 +16,9 @@ import 'widgets/fragments.dart';
 void main(List<String> args) {
   final cmdArgs = CommandlineArgs(args);
   if (cmdArgs.help) {
-    final segments = File(Platform.resolvedExecutable).uri.pathSegments;
+    final segments = io.File(io.Platform.resolvedExecutable).uri.pathSegments;
     final exeName = segments.isEmpty ? "sc4pac-gui" : segments.last;
-    stdout.writeln(
+    io.stdout.writeln(
 """Usage: $exeName [options]
 
 Options
@@ -29,7 +29,7 @@ Options
   --sc4pac-cli-dir path   Contains sc4pac CLI scripts for launching the server (default: BUNDLEDIR/cli), resolved relative to current directory
   -h, --help              Print help message and exit"""
     );
-    exit(0);
+    io.exit(0);
   } else {
     runApp(Sc4pacGuiApp(World(args: cmdArgs)));
   }
@@ -53,9 +53,9 @@ class CommandlineArgs {
         case ["--launch-server=false", ...(var rest)]:   launchServer = false;   args = rest; break;
         case ["--help" || "-h", ...(var rest)]:          help = true;            args = rest; break;
         default:
-          stderr.writeln("Unknown trailing arguments (try --help): ${args.join(" ")}");
+          io.stderr.writeln("Unknown trailing arguments (try --help): ${args.join(" ")}");
           args = [];
-          exit(1);
+          io.exit(1);
       }
     }
   }
@@ -355,7 +355,7 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
   void _submit() {
     widget.world.client.profileInit(
       profileId: widget.world.profile.id,
-      paths: (plugins: _pluginsPathController.text, cache: _cachePathController.text),
+      paths: (plugins: _pluginsPathController.text.trim(), cache: _cachePathController.text.trim()),
     ).then(
       (data) => widget.world.updatePaths((plugins: data['pluginsRoot'], cache: data['cacheRoot'])),  // switches to next initPhase
       onError: ApiErrorWidget.dialog,
@@ -425,7 +425,15 @@ class FolderPathEdit extends StatelessWidget {
         if (supportsDirectoryPicker) OutlinedButton.icon(
           icon: const Icon(Symbols.bookmark_manager),
           onPressed: () async {
-            String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: controller.text);  // does not work in web
+            // we attempt to open the directory picker in an existing directory (might otherwise cause problems on Windows)
+            String? initialDirectory = controller.text.trim();
+            if (!io.Directory(initialDirectory).existsSync() && !io.Link(initialDirectory).existsSync()) {
+              initialDirectory = io.FileSystemEntity.parentOf(initialDirectory);
+              if (!io.Directory(initialDirectory).existsSync() && !io.Link(initialDirectory).existsSync()) {
+                initialDirectory = null;
+              }
+            }
+            String? selectedDirectory = await FilePicker.platform.getDirectoryPath(initialDirectory: initialDirectory);  // does not work in web
             if (selectedDirectory != null && selectedDirectory.isNotEmpty) {
               controller.text = selectedDirectory;
               onSelected();
