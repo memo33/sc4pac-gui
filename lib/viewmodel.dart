@@ -131,6 +131,8 @@ class MyPlugins {
   SortOrder sortOrder = SortOrder.relevance;  // default order as returned by Api
 }
 
+enum PendingUpdateStatus { add, remove, reinstall }
+
 class Dashboard extends ChangeNotifier {
   UpdateProcess? _updateProcess;
   UpdateProcess? get updateProcess => _updateProcess;
@@ -139,6 +141,7 @@ class Dashboard extends ChangeNotifier {
     notifyListeners();
   }
   final Profile profile;
+  final pendingUpdates = PendingUpdates();
   late Future<Map<String, dynamic>> variantsFuture;
   Dashboard(this.profile) {
     fetchVariants();
@@ -149,39 +152,66 @@ class Dashboard extends ChangeNotifier {
     notifyListeners();
   }
 
-  final Map<BareModule, bool> pendingUpdates = {};  // these are used as overrides of package installation states in the UI
+  void onUpdateFinished(UpdateStatus status) {
+    if (status == UpdateStatus.finished) {  // no error/no canceled
+      pendingUpdates.clear();
+    }
+    fetchVariants();
+    notifyListeners();
+  }
+
+}
+
+class PendingUpdates extends ChangeNotifier {
+
+  final Map<BareModule, PendingUpdateStatus> _overwrites = {};  // these are used as overrides of package installation states in the UI
   // Mark the explicit-install state for a package. If the star button is toggled twice, this removes the package from `pendingUpdates` again.
-  void setPendingUpdate(BareModule pkg, bool explicit) {
-    final previous = pendingUpdates[pkg];
+  void setPendingUpdate(BareModule pkg, PendingUpdateStatus status) {
+    final previous = _overwrites[pkg];
     if (previous == null) {
-      pendingUpdates[pkg] = explicit;
+      _overwrites[pkg] = status;
       notifyListeners();
-    } else if (previous != explicit) {
-      pendingUpdates.remove(pkg);
+    } else if (previous == status) {
+      // nothing to do
+    } else if (previous == PendingUpdateStatus.reinstall || status == PendingUpdateStatus.reinstall) {
+      _overwrites[pkg] = status;
+      notifyListeners();
+    } else if (previous != status) {  // add/remove only
+      _overwrites.remove(pkg);
       notifyListeners();
     } else {
-      // values are identical, so no change needed
+      // should never happen
     }
   }
-  void clearPendingUpdates() {
-    pendingUpdates.clear();
+  void clear() {
+    _overwrites.clear();
     notifyListeners();
   }
 
   onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
     final task = checked ?
-        World.world.client.add(module, profileId: profile.id) :
-        World.world.client.remove(module, profileId: profile.id);
+        World.world.client.add(module, profileId: World.world.profile.id) :
+        World.world.client.remove(module, profileId: World.world.profile.id);
     task.then((_) {
-      setPendingUpdate(module, checked);
+      setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
       refreshParent();
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+  }
+
+  int getCount() {
+    return _overwrites.length;
+  }
+
+  List<MapEntry<BareModule, PendingUpdateStatus>> sortedEntries() {
+    final elems = _overwrites.entries.toList();
+    elems.sort((a, b) => BareModule.compareAlphabetically(a.key, b.key));
+    return elems;
   }
 }
 
 enum UpdateStatus { running, finished, finishedWithError, canceled }
 
-class UpdateProcess {
+class UpdateProcess extends ChangeNotifier {
   late final WebSocketChannel _ws;
   late final Stream<Map<String, dynamic>> stream;
 
@@ -206,9 +236,11 @@ class UpdateProcess {
     }
   }
 
+  final PendingUpdates pendingUpdates;
   final void Function(UpdateStatus) onFinished;
+  final bool isBackground;
 
-  UpdateProcess({required this.onFinished}) {
+  UpdateProcess({required this.pendingUpdates, required this.onFinished, this.isBackground = false}) {
     _ws = World.world.client.update(profileId: World.world.profile.id);
     stream =
       _ws.ready
@@ -221,12 +253,10 @@ class UpdateProcess {
         .asyncExpand((isReady) => !isReady
           ? const Stream<Map<String, dynamic>>.empty()
           : _ws.stream.map((data) {
-            final msg = jsonDecode(data as String) as Map<String, dynamic>;  // TODO jsonDecode could be run on a background thread
-            handleMessage(msg);  // must be called on EVERY message of the stream
-            return msg;
+            return jsonDecode(data as String) as Map<String, dynamic>;  // TODO jsonDecode could be run on a background thread
           })
-        )
-        .asBroadcastStream();  // TODO reconsider this (this was needed to reopen a StreamBuilder widget built from this stream)
+        );
+    stream.listen(handleMessage);
   }
 
   void cancel() {
@@ -244,7 +274,17 @@ class UpdateProcess {
       if (type == '/prompt/confirmation/update/plan') {
         final plan = UpdatePlan.fromJson(data);
         this.plan = plan;
-        if (plan.nothingToDo){
+        for (final entry in plan.changes.entries) {
+          final change = entry.value;
+          pendingUpdates.setPendingUpdate(BareModule.parse(entry.key),
+            change.versionTo == null ? PendingUpdateStatus.remove :
+            change.versionFrom == null ? PendingUpdateStatus.add :
+            PendingUpdateStatus.reinstall,
+          );
+        }
+        if (isBackground) {
+          cancel();  // for background process we are done, as we do not want to install anything
+        } else if (plan.nothingToDo){
           _ws.sink.add(jsonEncode(plan.responses['Yes']));  // everything up-to-date
         } else {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -252,7 +292,7 @@ class UpdateProcess {
               .then((choice) => _ws.sink.add(jsonEncode(plan.responses[choice])));
           });
         }
-      } else if (type == '/prompt/confirmation/update/warnings') {
+      } else if (type == '/prompt/confirmation/update/warnings') {  // not relevant for isBackground, as these warnings are triggered during installation
         final msg = ConfirmationUpdateWarnings.fromJson(data);
         if (msg.warnings.isEmpty) {
           _ws.sink.add(jsonEncode(msg.responses['Yes']));  // no warnings
@@ -264,15 +304,21 @@ class UpdateProcess {
         }
       } else if (type == '/prompt/choice/update/variant') {
         final msg = ChoiceUpdateVariant.fromJson(data);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          DashboardScreen.showVariantDialog(msg).then((choice) {
-            if (choice == null) {
-              cancel();
-            } else {
-              _ws.sink.add(jsonEncode(msg.responses[choice]));
-            }
+        if (isBackground) {
+          // we cannot make this selection without user interaction
+          pendingUpdates.setPendingUpdate(BareModule.parse(msg.package), PendingUpdateStatus.reinstall);
+          cancel();
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showVariantDialog(msg).then((choice) {
+              if (choice == null) {
+                cancel();
+              } else {
+                _ws.sink.add(jsonEncode(msg.responses[choice]));
+              }
+            });
           });
-        });
+        }
       } else if (type.startsWith('/progress/download/')) {
         switch (type) {
           case '/progress/download/started':
@@ -297,7 +343,7 @@ class UpdateProcess {
             debugPrint('Message type not implemented: $data');  // TODO
             break;
         }
-      } else if (type == '/progress/update/extraction') {
+      } else if (type == '/progress/update/extraction') {  // not relevant for isBackground
         final msg = ProgressUpdateExtraction.fromJson(data);
         extractionProgress = msg;
         if (msg.progress.numerator == msg.progress.denominator) {
@@ -311,6 +357,7 @@ class UpdateProcess {
       } else {
         debugPrint('Message type not implemented: $data');  // TODO
       }
+      notifyListeners();
     } else {
       debugPrint('Unexpected message format: $data');  // TODO
     }

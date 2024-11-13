@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:collection/collection.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:badges/badges.dart' as badges;
@@ -20,7 +21,7 @@ class DashboardScreen extends StatefulWidget {
 
   static Future<String?> showUpdatePlan(UpdatePlan plan) {
     return showDialog(
-      context: NavigationService.navigatorKey.currentContext!,
+      context: NavigationService.navigatorKey.currentContext!,  // We use global context so that update process can show dialog popups even when the current screen is disposed.
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.system_update_alt_outlined),
@@ -36,7 +37,7 @@ class DashboardScreen extends StatefulWidget {
                     direction: Axis.horizontal,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Tooltip(message: 'Package will be removed', child: Icon(Icons.remove_circle_outline)),
+                      const PendingUpdateStatusIcon(PendingUpdateStatus.remove),
                       const SizedBox(width: 10),
                       PkgNameFragment(BareModule.parse(pkg.package), asButton: false, colored: false),
                       const SizedBox(width: 12),
@@ -51,10 +52,7 @@ class DashboardScreen extends StatefulWidget {
                   direction: Axis.horizontal,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Tooltip(
-                      message: change.versionFrom == null ? 'New' : 'Update',
-                      child: Icon(change.versionFrom == null ? Icons.add_circle_outline : Icons.sync_outlined),
-                    ),
+                    PendingUpdateStatusIcon(change.versionFrom == null ? PendingUpdateStatus.add : PendingUpdateStatus.reinstall),
                     const SizedBox(width: 10),
                     PkgNameFragment(BareModule.parse(pkg.package), asButton: false, colored: false),
                     ...change.versionFrom == change.versionTo
@@ -144,31 +142,23 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      shrinkWrap: false,
-      padding: const EdgeInsets.all(15),
+  void initState() {
+    widget.dashboard.updateProcess ??= UpdateProcess(  // initial check for metadata updates without installing anything
+      pendingUpdates: widget.dashboard.pendingUpdates,
+      isBackground: true,
+      onFinished: widget.dashboard.onUpdateFinished,
+    );
+    super.initState();
+  }
 
-        /*ListenableBuilder(
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
       listenable: widget.dashboard,
-      // child: …,
-      builder: (context, child) =>*/ /*Column(*/  // TODO use child for non-changing parts of widget
-        // mainAxisSize: MainAxisSize.max,
-        // mainAxisAlignment: MainAxisAlignment.start,
-        // crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (context, child) => ListView(
+        shrinkWrap: false,
+        padding: const EdgeInsets.all(15),
         children: <Widget>[
-          // Card(
-          //   child: ListenableBuilder(
-          //     listenable: widget.client,
-          //     builder: (context, child) =>
-          //       switch (widget.client.status) {
-          //         ClientStatus.connecting => const ListTile(leading: Icon(Icons.wifi_tethering_off), title: Text('Connecting to local sc4pac server...')),
-          //         ClientStatus.connected => const ListTile(leading: Icon(Icons.wifi_tethering), title: Text('Connected to local sc4pac server.')),
-          //         ClientStatus.serverNotRunning => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Local sc4pac server is not running. (reconnect not yet implemented)')),
-          //         ClientStatus.lostConnection => const ListTile(leading: Icon(Icons.wifi_tethering_error), title: Text('Lost connection to local sc4pac server. (reconnect not yet implemented)')),
-          //       }
-          //   ),
-          // ),
           ListTile(
             leading: const Icon(Symbols.person_pin_circle),
             title: Text('Profile: ${widget.dashboard.profile.name}')
@@ -213,33 +203,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
             listenable: widget.dashboard,
             builder: (context, child) => VariantsWidget(widget.dashboard.variantsFuture),
           ),
+          ListenableBuilder(
+            listenable: widget.dashboard.pendingUpdates,
+            builder: (context, child) => PendingUpdatesWidget(widget.dashboard),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 5),
             child: FilledButton.icon(
               icon: const Icon(Icons.refresh),
               onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () {
-                // Here we use global context (instead of current widget's
-                // context) so that update process can show dialog popups even
-                // when the current screen is disposed.
                 setState(() {
                   widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
-                    onFinished: (status) => setState(() {  // triggers rebuild of DashboardScreen
-                      if (status == UpdateStatus.finished) {  // no error/no canceled
-                        widget.dashboard.clearPendingUpdates();
-                      }
-                      widget.dashboard.fetchVariants();
-                    }),
+                    pendingUpdates: widget.dashboard.pendingUpdates,
+                    onFinished: widget.dashboard.onUpdateFinished,
                   );
                 });
               },
-              label: const Text('Update All'),
+              label: const Text("Update All"),
             ),
           ),
-          if (widget.dashboard.updateProcess != null)
+          if (widget.dashboard.updateProcess?.isBackground == false)
             Card.outlined(
               child: UpdateWidget(widget.dashboard.updateProcess!),
             ),
-          if (widget.dashboard.updateProcess != null && widget.dashboard.updateProcess!.status != UpdateStatus.running)
+          if (widget.dashboard.updateProcess?.isBackground == false && widget.dashboard.updateProcess?.status != UpdateStatus.running)
             ElevatedButton(
               onPressed: () => setState(() {
                 widget.dashboard.updateProcess = null;  // TODO ensure that ws was closed
@@ -247,9 +234,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: const Text('Clear Log'),
             ),
         ],
-      )/*,
-    )*/
-    /*)*/;
+      ),
+    );
   }
 }
 
@@ -259,15 +245,16 @@ class DashboardIcon extends StatelessWidget {
   const DashboardIcon(this.dashboard, {required this.selected, super.key});
   @override Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: dashboard,
+      listenable: dashboard.pendingUpdates,
       builder: (context, child) {
         final icon = Icon(selected ? Icons.speed : Icons.speed_outlined);
-        if (dashboard.pendingUpdates.isEmpty) {
+        final count = dashboard.pendingUpdates.getCount();
+        if (count == 0) {
           return icon;
         } else {
           return badges.Badge(
             badgeContent: Text(
-              dashboard.pendingUpdates.length.toString(),
+              count.toString(),
               style: DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).colorScheme.onSecondary),
             ),
             badgeAnimation: const badges.BadgeAnimation.scale(),
@@ -324,17 +311,9 @@ class _UpdateWidgetState extends State<UpdateWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: widget.proc.stream,  // StreamBuilder does not rebuild at every stream element, but only for a subsequence of snapshots (framerate-dependent)
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          // debugPrint('=====> data: ${snapshot.data}');  // TODO
-        } else if (snapshot.hasError) {
-          debugPrint('=====> error: ${snapshot.error}');
-        } else {
-          debugPrint('=====> data pending: ${snapshot.data}');
-        }
-
+    return ListenableBuilder(
+      listenable: widget.proc,  // does not notify at every stream element, but only for a subsequence of snapshots (framerate-dependent)
+      builder: (context, child) {
         return ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: ListView(
@@ -377,12 +356,13 @@ class _UpdateWidgetState extends State<UpdateWidget> {
                 widget.proc.err != null && widget.proc.err!.type != '/error/aborted'
                 ? ApiErrorWidget(widget.proc.err!)  // if aborted via dialog, we show a different icon via the branch below
                 : ListTile(
-                  leading: Icon(widget.proc.status == UpdateStatus.finished ? Icons.check_circle_outline : Icons.block_outlined),  // canceled or finishedWithError
+                  leading: Icon(
+                    widget.proc.isBackground
+                    ? (widget.proc.plan?.nothingToDo ?? false ? Icons.check_circle_outline : Icons.update_outlined)
+                    : widget.proc.status == UpdateStatus.finished ? Icons.check_circle_outline : Icons.block_outlined  // canceled or finishedWithError
+                  ),
                   title: Text(widget.proc.err?.title ?? (
-                      widget.proc.status == UpdateStatus.canceled ? 'Operation canceled.' :
-                      (widget.proc.plan?.nothingToDo ?? false) ? 'Everything is up-to-date.' :
-                      (widget.proc.plan?.toInstall.isEmpty ?? false) ? 'Finished removing ${_plural(widget.proc.plan?.toRemove.length ?? 0, 'plugin')}.' :
-                      'Finished updating ${_plural(widget.proc.plan?.toInstall.length ?? 0, 'plugin')}.'
+                      widget.proc.isBackground ? _pendingUpdatesLabel(widget.proc) : _finishedLabel(widget.proc)
                   )),
                 ),
             ],
@@ -390,6 +370,26 @@ class _UpdateWidgetState extends State<UpdateWidget> {
         );
       }
     );
+  }
+
+  String _finishedLabel(UpdateProcess proc) {
+    return
+      widget.proc.status == UpdateStatus.canceled ? 'Operation canceled.' :
+      (widget.proc.plan?.nothingToDo ?? false) ? 'Everything is up-to-date.' :
+      (widget.proc.plan?.toInstall.isEmpty ?? false) ? 'Finished removing ${_plural(widget.proc.plan?.toRemove.length ?? 0, 'plugin')}.' :
+      'Finished updating ${_plural(widget.proc.plan?.toInstall.length ?? 0, 'plugin')}.';
+  }
+
+  String _pendingUpdatesLabel(UpdateProcess proc) {
+    if (proc.plan == null) {
+      return "Updates available";  // a variant needs to be selected before knowing how many packages to update
+    } else if (proc.plan?.nothingToDo ?? false) {
+      return "Everything is up-to-date.";
+    } else if (proc.plan?.toInstall.isEmpty ?? false) {
+      return "${proc.plan?.toRemove.length ?? 0} updates available";
+    } else {
+      return "${proc.plan?.toInstall.length ?? 0} updates available";
+    }
   }
 }
 
@@ -613,6 +613,36 @@ class _ChannelsListState extends State<ChannelsList> {
           ],
         ),
       ],
+    );
+  }
+}
+
+class PendingUpdatesWidget extends StatelessWidget {
+  final Dashboard dashboard;
+  const PendingUpdatesWidget(this.dashboard, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final bool runningInBackground = dashboard.updateProcess?.status == UpdateStatus.running && dashboard.updateProcess?.isBackground == true;
+    final int? count = runningInBackground ? null : dashboard.pendingUpdates.getCount();
+
+    return ExpansionTile(
+      leading: runningInBackground
+        ? const SizedBox(width: 20, height: 20, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)))
+        : const Icon(Symbols.update),
+      title: Text(["Pending updates", if (count != null) "($count)"].join(' ')),
+      // expandedAlignment: Alignment.centerLeft,
+      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      children: runningInBackground
+        ? const [Text("Checking for updates...")]
+        : count == 0
+        ? const [Text("No pending updates")]
+        : dashboard.pendingUpdates.sortedEntries().mapIndexed((index, entry) =>
+          PackageTile(entry.key, index,
+            pendingStatus: entry.value,
+            refreshParent: () {},  // no refresh needed without toggle button
+            visualDensity: const VisualDensity(vertical: VisualDensity.minimumDensity),
+          )
+        ).toList(),
     );
   }
 }

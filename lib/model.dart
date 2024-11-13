@@ -22,6 +22,11 @@ class BareModule extends Equatable {
     final idx = s.indexOf(':');
     return idx == -1 ? BareModule('unknown', s) : BareModule(s.substring(0, idx), s.substring(idx + 1));
   }
+
+  static int compareAlphabetically(BareModule a, BareModule b) {
+    final result = a.group.compareTo(b.group);
+    return result == 0 ? a.name.compareTo(b.name) : result;
+  }
 }
 
 class ApiError {

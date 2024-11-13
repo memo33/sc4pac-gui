@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:badges/badges.dart' as badges;
 import '../model.dart';
+import '../viewmodel.dart' show PendingUpdateStatus;
 import 'packagepage.dart';
 import '../main.dart' show NavigationService;
 import '../data.dart' show ChannelStats, InstalledStatus;
@@ -245,6 +246,25 @@ class _StarIconButtonState extends State<StarIconButton> {
   }
 }
 
+class PendingUpdateStatusIcon extends StatelessWidget {
+  final PendingUpdateStatus status;
+  const PendingUpdateStatusIcon(this.status, {super.key});
+  @override Widget build(BuildContext context) {
+    return Tooltip(
+      message: switch (status) {
+        PendingUpdateStatus.remove => "Package will be removed",
+        PendingUpdateStatus.add => "New",
+        PendingUpdateStatus.reinstall => "Update",
+      },
+      child: Icon(switch (status) {
+        PendingUpdateStatus.remove => Icons.remove_circle_outline,
+        PendingUpdateStatus.add => Icons.add_circle_outline,
+        PendingUpdateStatus.reinstall => Icons.sync_outlined,
+      }),
+    );
+  }
+}
+
 class PackageTile extends StatelessWidget {
   final BareModule module;
   final String? subtitle;
@@ -252,16 +272,19 @@ class PackageTile extends StatelessWidget {
   // final Widget? actionButton;
   final List<Widget> chips;
   final InstalledStatus? status;
+  final PendingUpdateStatus? pendingStatus;
   final void Function(bool)? onToggled;
   final void Function() refreshParent;
-  const PackageTile(this.module, this.index, {super.key, this.subtitle, /*this.actionButton,*/ this.chips = const [], this.status, this.onToggled, required this.refreshParent});
+  final VisualDensity? visualDensity;
+  const PackageTile(this.module, this.index, {super.key, this.subtitle, this.chips = const [], this.status, this.pendingStatus, this.onToggled, required this.refreshParent, this.visualDensity});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
     return ListTile(
-      leading: InstalledStatusIcon(status),
+      leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
       subtitle: subtitle != null ? Text(subtitle!) : null,
+      visualDensity: visualDensity,
       trailing: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [

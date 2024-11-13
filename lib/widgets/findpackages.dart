@@ -124,7 +124,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       subtitle: item.summary,
                       status: item.status,
                       refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile.dashboard.onToggledStarButton(module, checked, refreshParent: _refresh),
+                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: _refresh),
                     );
                   },
                   childCount: snapshot.data!.length,

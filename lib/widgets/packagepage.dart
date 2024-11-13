@@ -257,7 +257,7 @@ class _AddPackageButtonState extends State<AddPackageButton> {
       onPressed: () {
         setState(() {
           _addedExplicitly = !_addedExplicitly;
-          World.world.profile.dashboard.onToggledStarButton(widget.module, _addedExplicitly, refreshParent: widget.refreshParent);
+          World.world.profile.dashboard.pendingUpdates.onToggledStarButton(widget.module, _addedExplicitly, refreshParent: widget.refreshParent);
         });
       },
     );

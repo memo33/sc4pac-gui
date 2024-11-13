@@ -205,7 +205,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       subtitle: '${pkg.status.installed?.version} | ${pkg.summary} | ${pkg.status.timeLabel()}',
                       status: pkg.status,
                       refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile.dashboard.onToggledStarButton(module, checked, refreshParent: _refresh),
+                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: _refresh),
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!)),
                         // if (pkg.status.explicit) PackageTileChip.explicit(onDeleted: () {
