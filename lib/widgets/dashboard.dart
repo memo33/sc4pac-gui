@@ -1,10 +1,9 @@
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:collection/collection.dart';
 import 'package:open_file/open_file.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:badges/badges.dart' as badges;
 import '../data.dart';
 import '../model.dart';
@@ -124,7 +123,7 @@ class DashboardScreen extends StatefulWidget {
       builder: (context) => SimpleDialog(
         title: Column(
           children: [
-            Padding(padding: const EdgeInsets.all(10), child: Icon(Icons.alt_route_outlined, color: Theme.of(context).colorScheme.tertiary)),
+            Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
             Text('Choose a variant of type "${msg.label}" for ${msg.package}:'),
           ],
         ),
@@ -406,7 +405,7 @@ class DownloadProgressWidget extends StatelessWidget {
       currentSize = proc.downloadDownloaded[url]
   {
     value = (expectedSize != null && currentSize != null)
-        ? min(1.0, max(0.0, currentSize!.toDouble() / max(expectedSize!, 1)))
+        ? math.min(1.0, math.max(0.0, currentSize!.toDouble() / math.max(expectedSize!, 1)))
         : (success != null) ? (success! ? 1.0 : 0.0)
         : proc.status != UpdateStatus.running ? 0.0
         : null;
@@ -444,6 +443,12 @@ class DownloadProgressWidget extends StatelessWidget {
   }
 }
 
+class VariantIcon extends StatelessWidget {
+  final Color? color;
+  const VariantIcon({this.color, super.key});
+  @override Widget build(BuildContext context) => RotatedBox(quarterTurns: 1, child: Icon(Symbols.alt_route, color: color));
+}
+
 class VariantsWidget extends StatelessWidget {
   final Future<Map<String, dynamic>> futureJson;
   const VariantsWidget(this.futureJson, {super.key});
@@ -451,7 +456,7 @@ class VariantsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpansionTile(
-      leading: const Icon(Icons.alt_route_outlined),
+      leading: const VariantIcon(),
       title: const Text("Variants"),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -179,9 +179,19 @@ class _PackagePageState extends State<PackagePage> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(child: DependenciesCard(dependencies, title: "Dependenies", statuses: statuses, refreshParent: _refresh)),
+                          Expanded(child: DependenciesCard(dependencies,
+                            title: "Dependencies",
+                            statuses: statuses,
+                            refreshParent: _refresh,
+                            icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
+                          )),
                           const SizedBox(width: 15),
-                          Expanded(child: DependenciesCard(requiredBy, title: "Required By", statuses: statuses, refreshParent: _refresh)),
+                          Expanded(child: DependenciesCard(requiredBy,
+                            title: "Required By",
+                            statuses: statuses,
+                            refreshParent: _refresh,
+                            icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
+                          )),
                         ],
                       ),
                     ),
@@ -201,7 +211,8 @@ class DependenciesCard extends StatelessWidget {
   final String title;
   final Map<String, InstalledStatus> statuses;
   final void Function() refreshParent;
-  const DependenciesCard(this.dependencies, {required this.title, required this.statuses, required this.refreshParent, super.key});
+  final Widget icon;
+  const DependenciesCard(this.dependencies, {required this.title, required this.statuses, required this.refreshParent, required this.icon, super.key});
   static const double _left = 10;
   @override
   Widget build(BuildContext context) {
@@ -215,8 +226,15 @@ class DependenciesCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(_left, 5, 0, 5),
-                  child: Text(dependencies.isEmpty ? title : "$title (${dependencies.length})"),
+                  padding: const EdgeInsets.fromLTRB(_left, 5, _left, 5),
+                  child: Row(children: [
+                    icon,
+                    const SizedBox(width: 8),
+                    Text(title),
+                    const SizedBox(width: 8),
+                    const Spacer(),
+                    if (dependencies.isNotEmpty) Text("(${dependencies.length})"),
+                  ]),
                 ),
                 Divider(color: Theme.of(context).scaffoldBackgroundColor),
                 if (dependencies.isEmpty)
