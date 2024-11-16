@@ -50,6 +50,7 @@ class Sc4pacServer {
   Sc4pacServer({required this.cliDir, required this.profilesDir, required int port}) {
     const readyTag = "[LISTENING]";
     final completer = Completer<bool>();
+    const splitter = LineSplitter();
     ready = completer.future;
     process = Process.start(
       Platform.isWindows ? "$cliDir/sc4pac.bat" : "$cliDir/sc4pac",
@@ -64,14 +65,20 @@ class Sc4pacServer {
     ..then((process) {
       stdout.writeln("Sc4pac server PID: ${process.pid}");
       // it's important to consume both stdout and stderr to avoid freezes
-      process.stdout.transform(utf8.decoder).forEach((String line) {
-        if (status == ServerStatus.launching && line.contains(readyTag)) {
+      process.stdout.transform(utf8.decoder).forEach((String lines) {
+        if (status == ServerStatus.launching && lines.contains(readyTag)) {
           status = ServerStatus.listening;
           completer.complete(true);
         }
-        stdout.writeln(line);
+        for (final line in splitter.convert(lines)) {
+          stdout.writeln("[SERVER] $line");
+        }
       });
-      stderr.addStream(process.stderr);
+      process.stderr.transform(utf8.decoder).forEach((String lines) {
+        for (final line in splitter.convert(lines)) {
+          stdout.writeln("[SERVER:err] $line");
+        }
+      });
       process.exitCode.then((exitCode) {
         stdout.writeln("Sc4pac server exited with code $exitCode");
         status = ServerStatus.terminated;
@@ -81,7 +88,7 @@ class Sc4pacServer {
         }
       });
     }, onError: (err) {
-      stderr.writeln(err);  // failed to launch server, probably because cliDir is wrong
+      stderr.writeln("Failed to launch server: $err");  // failed to launch server, probably because cliDir is wrong
       status = ServerStatus.terminated;
       completer.complete(false);
     });
