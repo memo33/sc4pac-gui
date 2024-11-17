@@ -1,5 +1,6 @@
 // This file contains small reusable widgets that are used in multiple places of the app.
 import 'dart:math' show Random;
+import 'dart:convert' show LineSplitter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/link.dart';
@@ -55,9 +56,10 @@ class PkgNameFragment extends StatelessWidget {
   final InstalledStatus? status;
   final bool colored;
   final String? localVariant;
-  // final Widget? leading;
   final void Function()? refreshParent;  // required if asButton
-  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.status, this.colored = true, this.localVariant/*, this.leading*/, this.refreshParent});
+  final String? prefix, suffix;
+  final bool asInlineButton;
+  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.asInlineButton = false, this.status, this.colored = true, this.localVariant, this.refreshParent, this.prefix, this.suffix});
 
   static const EdgeInsets padding = EdgeInsets.all(10);
 
@@ -70,21 +72,28 @@ class PkgNameFragment extends StatelessWidget {
       text: TextSpan(
         style: style,
         children: [
-          // if (leading != null) WidgetSpan(child: leading!),
-          // if (leading != null) const WidgetSpan(child: SizedBox(width: 10)),
+          if (prefix?.isNotEmpty == true) TextSpan(text: prefix),
           TextSpan(text: '${module.group} : ', style: style1),
           TextSpan(text: module.name, style: style2),
           if (localVariant != null) TextSpan(text: ' : $localVariant', style: style1),
+          if (suffix?.isNotEmpty == true) TextSpan(text: suffix),
         ],
       ),
     );
-    return !asButton ? text : TextButton.icon(
-      onPressed: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
-      label: text,
-      icon: status == null ? null : InstalledStatusIcon(status),
-      iconAlignment: IconAlignment.start,
-      style: TextButton.styleFrom(padding: PkgNameFragment.padding),
-    );
+    return asButton
+        ? TextButton.icon(
+          onPressed: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
+          label: text,
+          icon: status == null ? null : InstalledStatusIcon(status),
+          iconAlignment: IconAlignment.start,
+          style: TextButton.styleFrom(padding: PkgNameFragment.padding),
+        )
+        : asInlineButton
+        ? InkWell(
+          onTap: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
+          child: text,
+        )
+        : text;
   }
 }
 
@@ -132,15 +141,54 @@ class Hyperlink extends StatelessWidget {
 
 class MarkdownText extends StatelessWidget {
   final String text;
-  const MarkdownText(this.text, {super.key});
+  final void Function() refreshParent;
+  const MarkdownText(this.text, {required this.refreshParent, super.key});
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: text.trimRight().split('\n').map((line) =>
-        Text(line)
+    return Wrap(
+      direction: Axis.horizontal,
+      crossAxisAlignment: WrapCrossAlignment.start,
+      spacing: 10,
+      runSpacing: 10,
+      children: _splitter.convert(text.trimRight()).map((line) =>
+        RichText(
+          text: TextSpan(
+            style: DefaultTextStyle.of(context).style,
+            children: _replaceLinks(line),
+          ),
+        ),
       ).toList(),
     );
+  }
+
+  // regex also matches leading and trailing non-whitespace text (e.g. parenthesis) to ensure it does not get wrapped
+  static final pkgMarkdownRegex = RegExp(r'([^`\s]*)`pkg=([^`:\s]+):([^`:\s]+)`([^`\s]*)');
+  static const _splitter = LineSplitter();
+
+  List<InlineSpan> _replaceLinks(String line) {
+    final matches = pkgMarkdownRegex.allMatches(line).toList();
+    if (matches.isEmpty) {
+      return [TextSpan(text: line)];
+    } else {
+      return Iterable.generate(matches.length, (i) => i).expand((i) {
+        final trailingTextEnd = i < matches.length - 1 ? matches[i+1].start : line.length;
+        final trailingTextStart = matches[i].end;
+        return [
+          if (i == 0 && matches[0].start > 0) TextSpan(text: line.substring(0, matches[0].start)),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: PkgNameFragment(
+              BareModule(matches[i][2]!, matches[i][3]!),
+              prefix: matches[i][1],
+              suffix: matches[i][4],
+              asInlineButton: true,
+              refreshParent: refreshParent,
+            ),
+          ),
+          if (trailingTextStart < trailingTextEnd) TextSpan(text: line.substring(trailingTextStart, trailingTextEnd)),
+        ];
+      }).toList();
+    }
   }
 }
 

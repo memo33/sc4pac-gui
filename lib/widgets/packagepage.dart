@@ -137,13 +137,13 @@ class _PackagePageState extends State<PackagePage> {
                   _ => 'Unknown'
                 })),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => MarkdownText(text), _ => const Text('-') }),
+                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('-') }),
                 if (remote case {'info': {'description': String text}})
-                  packageTableRow(const Text("Description"), MarkdownText(text)),
+                  packageTableRow(const Text("Description"), MarkdownText(text, refreshParent: _refresh)),
                 if (remote case {'info': {'warning': String text}})
-                  packageTableRow(const Text("Warning"), MarkdownText(text)),
+                  packageTableRow(const Text("Warning"), MarkdownText(text, refreshParent: _refresh)),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Conflicts"), switch (info) { {'conflicts': String text} => MarkdownText(text), _ => const Text('None') }),
+                  packageTableRow(const Text("Conflicts"), switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') }),
                 if (remote case {'info': {'author': String text}})
                   packageTableRow(const Text("Author"), Text(text)),
                 if (remote case {'info': {'website': String text}})
