@@ -202,7 +202,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     return PackageTile(
                       module,
                       index,
-                      subtitle: '${pkg.status.installed?.version} | ${pkg.summary} | ${pkg.status.timeLabel()}',
+                      summary: pkg.summary,
                       status: pkg.status,
                       refreshParent: _refresh,
                       onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: _refresh),

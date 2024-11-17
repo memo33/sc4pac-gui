@@ -142,7 +142,8 @@ class Hyperlink extends StatelessWidget {
 class MarkdownText extends StatelessWidget {
   final String text;
   final void Function() refreshParent;
-  const MarkdownText(this.text, {required this.refreshParent, super.key});
+  final TextOverflow overflow;
+  const MarkdownText(this.text, {required this.refreshParent, this.overflow = TextOverflow.clip, super.key});
   @override
   Widget build(BuildContext context) {
     return Wrap(
@@ -152,6 +153,7 @@ class MarkdownText extends StatelessWidget {
       runSpacing: 10,
       children: _splitter.convert(text.trimRight()).map((line) =>
         RichText(
+          overflow: overflow,
           text: TextSpan(
             style: DefaultTextStyle.of(context).style,
             children: _replaceLinks(line),
@@ -313,9 +315,35 @@ class PendingUpdateStatusIcon extends StatelessWidget {
   }
 }
 
+// class DividerIcon extends StatelessWidget {
+//   const DividerIcon({super.key});
+//   @override Widget build(BuildContext context) => Padding(
+//     padding: const EdgeInsets.symmetric(horizontal: 5),
+//     child: Icon(Symbols.stat_0, size: 10, fill: 1, color: Theme.of(context).dividerColor),
+//   );
+// }
+
+class TextWithIcon extends StatelessWidget {
+  final String version;
+  final TextStyle? style;
+  final IconData symbol;
+  const TextWithIcon(this.version, {this.style, super.key, required this.symbol});
+  @override Widget build(BuildContext context) {
+    final style = this.style ?? DefaultTextStyle.of(context).style;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      children: [
+        Icon(symbol, size: style.fontSize, color: style.color),
+        Text(version, style: style),
+      ],
+    );
+  }
+}
+
 class PackageTile extends StatelessWidget {
   final BareModule module;
-  final String? subtitle;
+  final String? summary;
   final int index;
   // final Widget? actionButton;
   final List<Widget> chips;
@@ -324,14 +352,24 @@ class PackageTile extends StatelessWidget {
   final void Function(bool)? onToggled;
   final void Function() refreshParent;
   final VisualDensity? visualDensity;
-  const PackageTile(this.module, this.index, {super.key, this.subtitle, this.chips = const [], this.status, this.pendingStatus, this.onToggled, required this.refreshParent, this.visualDensity});
+  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.onToggled, required this.refreshParent, this.visualDensity});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
+    final hintStyle = DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).hintColor);
+    final timeLabel = status?.timeLabel();
     return ListTile(
       leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
-      subtitle: subtitle != null ? Text(subtitle!) : null,
+      subtitle: summary == null && status == null ? null : Row(
+        children: [
+          summary != null ? Expanded(child: MarkdownText(summary!, refreshParent: refreshParent, overflow: TextOverflow.ellipsis)) : const Spacer(),
+          if (status?.installed != null) const SizedBox(width: 10), // DividerIcon(),
+          if (status?.installed != null) Tooltip(message: "Version", child: TextWithIcon(status!.installed!.version, symbol: Symbols.sell, style: hintStyle)),
+          if (timeLabel != null) const SizedBox(width: 20), // DividerIcon(),
+          if (timeLabel != null) TextWithIcon(timeLabel, symbol: Symbols.schedule, style: hintStyle),
+        ],
+      ),
       visualDensity: visualDensity,
       trailing: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,

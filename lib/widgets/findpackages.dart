@@ -121,7 +121,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                     final item = snapshot.data![index];
                     final module = BareModule.parse(item.package);
                     return PackageTile(module, index,
-                      subtitle: item.summary,
+                      summary: item.summary,
                       status: item.status,
                       refreshParent: _refresh,
                       onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: _refresh),
