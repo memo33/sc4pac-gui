@@ -139,6 +139,8 @@ class Hyperlink extends StatelessWidget {
   }
 }
 
+Iterable<A> interleave<A>(Iterable<A> it, A separator) => it.expand((a) => [separator, a]).skip(1);
+
 class MarkdownText extends StatelessWidget {
   final String text;
   final void Function() refreshParent;
@@ -146,19 +148,19 @@ class MarkdownText extends StatelessWidget {
   const MarkdownText(this.text, {required this.refreshParent, this.overflow = TextOverflow.clip, super.key});
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      direction: Axis.horizontal,
-      crossAxisAlignment: WrapCrossAlignment.start,
-      spacing: 10,
-      runSpacing: 10,
-      children: _splitter.convert(text.trimRight()).map((line) =>
-        RichText(
-          overflow: overflow,
-          text: TextSpan(
-            style: DefaultTextStyle.of(context).style,
-            children: _replaceLinks(line),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: interleave(
+        _splitter.convert(text.trimRight()).map((line) =>
+          RichText(
+            overflow: overflow,
+            text: TextSpan(
+              style: DefaultTextStyle.of(context).style,
+              children: _replaceLinks(line),
+            ),
           ),
         ),
+        const SizedBox(height: 10),
       ).toList(),
     );
   }
