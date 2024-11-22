@@ -7,6 +7,8 @@ import 'package:url_launcher/link.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:markdown/markdown.dart' as md;
+import 'package:flutter_markdown/flutter_markdown.dart' as fmd;
 import '../model.dart';
 import '../viewmodel.dart' show PendingUpdateStatus;
 import 'packagepage.dart';
@@ -139,60 +141,73 @@ class Hyperlink extends StatelessWidget {
   }
 }
 
-Iterable<A> interleave<A>(Iterable<A> it, A separator) => it.expand((a) => [separator, a]).skip(1);
+class PkgLinkNode extends md.Element {
+  final BareModule module;
+  final String prefix, suffix;
+  static const pkgNodeTag = 'sc4pacPkg';
+  PkgLinkNode(this.module, {required this.prefix, required this.suffix}) : super.withTag(pkgNodeTag);
+}
+
+class PkgLinkSyntax extends md.InlineSyntax {
+  PkgLinkSyntax() : super(pkgMarkdownPattern);
+
+  // regex also matches leading and trailing non-whitespace text (e.g. parenthesis) to ensure it does not get wrapped
+  static const pkgMarkdownPattern = r'([^`\s]*)`pkg=([^`:\s]+):([^`:\s]+)`([^`\s]*)';
+
+  @override
+  bool onMatch(md.InlineParser parser, Match match) {
+    parser.addNode(PkgLinkNode(BareModule(match[2]!, match[3]!), prefix: match[1]!, suffix: match[4]!));
+    return true;  // i.e. advance parser by match[0].length
+  }
+}
+
+class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
+  final void Function() refreshParent;
+  PkgLinkElementBuilder({required this.refreshParent});
+
+  @override
+  Widget? visitElementAfterWithContext(BuildContext context, md.Element element, TextStyle? preferredStyle, TextStyle? parentStyle) {
+    if (element is PkgLinkNode) {
+      return Text.rich(WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: PkgNameFragment(
+          element.module,
+          prefix: element.prefix,
+          suffix: element.suffix,
+          asInlineButton: true,
+          refreshParent: refreshParent,
+        ),
+      ));
+    } else {
+      return null;
+    }
+  }
+}
 
 class MarkdownText extends StatelessWidget {
   final String text;
   final void Function() refreshParent;
-  final TextOverflow overflow;
-  const MarkdownText(this.text, {required this.refreshParent, this.overflow = TextOverflow.clip, super.key});
+  const MarkdownText(this.text, {required this.refreshParent, super.key});
+
+  static final _extensionSet = md.ExtensionSet(
+    md.ExtensionSet.gitHubFlavored.blockSyntaxes,
+    [
+      PkgLinkSyntax(),
+      ...md.ExtensionSet.gitHubFlavored.inlineSyntaxes
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: interleave(
-        _splitter.convert(text.trimRight()).map((line) =>
-          RichText(
-            overflow: overflow,
-            text: TextSpan(
-              style: DefaultTextStyle.of(context).style,
-              children: _replaceLinks(line),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-      ).toList(),
+    return fmd.MarkdownBody(
+      data: text,
+      extensionSet: _extensionSet,
+      builders: {PkgLinkNode.pkgNodeTag: PkgLinkElementBuilder(refreshParent: refreshParent)},
+      softLineBreak: false,
+      styleSheet: fmd.MarkdownStyleSheet(
+        blockquoteDecoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(4)),
+      ),
     );
-  }
-
-  // regex also matches leading and trailing non-whitespace text (e.g. parenthesis) to ensure it does not get wrapped
-  static final pkgMarkdownRegex = RegExp(r'([^`\s]*)`pkg=([^`:\s]+):([^`:\s]+)`([^`\s]*)');
-  static const _splitter = LineSplitter();
-
-  List<InlineSpan> _replaceLinks(String line) {
-    final matches = pkgMarkdownRegex.allMatches(line).toList();
-    if (matches.isEmpty) {
-      return [TextSpan(text: line)];
-    } else {
-      return Iterable.generate(matches.length, (i) => i).expand((i) {
-        final trailingTextEnd = i < matches.length - 1 ? matches[i+1].start : line.length;
-        final trailingTextStart = matches[i].end;
-        return [
-          if (i == 0 && matches[0].start > 0) TextSpan(text: line.substring(0, matches[0].start)),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: PkgNameFragment(
-              BareModule(matches[i][2]!, matches[i][3]!),
-              prefix: matches[i][1],
-              suffix: matches[i][4],
-              asInlineButton: true,
-              refreshParent: refreshParent,
-            ),
-          ),
-          if (trailingTextStart < trailingTextEnd) TextSpan(text: line.substring(trailingTextStart, trailingTextEnd)),
-        ];
-      }).toList();
-    }
   }
 }
 
@@ -365,7 +380,7 @@ class PackageTile extends StatelessWidget {
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
       subtitle: summary == null && status == null ? null : Row(
         children: [
-          summary != null ? Expanded(child: MarkdownText(summary!, refreshParent: refreshParent, overflow: TextOverflow.ellipsis)) : const Spacer(),
+          summary != null ? Expanded(child: MarkdownText(summary!, refreshParent: refreshParent)) : const Spacer(),
           if (status?.installed != null) const SizedBox(width: 10), // DividerIcon(),
           if (status?.installed != null) Tooltip(message: "Version", child: TextWithIcon(status!.installed!.version, symbol: Symbols.sell, style: hintStyle)),
           if (timeLabel != null) const SizedBox(width: 20), // DividerIcon(),
