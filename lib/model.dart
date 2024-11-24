@@ -148,7 +148,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
 
   Future<Map<String, dynamic>> profileInit({required String profileId, required ({String plugins, String cache}) paths}) async {
     final response = await http.post(Uri.http(authority, '/profile.init', {'profile': profileId}),
-      body: jsonUtf8Encode({'plugins': paths.plugins, 'cache': paths.cache}),
+      body: jsonUtf8Encode({'plugins': paths.plugins, 'cache': paths.cache, 'temp': "../temp"}),
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
