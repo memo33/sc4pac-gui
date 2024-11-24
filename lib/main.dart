@@ -11,6 +11,7 @@ import 'viewmodel.dart';
 import 'widgets/dashboard.dart';
 import 'widgets/findpackages.dart';
 import 'widgets/myplugins.dart';
+import 'widgets/settings.dart';
 import 'widgets/fragments.dart';
 
 void main(List<String> args) {
@@ -507,31 +508,7 @@ class _NavRailState extends State<NavRail> {
                 0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
                 1 => FindPackagesScreen(widget.world.profile.findPackages),
                 2 => MyPluginsScreen(widget.world.profile.myPlugins),
-                _ => const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text("Not implemented yet")
-                    /*
-                    Text('selectedIndex: $_selectedIndex'),
-                    const SizedBox(height: 20),
-                    OverflowBar(
-                      spacing: 10.0,
-                      children: <Widget>[
-                        ElevatedButton(
-                          onPressed: () { },
-                          child: const Text('Button 1'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () { },
-                          child: const Text('Button 2'),
-                        ),
-                      ],
-                    ),
-                    PackageTile(const BareModule("group", "name"), 0, subtitle: "summary", refreshParent: () {}),
-                    PackageTile(const BareModule("group", "name"), 1, subtitle: "summary", refreshParent: () {}),
-                    */
-                  ],
-                ),
+                _ => const SettingsScreen(),
               },
             ),
           ],

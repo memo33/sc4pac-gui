@@ -175,3 +175,23 @@ class PackageInfoResult {
   PackageInfoResult(this.local, this.remote);
   factory PackageInfoResult.fromJson(Map<String, dynamic> json) => _$PackageInfoResultFromJson(json);
 }
+
+@JsonSerializable()
+class AuthItem {
+  final String domain;
+  final String cookie;
+  AuthItem({required this.domain, required this.cookie});
+  factory AuthItem.fromJson(Map<String, dynamic> json) => _$AuthItemFromJson(json);
+  Map<String, dynamic> toJson() => _$AuthItemToJson(this);
+}
+
+@JsonSerializable()
+class SettingsData {
+  final List<AuthItem> auth;
+  SettingsData({this.auth = const []});
+  SettingsData copyWith({List<AuthItem>? auth}) {
+    return auth == null ? this : SettingsData(auth: auth);
+  }
+  factory SettingsData.fromJson(Map<String, dynamic> json) => _$SettingsDataFromJson(json);
+  Map<String, dynamic> toJson() => _$SettingsDataToJson(this);
+}

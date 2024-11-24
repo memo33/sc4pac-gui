@@ -318,6 +318,25 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
   }
 
+  Future<SettingsData> getSettings() async {
+    final response = await http.get(Uri.http(authority, '/settings.all.get'));
+    if (response.statusCode == 200) {
+      return SettingsData.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  Future<void> setSettings(SettingsData settingsData) async {
+    final response = await http.post(Uri.http(authority, '/settings.all.set'),
+      body: jsonUtf8Encode(settingsData),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   // this redirection via API solves CORS errors in web browser (canvaskit renderer only)
   Uri redirectImageUrl(String url) {
     return Uri.http(authority, '/image.fetch', {'url': url});
