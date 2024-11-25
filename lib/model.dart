@@ -271,8 +271,12 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  WebSocketChannel update({required String profileId}) {
-    final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update?profile=$profileId'));
+  WebSocketChannel update({required String profileId, required List<AuthItem> auth}) {
+    final stAuth = auth.where((a) => a.isSimtropolisCookie());
+    final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update').replace(queryParameters: {
+      'profile': profileId,
+      if (stAuth.isNotEmpty) 'simtropolisCookie': stAuth.first.cookie,
+    }));
     return ws;
   }
 

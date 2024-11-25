@@ -35,7 +35,6 @@ class _CookieWidgetState extends State<CookieWidget> {
   late Future<SettingsData> settingsFuture;
   late TextEditingController controller = TextEditingController();
   bool changed = false;
-  static const simtropolisDomain = "community.simtropolis.com";
   static const simtropolisCookiePlaceholder = "ips4_device_key=<value>; ips4_member_id=<value>; ips4_login_key=<value>";
 
   @override void initState() {
@@ -45,21 +44,24 @@ class _CookieWidgetState extends State<CookieWidget> {
 
   void _submit(String? simtropolisCookie) {
     settingsFuture
-      .then((settingsData) {
-        final settingsData2 = settingsData.copyWith(
-          auth: simtropolisCookie == null ? [] : [AuthItem(domain: simtropolisDomain, cookie: simtropolisCookie)],
-        );
-        return World.world.client.setSettings(settingsData2);
-      })
-      .then(
-        (_) {
-          setState(() {
-            settingsFuture = World.world.client.getSettings();
-            changed = false;
-          });
-        },
-        onError: (e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update cookie", e.toString())),
-      );
+      .then((settingsData) =>
+        settingsData.copyWith(
+          auth: simtropolisCookie == null ? [] : [AuthItem(domain: AuthItem.simtropolisDomain, cookie: simtropolisCookie)],
+        )
+      )
+      .then((settingsData) =>
+        World.world.client.setSettings(settingsData)
+          .then<void>(
+            (_) {
+              setState(() {
+                settingsFuture = World.world.client.getSettings();
+                settingsFuture.then(World.world.updateSettings);  // async without awaiting result
+                changed = false;
+              });
+            }
+          )
+      )
+      .catchError((e) => ApiErrorWidget.dialog( ApiError.unexpected("Failed to update cookie", e.toString())));
   }
 
   @override
@@ -92,10 +94,8 @@ class _CookieWidgetState extends State<CookieWidget> {
             } else {
               if (!changed) {  // avoids text being reset at 2nd change
                 final settingsData = snapshot.data!;
-                controller.text = settingsData.auth.firstWhere(
-                  (a) => a.domain == simtropolisDomain && a.cookie.isNotEmpty == true,
-                  orElse: () => AuthItem(domain: simtropolisDomain, cookie: simtropolisCookiePlaceholder),
-                ).cookie;
+                final stAuth = settingsData.auth.where((a) => a.isSimtropolisCookie());
+                controller.text = stAuth.isNotEmpty ? stAuth.first.cookie : simtropolisCookiePlaceholder;
               }
               return TextField(
                 controller: controller,

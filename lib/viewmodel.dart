@@ -26,6 +26,7 @@ class World extends ChangeNotifier {
   late Future<Profiles> profilesFuture;
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
+  late SettingsData settings;
   // themeMode
   // other gui settings
 
@@ -48,7 +49,10 @@ class World extends ChangeNotifier {
 
   void _switchToLoadingProfiles() {
     initPhase = InitPhase.loadingProfiles;
-    profilesFuture = client.profiles();
+    profilesFuture =
+      client.getSettings()
+      .then(updateSettings)
+      .then((_) => client.profiles());
     notifyListeners();
   }
 
@@ -70,6 +74,11 @@ class World extends ChangeNotifier {
 
   void _switchToInitialized() {
     initPhase = InitPhase.initialized;
+    notifyListeners();
+  }
+
+  void updateSettings(SettingsData settings) {
+    this.settings = settings;
     notifyListeners();
   }
 
@@ -241,7 +250,7 @@ class UpdateProcess extends ChangeNotifier {
   final bool isBackground;
 
   UpdateProcess({required this.pendingUpdates, required this.onFinished, this.isBackground = false}) {
-    _ws = World.world.client.update(profileId: World.world.profile.id);
+    _ws = World.world.client.update(profileId: World.world.profile.id, auth: World.world.settings.auth);
     stream =
       _ws.ready
         .then((_) => true, onError: (e) {

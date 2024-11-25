@@ -178,11 +178,13 @@ class PackageInfoResult {
 
 @JsonSerializable()
 class AuthItem {
+  static const simtropolisDomain = "community.simtropolis.com";
   final String domain;
   final String cookie;
   AuthItem({required this.domain, required this.cookie});
   factory AuthItem.fromJson(Map<String, dynamic> json) => _$AuthItemFromJson(json);
   Map<String, dynamic> toJson() => _$AuthItemToJson(this);
+  bool isSimtropolisCookie() => domain == simtropolisDomain && cookie.isNotEmpty;
 }
 
 @JsonSerializable()
