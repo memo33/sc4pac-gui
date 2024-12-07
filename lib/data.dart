@@ -3,6 +3,8 @@
 // The serialization code is auto-generated in `data.g.dart`.
 import 'package:json_annotation/json_annotation.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:cryptography/cryptography.dart';
+import 'dart:convert';
 
 part 'data.g.dart';  // access private members in generated code
 
@@ -180,11 +182,48 @@ class PackageInfoResult {
 class AuthItem {
   static const simtropolisDomain = "community.simtropolis.com";
   final String domain;
-  final String cookie;
-  AuthItem({required this.domain, required this.cookie});
+  @JsonKey(
+    toJson: _base64Encode,
+    fromJson: _base64Decode,
+  )
+  final List<int> cookieBytes;
+  late final String? cookie = _deobfuscateCookieSync(cookieBytes);
+  AuthItem({required this.domain, required this.cookieBytes});
   factory AuthItem.fromJson(Map<String, dynamic> json) => _$AuthItemFromJson(json);
   Map<String, dynamic> toJson() => _$AuthItemToJson(this);
-  bool isSimtropolisCookie() => domain == simtropolisDomain && cookie.isNotEmpty;
+  bool isSimtropolisCookie() => domain == simtropolisDomain && cookie?.isNotEmpty == true;
+
+  static String _base64Encode(List<int> bytes) => base64.encode(bytes);
+  static List<int> _base64Decode(String text) => base64.decode(text);
+
+  // We merely obfuscate the stored cookie to prevent *untargeted* malware from reading the cookie from disk.
+  // There is no need to keep this secret from the end user, so we store the plain key here.
+  static SecretKeyData _createKey() =>
+    SecretKeyData([
+      0x30,0x1f,0x51,0xbf,0xd0,0xf3,0xa8,0x4c,0x0c,0xbd,0x11,0x23,0x5a,0x91,0xb2,0xf3,
+      0x4d,0x06,0x5d,0xe8,0xe8,0x2e,0xfc,0x6c,0x38,0xa6,0x7c,0xc4,0xeb,0x22,0x19,0x3b,
+    ]);
+
+  static Future<List<int>> obfuscateCookie(String cookie) async {
+    final algorithm = AesGcm.with256bits();
+    final secretBox = await algorithm.encryptString(cookie, secretKey: _createKey());
+    return secretBox.concatenation();
+  }
+
+  static String? _deobfuscateCookieSync(List<int> concatenatedBytes) {
+    final algorithm = AesGcm.with256bits().toSync();  // synchronous for simplicity, even though it may be slower
+    try {
+      final secretBox = SecretBox.fromConcatenation(
+        concatenatedBytes,
+        nonceLength: algorithm.nonceLength,
+        macLength: algorithm.macAlgorithm.macLength,
+        copy: false,
+      );
+      return utf8.decode(algorithm.decryptSync(secretBox, secretKeyData: _createKey()));
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 @JsonSerializable()

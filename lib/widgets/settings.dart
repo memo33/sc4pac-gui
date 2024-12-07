@@ -15,7 +15,7 @@ class SettingsScreen extends StatelessWidget {
       padding: const EdgeInsets.all(15),
       children: const [
         ExpansionTile(
-          initiallyExpanded: true,
+          initiallyExpanded: false,
           leading: Icon(Symbols.passkey),
           title: Text("Authentication (Simtropolis)"),
           children: [
@@ -44,11 +44,16 @@ class _CookieWidgetState extends State<CookieWidget> {
 
   void _submit(String? simtropolisCookie) {
     settingsFuture
-      .then((settingsData) =>
-        settingsData.copyWith(
-          auth: simtropolisCookie == null ? [] : [AuthItem(domain: AuthItem.simtropolisDomain, cookie: simtropolisCookie)],
-        )
-      )
+      .then((settingsData) async {
+        if (simtropolisCookie == null) {
+          return settingsData.copyWith(auth: []);
+        } else {
+          final cookieBytes = await AuthItem.obfuscateCookie(simtropolisCookie);
+          return settingsData.copyWith(
+            auth: [AuthItem(domain: AuthItem.simtropolisDomain, cookieBytes: cookieBytes)],
+          );
+        }
+      })
       .then((settingsData) =>
         World.world.client.setSettings(settingsData)
           .then<void>(
@@ -95,7 +100,7 @@ class _CookieWidgetState extends State<CookieWidget> {
               if (!changed) {  // avoids text being reset at 2nd change
                 final settingsData = snapshot.data!;
                 final stAuth = settingsData.auth.where((a) => a.isSimtropolisCookie());
-                controller.text = stAuth.isNotEmpty ? stAuth.first.cookie : simtropolisCookiePlaceholder;
+                controller.text = (stAuth.isNotEmpty ? stAuth.first.cookie : null) ?? simtropolisCookiePlaceholder;
               }
               return TextField(
                 controller: controller,
