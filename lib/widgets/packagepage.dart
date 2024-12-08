@@ -358,7 +358,8 @@ class _ImageCarouselState extends State<ImageCarousel> {
             AnimatedSmoothIndicator(
               activeIndex: currentIndex,
               count: widget.images.length,
-              effect: SlideEffect(
+              effect: ScrollingDotsEffect(
+                maxVisibleDots: 15,
                 dotColor: Theme.of(context).colorScheme.outlineVariant,
                 activeDotColor: Theme.of(context).colorScheme.onSurface,
                 dotHeight: 12,
