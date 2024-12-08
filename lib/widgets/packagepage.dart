@@ -6,6 +6,7 @@ import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:url_launcher/url_launcher.dart';
 import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
@@ -148,6 +149,8 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(const Text("Author"), Text(text)),
                 if (remote case {'info': {'website': String text}})
                   packageTableRow(const Text("Website"), CopyButton(copyableText: text, child: Hyperlink(url: text))),
+                if (remote case {'channelLabel': [String label]})
+                  packageTableRow(const Text("Channel"), Text(label)),
                 packageTableRow(const Text("Subfolder"), Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' })),
                 packageTableRow(const Text("Variants"),
                   variants.isEmpty || variants.length == 1 && variants[0].isEmpty ? const Text('None') : Wrap(
@@ -195,6 +198,24 @@ class _PackagePageState extends State<PackagePage> {
                         ],
                       ),
                     ),
+                    if (remote case {'metadataSourceUrl': [String metadataSourceUrl]})
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: CopyButton(
+                          copyableText: metadataSourceUrl,
+                          child: Tooltip(
+                            message: metadataSourceUrl,
+                            child: TextButton.icon(
+                              icon: const Icon(Symbols.edit_square),
+                              label: const Text("Edit metadata"),
+                              onPressed: switch (Uri.tryParse(metadataSourceUrl)) {
+                                null => null,
+                                (Uri uri) => (() => launchUrl(uri, mode: LaunchMode.externalApplication)),
+                              }
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
