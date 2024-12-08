@@ -546,7 +546,14 @@ class _ChannelsListState extends State<ChannelsList> {
 
   @override void initState() {
     super.initState();
-    urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id);
+    _initUrlsFuture();
+  }
+
+  void _initUrlsFuture() {
+    urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id)
+      ..then((urls) {
+        controller.text = _stringifyUrls(urls);
+      });
   }
 
   List<String> _parseUrls(String text) => text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
@@ -557,7 +564,7 @@ class _ChannelsListState extends State<ChannelsList> {
     World.world.client.channelsSet(urls, profileId: World.world.profile.id).then(
       (_) {
         setState(() {
-          urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id);
+          _initUrlsFuture();
           changed = false;
         });
       },
@@ -582,9 +589,6 @@ class _ChannelsListState extends State<ChannelsList> {
             } else if (!snapshot.hasData) {
               return const SizedBox();
             } else {
-              if (!changed) {  // avoids text being reset at 2nd change
-                controller.text = _stringifyUrls(snapshot.data!);
-              }
               return TextField(
                 controller: controller,
                 maxLines: null,

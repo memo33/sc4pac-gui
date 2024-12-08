@@ -34,15 +34,24 @@ class CookieWidget extends StatefulWidget {
 class _CookieWidgetState extends State<CookieWidget> {
   late Future<SettingsData> settingsFuture;
   late TextEditingController controller = TextEditingController();
+  DateTime? pickedDate;
   bool changed = false;
   static const simtropolisCookiePlaceholder = "ips4_device_key=<value>; ips4_member_id=<value>; ips4_login_key=<value>";
 
   @override void initState() {
     super.initState();
-    settingsFuture = World.world.client.getSettings();
+    _initSettingsFuture();
   }
 
-  void _submit(String? simtropolisCookie) {
+  void _initSettingsFuture() {
+    settingsFuture = World.world.client.getSettings()
+      ..then((settingsData) => setState(() {
+        controller.text = settingsData.stAuth?.cookie ?? simtropolisCookiePlaceholder;
+        pickedDate = settingsData.stAuth?.expirationDate;
+      }));
+  }
+
+  void _submit(String? simtropolisCookie, DateTime? expirationDate) {
     settingsFuture
       .then((settingsData) async {
         if (simtropolisCookie == null) {
@@ -50,7 +59,7 @@ class _CookieWidgetState extends State<CookieWidget> {
         } else {
           final cookieBytes = await AuthItem.obfuscateCookie(simtropolisCookie);
           return settingsData.copyWith(
-            auth: [AuthItem(domain: AuthItem.simtropolisDomain, cookieBytes: cookieBytes)],
+            auth: [AuthItem(domain: AuthItem.simtropolisDomain, cookieBytes: cookieBytes, expirationDate: expirationDate)],
           );
         }
       })
@@ -59,7 +68,7 @@ class _CookieWidgetState extends State<CookieWidget> {
           .then<void>(
             (_) {
               setState(() {
-                settingsFuture = World.world.client.getSettings();
+                _initSettingsFuture();
                 settingsFuture.then(World.world.updateSettings);  // async without awaiting result
                 changed = false;
               });
@@ -69,23 +78,23 @@ class _CookieWidgetState extends State<CookieWidget> {
       .catchError((e) => ApiErrorWidget.dialog( ApiError.unexpected("Failed to update cookie", e.toString())));
   }
 
+  String _formatDate(DateTime? d) => d == null ? "unknown" : d.toString().substring(0, 'YYYY-MM-DD'.length);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Align(
+        const Align(
           alignment: Alignment.centerLeft,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Text(
+            padding: EdgeInsets.only(top: 10, bottom: 20),
+            child: MarkdownText(
 """Basic authentication to Simtropolis is provided via cookies:
-• Use your web browser to sign in to Simtropolis with the "remember me" option.
-• Inspect the cookies by opening the browser Dev Tools:
-    • in Firefox: Storage > Cookies
-    • in Chrome: Application > Storage > Cookies
-• Replace the <value> placeholders below by the correct cookie values.
-  The cookies expire after a few months, so need to be refreshed occasionally.""",
-              style: DefaultTextStyle.of(context).style.copyWith(height: 2.5),
+- Use your web browser to sign in to Simtropolis with the "remember me" option.
+- Inspect the cookies by opening the browser Dev Tools:
+    - in Firefox: Storage > Cookies
+    - in Chrome: Application > Storage > Cookies
+- Replace the `<value>` placeholders below by the correct cookie values.""",
             ),
           ),
         ),
@@ -97,12 +106,11 @@ class _CookieWidgetState extends State<CookieWidget> {
             } else if (!snapshot.hasData) {
               return const SizedBox();
             } else {
-              if (!changed) {  // avoids text being reset at 2nd change
-                final settingsData = snapshot.data!;
-                final stAuth = settingsData.auth.where((a) => a.isSimtropolisCookie());
-                controller.text = (stAuth.isNotEmpty ? stAuth.first.cookie : null) ?? simtropolisCookiePlaceholder;
-              }
               return TextField(
+                decoration: const InputDecoration(
+                  icon: Icon(Symbols.cookie),
+                  labelText: "Cookie",
+                ),
                 controller: controller,
                 maxLines: null,
                 onChanged: (_) {
@@ -114,13 +122,61 @@ class _CookieWidgetState extends State<CookieWidget> {
             }
           },
         ),
+        const SizedBox(height: 20),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text("The cookies expire after a few months, so need to be refreshed occasionally. Copy the expiration date from your web browser to receive a reminder when the cookies expired."),
+        ),
+        const SizedBox(height: 10),
+        Align(alignment: Alignment.centerLeft, child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 250),
+                  child: Text("Expiration date: ${_formatDate(pickedDate)}"),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  icon: const Icon(Symbols.acute),
+                  label: const Text("3 months from now"),
+                  onPressed: () => setState(() {
+                    pickedDate = DateTime.now().add(const Duration(days: 90));
+                    changed = true;
+                  }),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  icon: const Icon(Symbols.edit_calendar),
+                  label: const Text("Pick date"),
+                  onPressed: () => showDatePicker(
+                    context: context,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    initialDate: DateTime.now().add(const Duration(days: 90)),
+                  ).then((date) {
+                    if (date != null) {
+                      setState(() {
+                        pickedDate = date;
+                        changed = true;
+                      });
+                    }
+                  }),
+                ),
+              ],
+            ),
+          ),
+        )),
+        const SizedBox(height: 5),
         OverflowBar(
           children: [
             Padding(
               padding: const EdgeInsets.all(10),
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.key_off),
-                onPressed: () => _submit(null),
+                onPressed: () => _submit(null, null),
                 label: const Text("Reset to default"),
               ),
             ),
@@ -128,7 +184,7 @@ class _CookieWidgetState extends State<CookieWidget> {
               padding: const EdgeInsets.all(10),
               child: FilledButton.icon(
                 icon: const Icon(Icons.save_outlined),
-                onPressed: !changed ? null : () => _submit(controller.text.trim()),
+                onPressed: !changed ? null : () => _submit(controller.text.trim(), pickedDate),
                 label: const Text("Save changes"),
               ),
             ),

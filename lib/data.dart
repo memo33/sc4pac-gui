@@ -182,13 +182,15 @@ class PackageInfoResult {
 class AuthItem {
   static const simtropolisDomain = "community.simtropolis.com";
   final String domain;
+  final DateTime? expirationDate;
+  bool? get expired => expirationDate?.isBefore(DateTime.now());
   @JsonKey(
     toJson: _base64Encode,
     fromJson: _base64Decode,
   )
   final List<int> cookieBytes;
   late final String? cookie = _deobfuscateCookieSync(cookieBytes);
-  AuthItem({required this.domain, required this.cookieBytes});
+  AuthItem({required this.domain, required this.cookieBytes, this.expirationDate});
   factory AuthItem.fromJson(Map<String, dynamic> json) => _$AuthItemFromJson(json);
   Map<String, dynamic> toJson() => _$AuthItemToJson(this);
   bool isSimtropolisCookie() => domain == simtropolisDomain && cookie?.isNotEmpty == true;
@@ -235,4 +237,8 @@ class SettingsData {
   }
   factory SettingsData.fromJson(Map<String, dynamic> json) => _$SettingsDataFromJson(json);
   Map<String, dynamic> toJson() => _$SettingsDataToJson(this);
+
+  late final AuthItem? stAuth = switch(auth.where((a) => a.isSimtropolisCookie())) {
+    final auth2 => auth2.isNotEmpty ? auth2.first : null,
+  };
 }
