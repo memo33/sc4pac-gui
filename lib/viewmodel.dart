@@ -26,6 +26,7 @@ class World extends ChangeNotifier {
   late Future<Profiles> profilesFuture;
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
+  late SettingsData settings;
   // themeMode
   // other gui settings
 
@@ -48,7 +49,10 @@ class World extends ChangeNotifier {
 
   void _switchToLoadingProfiles() {
     initPhase = InitPhase.loadingProfiles;
-    profilesFuture = client.profiles();
+    profilesFuture =
+      client.getSettings()
+      .then(updateSettings)
+      .then((_) => client.profiles());
     notifyListeners();
   }
 
@@ -70,6 +74,11 @@ class World extends ChangeNotifier {
 
   void _switchToInitialized() {
     initPhase = InitPhase.initialized;
+    notifyListeners();
+  }
+
+  void updateSettings(SettingsData settings) {
+    this.settings = settings;
     notifyListeners();
   }
 
@@ -213,7 +222,7 @@ enum UpdateStatus { running, finished, finishedWithError, canceled }
 
 class UpdateProcess extends ChangeNotifier {
   late final WebSocketChannel _ws;
-  late final Stream<Map<String, dynamic>> stream;
+  late final Stream<Map<String, dynamic>> _stream;
 
   UpdatePlan? plan;
   final downloads = <String>[];
@@ -241,9 +250,13 @@ class UpdateProcess extends ChangeNotifier {
   final bool isBackground;
 
   UpdateProcess({required this.pendingUpdates, required this.onFinished, this.isBackground = false}) {
-    _ws = World.world.client.update(profileId: World.world.profile.id);
-    stream =
-      _ws.ready
+    final stAuth = World.world.settings.stAuth;
+    if (stAuth?.expired == true) {
+      err = ApiError.unexpected("The Simtropolis authentication cookie has expired. Go to Settings to create a new one.", "");
+      status = UpdateStatus.finishedWithError;
+    } else {
+      _ws = World.world.client.update(profileId: World.world.profile.id, simtropolisCookie: stAuth?.cookie);
+      _stream = _ws.ready
         .then((_) => true, onError: (e) {
           err = ApiError.unexpected('Failed to open websocket. Make sure the local sc4pac server is running.', e.toString());
           status = UpdateStatus.finishedWithError;
@@ -256,7 +269,8 @@ class UpdateProcess extends ChangeNotifier {
             return jsonDecode(data as String) as Map<String, dynamic>;  // TODO jsonDecode could be run on a background thread
           })
         );
-    stream.listen(handleMessage);
+      _stream.listen(handleMessage);
+    }
   }
 
   void cancel() {

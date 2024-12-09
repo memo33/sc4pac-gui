@@ -2,6 +2,7 @@
 *.g.dart
 /cli
 /profiles/
+sc4pac-profiles.json
 /scripts/cli
 /scripts/profiles
 /scripts/webapp

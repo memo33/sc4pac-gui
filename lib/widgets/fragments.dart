@@ -162,7 +162,7 @@ class PkgLinkSyntax extends md.InlineSyntax {
 }
 
 class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
-  final void Function() refreshParent;
+  final void Function()? refreshParent;
   PkgLinkElementBuilder({required this.refreshParent});
 
   @override
@@ -186,8 +186,8 @@ class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
 
 class MarkdownText extends StatelessWidget {
   final String text;
-  final void Function() refreshParent;
-  const MarkdownText(this.text, {required this.refreshParent, super.key});
+  final void Function()? refreshParent;
+  const MarkdownText(this.text, {this.refreshParent, super.key});
 
   static final _extensionSet = md.ExtensionSet(
     md.ExtensionSet.gitHubFlavored.blockSyntaxes,
