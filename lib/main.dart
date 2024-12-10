@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart' show FilePicker;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io' as io;
 import 'model.dart';
 import 'data.dart';
@@ -14,13 +15,16 @@ import 'widgets/myplugins.dart';
 import 'widgets/settings.dart';
 import 'widgets/fragments.dart';
 
-void main(List<String> args) {
+void main(List<String> args) async {
+  WidgetsFlutterBinding.ensureInitialized();  // important if PackageInfo.fromPlatform called before runApp (otherwise causes null check error in release build on web)
+  final appInfo = await PackageInfo.fromPlatform();
   final cmdArgs = CommandlineArgs(args);
   if (cmdArgs.help) {
     final segments = io.File(io.Platform.resolvedExecutable).uri.pathSegments;
     final exeName = segments.isEmpty ? "sc4pac-gui" : segments.last;
     io.stdout.writeln(
 """Usage: $exeName [options]
+Version ${appInfo.version}
 
 Options
   --port number           Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
@@ -32,7 +36,7 @@ Options
     );
     io.exit(0);
   } else {
-    runApp(Sc4pacGuiApp(World(args: cmdArgs)));
+    runApp(Sc4pacGuiApp(World(args: cmdArgs, appInfo: appInfo)));
   }
 }
 

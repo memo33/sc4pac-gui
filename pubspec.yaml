@@ -53,6 +53,7 @@ dependencies:
   smooth_page_indicator: ^1.2.0+3
   flutter_markdown: ^0.7.4+2
   cryptography: ^2.7.0
+  package_info_plus: ^8.1.1
 
 dev_dependencies:
   flutter_test:

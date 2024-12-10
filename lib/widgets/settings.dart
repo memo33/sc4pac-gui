@@ -13,8 +13,8 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(15),
-      children: const [
-        ExpansionTile(
+      children: [
+        const ExpansionTile(
           initiallyExpanded: false,
           leading: Icon(Symbols.passkey),
           title: Text("Authentication (Simtropolis)"),
@@ -22,7 +22,37 @@ class SettingsScreen extends StatelessWidget {
             CookieWidget(),
           ],
         ),
+        AboutListTile(
+          icon: const Icon(Symbols.info),
+          applicationVersion: "Version ${World.world.appInfo.version}\n(with sc4pac CLI version ${World.world.serverVersion})",
+          aboutBoxChildren: const [
+            AboutMessage(),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class AboutMessage extends StatelessWidget {
+  static const websiteUrl = "https://memo33.github.io/sc4pac/";
+  static const sourceUrl = "https://github.com/memo33/sc4pac-gui";
+  const AboutMessage({super.key});
+  @override Widget build(BuildContext context) {
+    return Text.rich(TextSpan(
+        children: <InlineSpan>[
+          const TextSpan(text: "A mod manager for SimCity 4 plugins.\n\nMore information available at "),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Hyperlink(url: websiteUrl),
+          ),
+          const TextSpan(text: ".\n\nSource code: "),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Hyperlink(url: sourceUrl),
+          ),
+        ]
+      )
     );
   }
 }

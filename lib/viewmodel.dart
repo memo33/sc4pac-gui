@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 import 'model.dart';
 import 'data.dart';
@@ -18,10 +19,12 @@ enum InitPhase { connecting, loadingProfiles, initializingProfile, initialized }
 
 class World extends ChangeNotifier {
   final CommandlineArgs args;
+  final PackageInfo appInfo;
   late InitPhase initPhase;
   late String authority;
   late Sc4pacServer? server;
   late Future<Map<String, dynamic>> initialServerStatus;
+  String? serverVersion;
   late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
   late Profile profile;
@@ -36,7 +39,10 @@ class World extends ChangeNotifier {
     // we call `serverStatus`, even if `ready` resolved to false (launching server failed), to allow connecting to external server process instead
     initialServerStatus = (server?.ready ?? Future.value(true)).then((_) => Sc4pacClient.serverStatus(authority));
     initialServerStatus.then(
-      (_) {  // connection succeeded, so proceed to next phase
+      (serverStatus) {  // connection succeeded, so proceed to next phase
+        if (serverStatus case {'sc4pacVersion': String version}) {
+          serverVersion = version;
+        }
         client = Sc4pacClient(authority, onConnectionLost: () => updateConnection(authority, notify: true));
         _switchToLoadingProfiles();
       },
@@ -84,7 +90,7 @@ class World extends ChangeNotifier {
 
   static late World world;
 
-  World({required this.args}) {
+  World({required this.args, required this.appInfo}) {
     World.world = this;  // TODO for simplicity of access, we store a static reference to the one world
 
     const envPort = bool.hasEnvironment("port") ? int.fromEnvironment("port") : null;
