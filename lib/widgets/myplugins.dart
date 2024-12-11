@@ -116,6 +116,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
               Expanded(
                 child: SearchBar(
                   controller: _searchBarController,
+                  hintText: "search term…",
                   padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
                   leading: const Icon(Icons.search),
                   // or onChanged for immediate feedback?

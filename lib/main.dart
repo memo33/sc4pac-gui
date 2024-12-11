@@ -74,6 +74,15 @@ class Sc4pacGuiApp extends StatelessWidget {
   final World _world;
   const Sc4pacGuiApp(this._world, {super.key});
 
+  static ThemeData _adjustTheme(ThemeData data) =>
+    data.copyWith(
+      searchBarTheme: data.searchBarTheme.copyWith(
+        hintStyle: WidgetStateProperty.resolveWith((states) => data.textTheme.bodyLarge?.copyWith(
+          color: data.colorScheme.onSurfaceVariant.withAlpha(states.isEmpty ? 0 : 0x66),
+        )),
+      ),
+    );
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -85,7 +94,7 @@ class Sc4pacGuiApp extends StatelessWidget {
       // same or higher package version, but still same major version. If you
       // use a lower package version, some properties may not be supported.
       // In that case remove them after copying this theme to your app.
-      theme: FlexThemeData.light(
+      theme: _adjustTheme(FlexThemeData.light(
         scheme: FlexScheme.material,
         surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
         blendLevel: 7,
@@ -101,8 +110,8 @@ class Sc4pacGuiApp extends StatelessWidget {
         useMaterial3: true,
         swapLegacyOnMaterial3: true,
         fontFamily: GoogleFonts.notoSans().fontFamily,
-      ),
-      darkTheme: FlexThemeData.dark(
+      )),
+      darkTheme: _adjustTheme(FlexThemeData.dark(
         scheme: FlexScheme.material,
         surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
         blendLevel: 13,
@@ -117,7 +126,7 @@ class Sc4pacGuiApp extends StatelessWidget {
         useMaterial3: true,
         swapLegacyOnMaterial3: true,
         fontFamily: GoogleFonts.notoSans().fontFamily,
-      ),
+      )),
       // If you do not have a themeMode switch, uncomment this line
       // to let the device system mode control the theme mode:
       // themeMode: ThemeMode.system,

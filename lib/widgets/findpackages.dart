@@ -85,6 +85,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
               Expanded(
                 child: SearchBar(
                   controller: _searchBarController,
+                  hintText: "search term or URL…",
                   padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
                   leading: const Icon(Icons.search),
                   // or onChanged for immediate feedback?
