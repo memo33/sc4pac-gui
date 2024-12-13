@@ -349,8 +349,8 @@ class UpdateProcess extends ChangeNotifier {
             final msg = ProgressDownloadLength.fromJson(data);
             downloadLength[msg.url] = msg.length;
             break;
-          case '/progress/download/downloaded':
-            final msg = ProgressDownloadDownloaded.fromJson(data);
+          case '/progress/download/intermediate':
+            final msg = ProgressDownloadIntermediate.fromJson(data);
             downloadDownloaded[msg.url] = msg.downloaded;
             break;
           case '/progress/download/finished':

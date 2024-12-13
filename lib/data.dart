@@ -75,11 +75,11 @@ class ProgressDownloadLength {
 }
 
 @JsonSerializable()
-class ProgressDownloadDownloaded {
+class ProgressDownloadIntermediate {
   final String url;
   final int downloaded;  // String in JSON if > 2^53 --> unlikely
-  ProgressDownloadDownloaded(this.url, this.downloaded);
-  factory ProgressDownloadDownloaded.fromJson(Map<String, dynamic> json) => _$ProgressDownloadDownloadedFromJson(json);
+  ProgressDownloadIntermediate(this.url, this.downloaded);
+  factory ProgressDownloadIntermediate.fromJson(Map<String, dynamic> json) => _$ProgressDownloadIntermediateFromJson(json);
 }
 
 @JsonSerializable()
