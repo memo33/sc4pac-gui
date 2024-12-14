@@ -237,6 +237,7 @@ class UpdateProcess extends ChangeNotifier {
   final Map<String, bool> downloadSuccess = {};
   bool downloadsFailed = false;
   bool downloadsCompleted = false;
+  bool _downloadsCompletedOnNextNonProgressDownloadMsg = false;
   ProgressUpdateExtraction? extractionProgress;
   bool _extractionFinishedOnNextMsg = false;
   bool extractionFinished = false;
@@ -289,6 +290,12 @@ class UpdateProcess extends ChangeNotifier {
       if (_extractionFinishedOnNextMsg) {
         extractionFinished = true;
         _extractionFinishedOnNextMsg = false;
+      }
+      if (_downloadsCompletedOnNextNonProgressDownloadMsg) {
+        if (!type.startsWith('/progress/download/')) {
+          downloadsCompleted = true;
+        }  // otherwise downloads are still ongoing
+        _downloadsCompletedOnNextNonProgressDownloadMsg = false;
       }
 
       if (type == '/prompt/confirmation/update/plan') {
@@ -344,6 +351,7 @@ class UpdateProcess extends ChangeNotifier {
           case '/progress/download/started':
             final msg = ProgressDownloadStarted.fromJson(data);
             downloads.add(msg.url);
+            downloadsCompleted = false;
             break;
           case '/progress/download/length':
             final msg = ProgressDownloadLength.fromJson(data);
@@ -357,7 +365,7 @@ class UpdateProcess extends ChangeNotifier {
             final msg = ProgressDownloadFinished.fromJson(data);
             downloadSuccess[msg.url] = msg.success;
             downloadsFailed |= !msg.success;
-            downloadsCompleted |= downloadSuccess.length == downloads.length;
+            _downloadsCompletedOnNextNonProgressDownloadMsg = true;
             break;
           default:
             debugPrint('Message type not implemented: $data');  // TODO
