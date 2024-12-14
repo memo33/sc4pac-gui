@@ -276,6 +276,13 @@ class UpdateProcess extends ChangeNotifier {
             return jsonDecode(data as String) as Map<String, dynamic>;  // TODO jsonDecode could be run on a background thread
           })
         );
+      _ws.sink.done.then((_) {
+        if (status == UpdateStatus.running) {
+          status = UpdateStatus.finishedWithError;
+          // this can happen if sc4pac process crashes, so no final message is sent through the websocket before closing
+          err ??= ApiError.unexpected("Websocket closed unexpectedly. This seems to be a bug in sc4pac itself. Please report it.", "");
+        }
+      });
       _stream.listen(handleMessage);
     }
   }
