@@ -91,6 +91,13 @@ class ProgressDownloadFinished {
 }
 
 @JsonSerializable()
+class PromptOpenPackage {
+  final List<({String package, String channelUrl})> packages;
+  PromptOpenPackage(this.packages);
+  factory PromptOpenPackage.fromJson(Map<String, dynamic> json) => _$PromptOpenPackageFromJson(json);
+}
+
+@JsonSerializable()
 class InstalledListItem {
   final String package;
   final String version;

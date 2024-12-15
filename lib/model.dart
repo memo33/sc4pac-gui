@@ -110,8 +110,9 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
   final void Function() onConnectionLost;
+  final void Function(BareModule, {required String channelUrl}) openPackage;
 
-  Sc4pacClient(this.authority, {required this.onConnectionLost}) :
+  Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackage}) :
     wsUrl = 'ws://$authority',
     connection = serverConnect('ws://$authority')  // TODO appears to unregister automatically when application exits
   {
@@ -120,7 +121,9 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         status = ClientStatus.connected;
         // notifyListeners();
         // next monitor potential closing of the websocket
-        connection.stream.drain<String>('done')
+        connection.stream
+          .map((data) => jsonDecode(data as String) as Map<String, dynamic>)
+          .forEach(handleMessage)
           .then((_) {
             status = ClientStatus.lostConnection;
             // notifyListeners();
@@ -132,6 +135,25 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         status = ClientStatus.serverNotRunning;
         // notifyListeners();
       });
+  }
+
+  void handleMessage(Map<String, dynamic> data) {
+    if (data case {'\$type': String type}) {
+      if (type == '/prompt/open/package') {
+        final msg = PromptOpenPackage.fromJson(data);
+        if (msg.packages.isNotEmpty) {
+          if (msg.packages.length > 1) {
+            debugPrint("Opening more than 1 packages is not implemented.");
+          }
+          final item = msg.packages.first;
+          openPackage(BareModule.parse(item.package), channelUrl: item.channelUrl);
+        }
+      } else {
+        debugPrint('Message type not implemented: $data');
+      }
+    } else {
+      debugPrint('Unexpected message format: $data');
+    }
   }
 
   Future<({bool initialized, Map<String, dynamic> data})> profileRead({required String profileId}) async {

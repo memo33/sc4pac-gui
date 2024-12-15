@@ -13,7 +13,8 @@ import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
 import 'widgets/fragments.dart';
-import 'main.dart' show CommandlineArgs;
+import 'widgets/packagepage.dart';
+import 'main.dart' show CommandlineArgs, NavigationService;
 
 enum InitPhase { connecting, loadingProfiles, initializingProfile, initialized }
 
@@ -43,7 +44,26 @@ class World extends ChangeNotifier {
         if (serverStatus case {'sc4pacVersion': String version}) {
           serverVersion = version;
         }
-        client = Sc4pacClient(authority, onConnectionLost: () => updateConnection(authority, notify: true));
+        client = Sc4pacClient(
+          authority,
+          onConnectionLost: () => updateConnection(authority, notify: true),
+          openPackage: (BareModule module, {required String channelUrl}) async {
+            final stats = await profile.channelStatsFuture;
+            final idx = stats.channels.indexWhere((item) => item.url == channelUrl);
+            if (idx == -1) {
+              ApiErrorWidget.dialog(ApiError.unexpected(
+                """The package "$module" comes from a channel that is not contained in your list of configured channels yet. """
+                "To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically
+                channelUrl,
+              ));
+            } else {
+              final context = NavigationService.navigatorKey.currentContext;
+              if (context != null && context.mounted) {
+                PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
+              }
+            }
+          },
+        );
         _switchToLoadingProfiles();
       },
       onError: (_) {},  // connection failed, so stay in InitPhase.connecting
