@@ -15,7 +15,7 @@ class FindPackagesScreen extends StatefulWidget {
   State<FindPackagesScreen> createState() => _FindPackagesScreenState();
 }
 class _FindPackagesScreenState extends State<FindPackagesScreen> {
-  late Future<List<PackageSearchResultItem>> futureJson;
+  late Future<List<PackageSearchResultItem>> searchResultFuture;
   late final TextEditingController _searchBarController = TextEditingController(text: widget.findPackages.searchTerm);
 
   @override
@@ -34,9 +34,9 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
     final q = widget.findPackages.searchTerm;
     final c = widget.findPackages.selectedCategory;
     if ((q?.isNotEmpty ?? false) || c != null) {
-      futureJson = World.world.client.search(q ?? '', category: c, profileId: World.world.profile.id);
+      searchResultFuture = World.world.client.search(q ?? '', category: c, profileId: World.world.profile.id);
     } else {
-      futureJson = Future.value([]);
+      searchResultFuture = Future.value([]);
     }
   }
 
@@ -83,41 +83,26 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
               ),
               const SizedBox(width: 20),
               Expanded(
-                child: SearchBar(
+                child: PackageSearchBar(
                   controller: _searchBarController,
                   hintText: "search term or URL…",
-                  padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
-                  leading: const Icon(Symbols.search),
-                  // or onChanged for immediate feedback?
                   onSubmitted: (String query) => setState(() {
                     widget.findPackages.searchTerm = query;
                     _search();
                   }),
-                  trailing: [
-                    FutureBuilder<List<PackageSearchResultItem>>(
-                      future: futureJson,
-                      builder: (context, snapshot) => Row(children: [
-                        Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
-                        if (widget.findPackages.searchTerm?.isNotEmpty == true)
-                          IconButton(
-                            tooltip: "Cancel search",
-                            icon: const Icon(Symbols.cancel, fill: 1),
-                            onPressed: () => setState(() {
-                              widget.findPackages.searchTerm = '';
-                              _searchBarController.text = '';
-                              _search();
-                            }),
-                          ),
-                      ]),
-                    ),
-                  ],
+                  onCanceled: () => setState(() {
+                    widget.findPackages.searchTerm = '';
+                    _searchBarController.text = '';
+                    _search();
+                  }),
+                  resultsCount: searchResultFuture.then((data) => data.length),
                 ),
               ),
             ],
           ),
         ),
         FutureBuilder<List<PackageSearchResultItem>>(
-          future: futureJson,
+          future: searchResultFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return SliverToBoxAdapter(child: Center(child: ApiErrorWidget(ApiError.from(snapshot.error!))));

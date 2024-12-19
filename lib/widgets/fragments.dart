@@ -423,6 +423,37 @@ class CenteredFullscreenDialog extends StatelessWidget {
   }
 }
 
+class PackageSearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final void Function(String) onSubmitted;
+  final void Function() onCanceled;
+  final Future<int> resultsCount;
+  const PackageSearchBar({required this.controller, this.hintText = "search term…", required this.onSubmitted, required this.onCanceled, required this.resultsCount, super.key});
+  @override Widget build(BuildContext context) => SearchBar(
+    controller: controller,
+    hintText: hintText,
+    padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
+    leading: const Icon(Symbols.search),
+    // or onChanged for immediate feedback?
+    onSubmitted: onSubmitted,
+    trailing: [
+      FutureBuilder<int>(
+        future: resultsCount,
+        builder: (context, snapshot) => Row(children: [
+          Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!} packages' : ''),
+          if (controller.text.isNotEmpty)
+            IconButton(
+              tooltip: "Cancel search",
+              icon: const Icon(Symbols.cancel, fill: 1),
+              onPressed: onCanceled,
+            ),
+        ]),
+      )
+    ],
+  );
+}
+
 class CategoryMenu extends StatefulWidget {
   final ChannelStats? stats;
   final ValueChanged<String?>? onSelected;
