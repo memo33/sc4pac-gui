@@ -198,14 +198,14 @@ class _PackagePageState extends State<PackagePage> {
                         ],
                       ),
                     ),
-                    if (remote case {'metadataSourceUrl': [String metadataSourceUrl]})
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: CopyButton(
-                          copyableText: metadataSourceUrl,
-                          child: Tooltip(
-                            message: metadataSourceUrl,
-                            child: TextButton.icon(
+                    Wrap(
+                      spacing: 50,
+                      children: [
+                        if (remote case {'metadataSourceUrl': [String metadataSourceUrl]})
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: MetadataUrlButton(
+                              url: metadataSourceUrl,
                               icon: badges.Badge(
                                 badgeContent: const Icon(Symbols.visibility, size: 14),
                                 position: badges.BadgePosition.bottomEnd(bottom: -3, end: -3),
@@ -218,21 +218,50 @@ class _PackagePageState extends State<PackagePage> {
                                 ),
                                 child: const Icon(Symbols.draft),
                               ),
-                              label: const Text("View metadata"),
-                              onPressed: switch (Uri.tryParse(metadataSourceUrl)) {
-                                null => null,
-                                (Uri uri) => (() => launchUrl(uri, mode: LaunchMode.externalApplication)),
-                              }
+                              text: "View metadata",
                             ),
                           ),
-                        ),
-                      ),
+                        if (remote case {'metadataIssueUrl': [String metadataIssueUrl]})
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: MetadataUrlButton(
+                              url: metadataIssueUrl,
+                              icon: const Icon(Symbols.feedback),
+                              text: "Report a problem",
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             );
           }
         }
+      ),
+    );
+  }
+}
+
+class MetadataUrlButton extends StatelessWidget {
+  final String url;
+  final Widget icon;
+  final String text;
+  const MetadataUrlButton({required this.url, required this.icon, required this.text, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return CopyButton(
+      copyableText: url,
+      child: Tooltip(
+        message: url,
+        child: TextButton.icon(
+          icon: icon,
+          label: Text(text),
+          onPressed: switch (Uri.tryParse(url)) {
+            null => null,
+            (Uri uri) => (() => launchUrl(uri, mode: LaunchMode.externalApplication)),
+          }
+        ),
       ),
     );
   }
