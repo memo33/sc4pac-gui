@@ -206,8 +206,19 @@ class _PackagePageState extends State<PackagePage> {
                           child: Tooltip(
                             message: metadataSourceUrl,
                             child: TextButton.icon(
-                              icon: const Icon(Symbols.edit_square),
-                              label: const Text("Edit metadata"),
+                              icon: badges.Badge(
+                                badgeContent: const Icon(Symbols.visibility, size: 14),
+                                position: badges.BadgePosition.bottomEnd(bottom: -3, end: -3),
+                                badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
+                                badgeStyle: badges.BadgeStyle(
+                                  shape: badges.BadgeShape.square,
+                                  padding: const EdgeInsets.symmetric(vertical: 0.4, horizontal: 2.5),
+                                  borderRadius: BorderRadius.circular(10),
+                                  badgeColor: Theme.of(context).colorScheme.surface,
+                                ),
+                                child: const Icon(Symbols.draft),
+                              ),
+                              label: const Text("View metadata"),
                               onPressed: switch (Uri.tryParse(metadataSourceUrl)) {
                                 null => null,
                                 (Uri uri) => (() => launchUrl(uri, mode: LaunchMode.externalApplication)),
