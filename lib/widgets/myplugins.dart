@@ -18,7 +18,6 @@ class MyPluginsScreen extends StatefulWidget {
 class _MyPluginsScreenState extends State<MyPluginsScreen> {
   late Future<PluginsSearchResult> searchResultFuture;
   late Future<List<PluginsSearchResultItem>> filteredList;
-  late final TextEditingController _searchBarController = TextEditingController(text: widget.myPlugins.searchTerm);
   // late Future<List<InstalledListItem>> searchResultFuture;
   // late Future<List<InstalledListItem>> filteredList;
 
@@ -62,12 +61,6 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   void initState() {
     super.initState();
     _search();
-  }
-
-  @override
-  void dispose() {
-    _searchBarController.dispose();
-    super.dispose();
   }
 
   void _refresh() {
@@ -115,14 +108,13 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
               const SizedBox(width: 20),
               Expanded(
                 child: PackageSearchBar(
-                  controller: _searchBarController,
+                  initialText: widget.myPlugins.searchTerm,
                   onSubmitted: (String query) => setState(() {
                     widget.myPlugins.searchTerm = query;
                     _search();
                   }),
                   onCanceled: () => setState(() {
                     widget.myPlugins.searchTerm = '';
-                    _searchBarController.text = '';
                     _search();
                   }),
                   resultsCount: searchResultFuture.then((data) => data.packages.length),

@@ -423,30 +423,51 @@ class CenteredFullscreenDialog extends StatelessWidget {
   }
 }
 
-class PackageSearchBar extends StatelessWidget {
-  final TextEditingController controller;
+class PackageSearchBar extends StatefulWidget {
+  final String? initialText;
   final String hintText;
   final void Function(String) onSubmitted;
   final void Function() onCanceled;
   final Future<int> resultsCount;
-  const PackageSearchBar({required this.controller, this.hintText = "search term…", required this.onSubmitted, required this.onCanceled, required this.resultsCount, super.key});
-  @override Widget build(BuildContext context) => SearchBar(
+  const PackageSearchBar({required this.initialText, this.hintText = "search term…", required this.onSubmitted, required this.onCanceled, required this.resultsCount, super.key});
+  @override State<PackageSearchBar> createState() => _PackageSearchBarState();
+}
+class _PackageSearchBarState extends State<PackageSearchBar> {
+  late final controller = TextEditingController(text: widget.initialText);
+  late final focusNode = FocusNode();
+
+  @override
+  dispose() {
+    controller.dispose();
+    focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SearchBar(
     controller: controller,
-    hintText: hintText,
+    focusNode: focusNode,
+    hintText: widget.hintText,
     padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
     leading: const Icon(Symbols.search),
     // or onChanged for immediate feedback?
-    onSubmitted: onSubmitted,
+    onSubmitted: widget.onSubmitted,
     trailing: [
       FutureBuilder<int>(
-        future: resultsCount,
+        future: widget.resultsCount,
         builder: (context, snapshot) => Row(children: [
           Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!} packages' : ''),
           if (controller.text.isNotEmpty)
             IconButton(
               tooltip: "Cancel search",
               icon: const Icon(Symbols.cancel, fill: 1),
-              onPressed: onCanceled,
+              onPressed: () {
+                setState(() {
+                  controller.text = '';
+                  focusNode.requestFocus();
+                });
+                widget.onCanceled();
+              },
             ),
         ]),
       )

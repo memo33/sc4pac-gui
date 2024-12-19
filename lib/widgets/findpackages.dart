@@ -16,18 +16,11 @@ class FindPackagesScreen extends StatefulWidget {
 }
 class _FindPackagesScreenState extends State<FindPackagesScreen> {
   late Future<List<PackageSearchResultItem>> searchResultFuture;
-  late final TextEditingController _searchBarController = TextEditingController(text: widget.findPackages.searchTerm);
 
   @override
   void initState() {
     super.initState();
     _search();
-  }
-
-  @override
-  void dispose() {
-    _searchBarController.dispose();
-    super.dispose();
   }
 
   void _search() {
@@ -84,7 +77,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
               const SizedBox(width: 20),
               Expanded(
                 child: PackageSearchBar(
-                  controller: _searchBarController,
+                  initialText: widget.findPackages.searchTerm,
                   hintText: "search term or URL…",
                   onSubmitted: (String query) => setState(() {
                     widget.findPackages.searchTerm = query;
@@ -92,7 +85,6 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   }),
                   onCanceled: () => setState(() {
                     widget.findPackages.searchTerm = '';
-                    _searchBarController.text = '';
                     _search();
                   }),
                   resultsCount: searchResultFuture.then((data) => data.length),
