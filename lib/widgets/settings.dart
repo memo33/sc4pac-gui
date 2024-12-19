@@ -119,7 +119,8 @@ class _CookieWidgetState extends State<CookieWidget> {
           child: Padding(
             padding: EdgeInsets.only(top: 10, bottom: 20),
             child: MarkdownText(
-"""Basic authentication to Simtropolis is provided via cookies:
+"""Without signing in, Simtropolis limits downloads to a maximum of 20 files per day.
+To avoid this limit, authentication to Simtropolis is provided via cookies:
 - Use your web browser to sign in to Simtropolis with the "remember me" option.
 - Inspect the cookies by opening the browser Dev Tools:
     - in Firefox: Storage > Cookies
