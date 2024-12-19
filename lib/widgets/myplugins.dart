@@ -118,7 +118,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                   controller: _searchBarController,
                   hintText: "search term…",
                   padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
-                  leading: const Icon(Icons.search),
+                  leading: const Icon(Symbols.search),
                   // or onChanged for immediate feedback?
                   onSubmitted: (String query) => setState(() {
                     widget.myPlugins.searchTerm = query;
@@ -127,7 +127,19 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                   trailing: [
                     FutureBuilder<PluginsSearchResult>(
                       future: searchResultFuture,
-                      builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.packages.length} packages' : ''),
+                      builder: (context, snapshot) => Row(children: [
+                        Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.packages.length} packages' : ''),
+                        if (widget.myPlugins.searchTerm?.isNotEmpty == true)
+                          IconButton(
+                            tooltip: "Cancel search",
+                            icon: const Icon(Symbols.cancel, fill: 1),
+                            onPressed: () => setState(() {
+                              widget.myPlugins.searchTerm = '';
+                              _searchBarController.text = '';
+                              _search();
+                            }),
+                          ),
+                      ]),
                     )
                   ],
                 ),

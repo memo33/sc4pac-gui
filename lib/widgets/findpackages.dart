@@ -87,7 +87,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   controller: _searchBarController,
                   hintText: "search term or URL…",
                   padding: const WidgetStatePropertyAll<EdgeInsets>(EdgeInsets.symmetric(horizontal: 16.0)),
-                  leading: const Icon(Icons.search),
+                  leading: const Icon(Symbols.search),
                   // or onChanged for immediate feedback?
                   onSubmitted: (String query) => setState(() {
                     widget.findPackages.searchTerm = query;
@@ -96,8 +96,20 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   trailing: [
                     FutureBuilder<List<PackageSearchResultItem>>(
                       future: futureJson,
-                      builder: (context, snapshot) => Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
-                    )
+                      builder: (context, snapshot) => Row(children: [
+                        Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!.length} packages' : ''),
+                        if (widget.findPackages.searchTerm?.isNotEmpty == true)
+                          IconButton(
+                            tooltip: "Cancel search",
+                            icon: const Icon(Symbols.cancel, fill: 1),
+                            onPressed: () => setState(() {
+                              widget.findPackages.searchTerm = '';
+                              _searchBarController.text = '';
+                              _search();
+                            }),
+                          ),
+                      ]),
+                    ),
                   ],
                 ),
               ),
