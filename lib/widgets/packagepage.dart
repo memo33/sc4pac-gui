@@ -253,7 +253,7 @@ class MetadataUrlButton extends StatelessWidget {
     return CopyButton(
       copyableText: url,
       child: Tooltip(
-        message: url,
+        message: switch (url.indexOf('?')) { final i => i < 0 ? url : url.substring(0, i) },
         child: TextButton.icon(
           icon: icon,
           label: Text(text),
