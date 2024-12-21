@@ -78,7 +78,6 @@ class CookieWidget extends StatefulWidget {
   @override State<CookieWidget> createState() => _CookieWidgetState();
 }
 class _CookieWidgetState extends State<CookieWidget> {
-  late Future<SettingsData> settingsFuture;
   late TextEditingController controller = TextEditingController();
   DateTime? pickedDate;
   bool changed = false;
@@ -86,19 +85,16 @@ class _CookieWidgetState extends State<CookieWidget> {
 
   @override void initState() {
     super.initState();
-    _initSettingsFuture();
+    _initFields();
   }
 
-  void _initSettingsFuture() {
-    settingsFuture = World.world.client.getSettings()
-      ..then((settingsData) => setState(() {
-        controller.text = settingsData.stAuth?.cookie ?? simtropolisCookiePlaceholder;
-        pickedDate = settingsData.stAuth?.expirationDate;
-      }));
+  void _initFields() {
+    controller.text = World.world.settings.stAuth?.cookie ?? simtropolisCookiePlaceholder;
+    pickedDate = World.world.settings.stAuth?.expirationDate;
   }
 
   void _submit(String? simtropolisCookie, DateTime? expirationDate) {
-    settingsFuture
+    World.world.client.getSettings()
       .then((settingsData) async {
         if (simtropolisCookie == null) {
           return settingsData.withAuth(auth: []);
@@ -109,18 +105,19 @@ class _CookieWidgetState extends State<CookieWidget> {
           );
         }
       })
-      .then((settingsData) =>
-        World.world.client.setSettings(settingsData)
+      .then((settingsData) {
+        setState(() => changed = false);
+        World.world.updateSettings(settingsData);
+        return World.world.client.setSettings(settingsData)
           .then<void>(
             (_) {
               setState(() {
-                _initSettingsFuture();
-                settingsFuture.then(World.world.updateSettings);  // async without awaiting result
+                _initFields();
                 changed = false;
               });
             }
-          )
-      )
+          );
+      })
       .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update cookie", e.toString())));
   }
 
@@ -145,28 +142,22 @@ To avoid this limit, authentication to Simtropolis is provided via cookies:
             ),
           ),
         ),
-        FutureBuilder(
-          future: settingsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
-            } else if (!snapshot.hasData) {
-              return const SizedBox();
-            } else {
-              return TextField(
-                decoration: const InputDecoration(
-                  icon: Icon(Symbols.cookie),
-                  labelText: "Cookie",
-                ),
-                controller: controller,
-                maxLines: null,
-                onChanged: (_) {
-                  if (!changed) {
-                    setState(() { changed = true; });
-                  }
-                },
-              );
-            }
+        ListenableBuilder(
+          listenable: World.world,
+          builder: (context, child) {
+            return TextField(
+              decoration: const InputDecoration(
+                icon: Icon(Symbols.cookie),
+                labelText: "Cookie",
+              ),
+              controller: controller,
+              maxLines: null,
+              onChanged: (_) {
+                if (!changed) {
+                  setState(() { changed = true; });
+                }
+              },
+            );
           },
         ),
         const SizedBox(height: 20),
