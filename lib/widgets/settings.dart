@@ -22,6 +22,22 @@ class SettingsScreen extends StatelessWidget {
             CookieWidget(),
           ],
         ),
+        ListenableBuilder(
+          listenable: World.world,
+          builder: (context, child) => SwitchListTile(
+            title: const Text("Refresh channels before every Update"),
+            subtitle: const Text(
+              "If disabled (recommended), the channels are cached for half an hour to improve efficiency."
+            ),
+            value: World.world.settings.refreshChannels,
+            onChanged: (refreshChannels) {
+              final settings2 = World.world.settings.withRefreshChannels(refreshChannels);
+              World.world.updateSettings(settings2);
+              World.world.client.setSettings(settings2)
+                .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to save settings.", e.toString())));
+            },
+          ),
+        ),
         AboutListTile(
           icon: const Icon(Symbols.info),
           applicationVersion: "Version ${World.world.appInfo.version}\n(with sc4pac CLI version ${World.world.serverVersion})",
@@ -85,10 +101,10 @@ class _CookieWidgetState extends State<CookieWidget> {
     settingsFuture
       .then((settingsData) async {
         if (simtropolisCookie == null) {
-          return settingsData.copyWith(auth: []);
+          return settingsData.withAuth(auth: []);
         } else {
           final cookieBytes = await AuthItem.obfuscateCookie(simtropolisCookie);
-          return settingsData.copyWith(
+          return settingsData.withAuth(
             auth: [AuthItem(domain: AuthItem.simtropolisDomain, cookieBytes: cookieBytes, expirationDate: expirationDate)],
           );
         }
@@ -105,7 +121,7 @@ class _CookieWidgetState extends State<CookieWidget> {
             }
           )
       )
-      .catchError((e) => ApiErrorWidget.dialog( ApiError.unexpected("Failed to update cookie", e.toString())));
+      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update cookie", e.toString())));
   }
 
   String _formatDate(DateTime? d) => d == null ? "unknown" : d.toString().substring(0, 'YYYY-MM-DD'.length);

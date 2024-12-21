@@ -231,9 +231,13 @@ class AuthItem {
 @JsonSerializable()
 class SettingsData {
   final List<AuthItem> auth;
-  SettingsData({this.auth = const []});
-  SettingsData copyWith({List<AuthItem>? auth}) {
-    return auth == null ? this : SettingsData(auth: auth);
+  final bool refreshChannels;
+  SettingsData({this.auth = const [], this.refreshChannels = false});
+  SettingsData withAuth({List<AuthItem>? auth}) {
+    return auth == null ? this : SettingsData(auth: auth, refreshChannels: refreshChannels);
+  }
+  SettingsData withRefreshChannels(bool refreshChannels) {
+    return refreshChannels == this.refreshChannels ? this : SettingsData(auth: auth, refreshChannels: refreshChannels);
   }
   factory SettingsData.fromJson(Map<String, dynamic> json) => _$SettingsDataFromJson(json);
   Map<String, dynamic> toJson() => _$SettingsDataToJson(this);

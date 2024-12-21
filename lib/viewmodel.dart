@@ -262,7 +262,11 @@ class UpdateProcess extends ChangeNotifier {
       err = ApiError.unexpected("The Simtropolis authentication cookie has expired. Go to Settings to create a new one.", "");
       status = UpdateStatus.finishedWithError;
     } else {
-      _ws = World.world.client.update(profileId: World.world.profile.id, simtropolisCookie: stAuth?.cookie);
+      _ws = World.world.client.update(
+        profileId: World.world.profile.id,
+        simtropolisCookie: stAuth?.cookie,
+        refreshChannels: World.world.settings.refreshChannels,
+      );
       _stream = _ws.ready
         .then((_) => true, onError: (e) {
           err = ApiError.unexpected('Failed to open websocket. Make sure the local sc4pac server is running.', e.toString());
