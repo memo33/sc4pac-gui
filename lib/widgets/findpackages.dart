@@ -50,32 +50,37 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              FutureBuilder(
-                future: World.world.profile.channelStatsFuture,
-                builder: (context, snapshot) {
-                  // if snapshot.hasError, this usually means /error/channels-not-available which can be ignored here
-                  return CategoryMenu(
-                    stats: snapshot.data,  // possibly null
-                    initialCategory: widget.findPackages.selectedCategory,
-                    menuHeight: max(300,
-                      MediaQuery.of(context).size.height - _toolBarHeight
-                      - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
-                    ),
-                    onSelected: (s) {
-                      setState(() {
-                        widget.findPackages.selectedCategory = s;
-                        _search();
-                      });
-                    },
-                  );
-                },
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: PackageSearchBar(
+          title: Table(
+            columnWidths: const {
+              0: MinColumnWidth(FixedColumnWidth(CategoryMenu.width), FractionColumnWidth(0.33)),
+              1: FixedColumnWidth(20),  // padding
+              2: FlexColumnWidth(1),  // takes up remaining space
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            children: [TableRow(
+              children: <Widget>[
+                FutureBuilder(
+                  future: World.world.profile.channelStatsFuture,
+                  builder: (context, snapshot) {
+                    // if snapshot.hasError, this usually means /error/channels-not-available which can be ignored here
+                    return CategoryMenu(
+                      stats: snapshot.data,  // possibly null
+                      initialCategory: widget.findPackages.selectedCategory,
+                      menuHeight: max(300,
+                        MediaQuery.of(context).size.height - _toolBarHeight
+                        - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                      ),
+                      onSelected: (s) {
+                        setState(() {
+                          widget.findPackages.selectedCategory = s;
+                          _search();
+                        });
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(),
+                PackageSearchBar(
                   initialText: widget.findPackages.searchTerm,
                   hintText: "search term or URL…",
                   onSubmitted: (String query) => setState(() {
@@ -88,8 +93,8 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   }),
                   resultsCount: searchResultFuture.then((data) => data.length),
                 ),
-              ),
-            ],
+              ],
+            )],
           ),
         ),
         FutureBuilder<List<PackageSearchResultItem>>(

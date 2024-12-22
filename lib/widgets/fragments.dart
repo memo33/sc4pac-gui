@@ -475,6 +475,7 @@ class _PackageSearchBarState extends State<PackageSearchBar> {
 }
 
 class CategoryMenu extends StatefulWidget {
+  static const double width = 260;
   final ChannelStats? stats;
   final ValueChanged<String?>? onSelected;
   final String? initialCategory;
@@ -501,7 +502,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
     return DropdownMenu<String?>(
       controller: _controller,
       menuHeight: widget.menuHeight,
-      width: 260,
+      width: CategoryMenu.width,
       onSelected: (s) {
         setState(() { selectedCategory = s; });
         if (widget.onSelected != null) {
