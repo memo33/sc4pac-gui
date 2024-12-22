@@ -192,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           const ExpansionTile(
-            leading: Icon(Icons.layers_outlined),
+            leading: Icon(Symbols.stacks),
             title: Text("Channels"),
             children: [
               ChannelsList(),
@@ -572,6 +572,7 @@ class _ChannelsListState extends State<ChannelsList> {
       (_) {
         setState(() {
           _initUrlsFuture();
+          World.world.profile.channelStatsFuture = World.world.client.channelsStats(profileId: World.world.profile.id);
           changed = false;
         });
       },
@@ -613,7 +614,7 @@ class _ChannelsListState extends State<ChannelsList> {
             Padding(
               padding: const EdgeInsets.all(10),
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.layers_clear_outlined),
+                icon: const Icon(Symbols.layers_clear),
                 onPressed: () => _submit([]),
                 label: const Text("Reset to default"),
               ),

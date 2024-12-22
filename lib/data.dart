@@ -117,6 +117,14 @@ class ChannelStats {
 }
 
 @JsonSerializable()
+class ChannelStatsAll {
+  final ChannelStats combined;
+  final List<({String url, String? channelLabel, ChannelStats stats})> channels;
+  ChannelStatsAll(this.combined, this.channels);
+  factory ChannelStatsAll.fromJson(Map<String, dynamic> json) => _$ChannelStatsAllFromJson(json);
+}
+
+@JsonSerializable()
 class InstalledStatus {
   final bool explicit;
   final ({String version, Map<String, String> variant, DateTime installedAt, DateTime updatedAt})? installed;

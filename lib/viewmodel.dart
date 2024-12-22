@@ -126,13 +126,14 @@ class Profile {
   late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
-  late Future<ChannelStats> channelStatsFuture = World.world.client.channelsStats(profileId: id);
+  late Future<ChannelStatsAll> channelStatsFuture = World.world.client.channelsStats(profileId: id);
   Profile(this.id, this.name);
 }
 
 class FindPackages {
   String? searchTerm;
   String? selectedCategory;
+  String? selectedChannelUrl;
 }
 
 enum InstallStateType { markedForInstall, explicitlyInstalled, installedAsDependency }
@@ -172,6 +173,7 @@ class Dashboard extends ChangeNotifier {
       pendingUpdates.clear();
     }
     fetchVariants();
+    profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id);
     notifyListeners();
   }
 

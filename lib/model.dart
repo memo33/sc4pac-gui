@@ -169,11 +169,12 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<List<PackageSearchResultItem>> search(String query, {String? category, required String profileId}) async {
+  Future<List<PackageSearchResultItem>> search(String query, {String? category, String? channel, required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/packages.search', {
       'q': query,
       'profile': profileId,
-      if (category != null && category.isNotEmpty) 'category': category
+      if (category?.isNotEmpty == true) 'category': category,
+      if (channel?.isNotEmpty == true) 'channel': channel,
     }));
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
@@ -264,10 +265,10 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<ChannelStats> channelsStats({required String profileId}) async {
+  Future<ChannelStatsAll> channelsStats({required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/channels.stats', {'profile': profileId}));
     if (response.statusCode == 200) {
-      return ChannelStats.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      return ChannelStatsAll.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }
