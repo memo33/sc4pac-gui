@@ -1,6 +1,5 @@
 // This file contains small reusable widgets that are used in multiple places of the app.
 import 'dart:math' show Random;
-import 'dart:convert' show LineSplitter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/link.dart';

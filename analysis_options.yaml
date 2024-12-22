@@ -32,6 +32,7 @@ linter:
 analyzer:
   exclude:
   - build/**
+  - lib/data.g.dart
   - profiles/**
   - scripts/**
   - vendor/**
