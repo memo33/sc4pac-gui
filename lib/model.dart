@@ -136,13 +136,15 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
 
   Future<({bool initialized, Map<String, dynamic> data})> profileRead({required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/profile.read', {'profile': profileId}));
-    if (response.statusCode == 409 || response.statusCode == 200) {
+    final data = jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+    if (response.statusCode == 409 && data['\$type'] == '/error/profile-not-initialized'
+      || response.statusCode == 200) {
       return (
         initialized: response.statusCode == 200,
-        data: jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>,
+        data: data,
       );
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(data);
     }
   }
 
