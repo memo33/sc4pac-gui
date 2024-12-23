@@ -197,14 +197,21 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         if (snapshot.hasError) {
           return CenteredFullscreenDialog(
             title: const Text("Establish connection"),
-            child: Column(
-              children: [
+            child: Column(children: switch (widget.world.server?.launchError) {
+              ApiError error => [
+                ApiErrorWidget(error),  // this is a dead end (e.g. Java not found or too old), so requires restarting the application once resolved
+                const SizedBox(height: 20),
+                const Text("Restart the application once the above problem is resolved."),
+              ],
+              null => [
                 ExpansionTile(
                   trailing: const Icon(Icons.info_outlined),
                   leading: const Icon(Icons.wifi_tethering_error),
                   title: Text("Connection to local sc4pac server not possible at ${widget.world.authority}"),
                   children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system. "
-                    "The local backend server is either not running or the GUI does not know its address.")],
+                    "The local backend server is either not running or the GUI does not know its address."
+                    " As a workaround, you may connect to an existing sc4pac server process using the input field below."
+                    " Alternatively, restarting the application might resolve the problem.")],
                 ),
                 const SizedBox(height: 15),
                 TextField(
@@ -233,7 +240,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                   child: const Text("Connect")
                 ),
               ],
-            ),
+            }),
           );
         } else {
           // connecting (or connection established; we don't care about the result, as initPhase change triggers next screen)
