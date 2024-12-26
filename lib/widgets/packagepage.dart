@@ -147,8 +147,8 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(const Text("Conflicts"), switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') }),
                 if (remote case {'info': {'author': String text}})
                   packageTableRow(const Text("Author"), Text(text)),
-                if (remote case {'info': {'website': String text}})
-                  packageTableRow(const Text("Website"), CopyButton(copyableText: text, child: Hyperlink(url: text))),
+                if (remote case {'info': {'websites': List<dynamic> urls}})
+                  ...urls.cast<String>().map((url) => packageTableRow(const Text("Website"), CopyButton(copyableText: url, child: Hyperlink(url: url)))),
                 if (remote case {'channelLabel': [String label]})
                   packageTableRow(const Text("Channel"), Text(label)),
                 packageTableRow(const Text("Subfolder"), Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' })),
