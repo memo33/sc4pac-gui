@@ -174,7 +174,9 @@ class _PackagePageState extends State<PackagePage> {
                       alignment: const Alignment(-0.75, 0),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(/*minHeight: constraint.maxHeight,*/ maxWidth: 600),
-                        child: table,
+                        child: SelectionArea(
+                          child: table,
+                        )
                       ),
                     ),
                     Padding(

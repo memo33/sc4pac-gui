@@ -131,7 +131,7 @@ class _CookieWidgetState extends State<CookieWidget> {
           alignment: Alignment.centerLeft,
           child: Padding(
             padding: EdgeInsets.only(top: 10, bottom: 20),
-            child: MarkdownText(
+            child: SelectionArea(child: MarkdownText(
 """Without signing in, Simtropolis limits downloads to a maximum of 20 files per day.
 To avoid this limit, authentication to Simtropolis is provided via cookies:
 - Use your web browser to sign in to Simtropolis with the "remember me" option.
@@ -139,7 +139,7 @@ To avoid this limit, authentication to Simtropolis is provided via cookies:
     - in Firefox: Storage > Cookies
     - in Chrome: Application > Storage > Cookies
 - Replace the `<value>` placeholders below by the correct cookie values.""",
-            ),
+            )),
           ),
         ),
         ListenableBuilder(
