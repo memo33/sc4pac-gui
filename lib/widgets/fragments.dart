@@ -206,6 +206,14 @@ class MarkdownText extends StatelessWidget {
       styleSheet: fmd.MarkdownStyleSheet(
         blockquoteDecoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(4)),
       ),
+      onTapLink: (text, href, title) {
+        if (href != null) {
+          final url = Uri.tryParse(href);
+          if (url != null) {
+            launchUrl(url, mode: LaunchMode.externalApplication);
+          }
+        }
+      },
     );
   }
 }
