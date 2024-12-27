@@ -355,6 +355,10 @@ class _ImageCarouselState extends State<ImageCarousel> {
   late int currentIndex = widget.initialIndex;
   late final _controller = CarouselSliderController();
 
+  static const double imageHeight = 300;
+  static const double imageWidth = 450;
+  static const double viewportFraction = 1.0;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -362,9 +366,9 @@ class _ImageCarouselState extends State<ImageCarousel> {
         CarouselSlider.builder(
           carouselController: _controller,
           options: CarouselOptions(
-            height: 150,
+            height: imageHeight,
             enableInfiniteScroll: false,
-            viewportFraction: 0.6,
+            viewportFraction: viewportFraction,
             onPageChanged: (index, reason) => setState(() => currentIndex = index),
           ),
           itemCount: widget.images.length,
@@ -380,7 +384,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
                     builder: (context) => ImageDialog(images: widget.images, initialIndex: itemIndex),
                   ),
                   child: Image.network(widget.images[itemIndex],
-                    fit: BoxFit.cover, width: 280, height: 150,
+                    fit: BoxFit.scaleDown, width: imageWidth, height: imageHeight,
                     frameBuilder: ImageDialog.imageFrameBuilder,
                     loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
                     errorBuilder: ImageDialog.imageErrorBuilder,
