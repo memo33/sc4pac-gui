@@ -1,4 +1,5 @@
 import 'dart:collection' show LinkedHashSet;
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey, KeyDownEvent, KeyRepeatEvent;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -357,7 +358,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
 
   static const double imageHeight = 300;
   static const double imageWidth = 450;
-  static const double viewportFraction = 1.0;
+  static const double viewportFraction = 0.99;  // TODO primitive prefetching of next image
 
   @override
   Widget build(BuildContext context) {
@@ -366,6 +367,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
         CarouselSlider.builder(
           carouselController: _controller,
           options: CarouselOptions(
+            enlargeCenterPage: false,
             height: imageHeight,
             enableInfiniteScroll: false,
             viewportFraction: viewportFraction,
@@ -384,8 +386,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
                     builder: (context) => ImageDialog(images: widget.images, initialIndex: itemIndex),
                   ),
                   child: Image.network(widget.images[itemIndex],
-                    fit: BoxFit.scaleDown, width: imageWidth, height: imageHeight,
-                    frameBuilder: ImageDialog.imageFrameBuilder,
+                    frameBuilder: ImageDialog.imageFrameBuilderCoverShrink(const Size(imageWidth, imageHeight)),
                     loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
                     errorBuilder: ImageDialog.imageErrorBuilder,
                   ),
@@ -425,6 +426,54 @@ class _ImageCarouselState extends State<ImageCarousel> {
   }
 }
 
+// This image painter emulates a new BoxFit type: a combination of `cover` and `scaleDown`,
+// i.e. the image is scaled down such that it still covers the rectangle, but is never scaled up.
+class CoverShrinkImagePainter extends CustomPainter with ChangeNotifier {
+  final RawImage _raw;
+  CoverShrinkImagePainter(this._raw);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (_raw.image == null) return;
+    final image = _raw.image!;
+    BoxFit? fit;
+    Rect rect;
+    final viewportRect = const Offset(0, 0) & size;
+    var w = image.width * _raw.scale;
+    var h = image.height * _raw.scale;
+    if (w > size.width && h > size.height) {
+      // scale down until one side fits
+      final shrinkFactor = max(size.width / w, size.height / h);
+      final imgSize = Size(w * shrinkFactor, h * shrinkFactor);
+      final offset = Offset(  // center the overlapping axis
+        imgSize.width > size.width ? (size.width - imgSize.width) / 2 : 0,
+        imgSize.height > size.height ? (size.height - imgSize.height) / 2 : 0,
+      );
+      rect = offset & imgSize;
+    } else {
+      // no scaling, show actual size
+      fit = BoxFit.none;
+      rect = viewportRect;
+    }
+    canvas.save();
+    canvas.clipRect(viewportRect);
+    paintImage(
+      fit: fit,
+      canvas: canvas,
+      rect: rect,
+      image: image,
+      debugImageLabel: _raw.debugImageLabel,
+      scale: 1,
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CoverShrinkImagePainter oldDelegate) {
+    return true;  // at least needed for animated gifs
+  }
+}
+
 class ImagePlaceholder extends StatelessWidget {
   final bool isError;
   const ImagePlaceholder({this.isError = false, super.key});
@@ -456,10 +505,28 @@ class ImageDialog extends StatefulWidget {
   @override State<ImageDialog> createState() => _ImageDialogState();
 
   static const bool redirectImages = kIsWeb;  // redirect to solve CORS problems and show no dynamic loading progress as image is not loaded incrementally
+  static int _totalErrCount = 0;
 
   static Widget imageFrameBuilder(BuildContext context, Widget child, int? frame, bool wasSynchronouslyLoaded) {
     return frame == null ? const ImagePlaceholder() : child;
   }
+  static ImageFrameBuilder imageFrameBuilderCoverShrink(Size size) => (context, child, frame, wasSynchronouslyLoaded) {
+    if (frame == null) {
+      return const ImagePlaceholder();
+    } else if (child is Semantics && child.child is RawImage) {
+      return CustomPaint(
+        size: size,
+        willChange: true,
+        painter: CoverShrinkImagePainter(child.child as RawImage),
+      );
+    } else {  // should not happen unless a Flutter upgrade changes the widget tree
+      if (_totalErrCount < 5) {
+        _totalErrCount++;
+        debugPrint("Unexpected image frame type in custom ImageFrameBuilder: $child");
+      }
+      return const ImagePlaceholder(isError: true);
+    }
+  };
 
   static Widget imageLoadingBuilder(BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
     return loadingProgress == null ? child : CircularProgressIndicator(
