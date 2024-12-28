@@ -73,15 +73,49 @@ class AboutMessage extends StatelessWidget {
   }
 }
 
+class HighlightTextEditingController extends TextEditingController {
+  final String keyword;
+  late final keywordRegex = RegExp("$keyword|\"|<|>");  // highlights some additional invalid characters
+  HighlightTextEditingController(this.keyword);
+  @override
+  TextSpan buildTextSpan({required BuildContext context, TextStyle? style, bool? withComposing}) {
+    style ??= const TextStyle();
+    final matches = keywordRegex.allMatches(text).toList();
+    if (matches.isEmpty) {
+      return TextSpan(text: text, style: style);
+    } else {
+      final highlightStyle = createHighlightStyle(context, style);
+      return TextSpan(
+        style: style,
+        children: [
+          if (matches.isNotEmpty)
+            ...Iterable.generate(matches.length, (i) => i).expand((i) {
+              final trailingTextEnd = i < matches.length - 1 ? matches[i+1].start : text.length;
+              final trailingTextStart = matches[i].end;
+              return [
+                if (i == 0 && matches[0].start > 0) TextSpan(text: text.substring(0, matches[0].start)),
+                TextSpan(text: matches[i][0], style: highlightStyle),
+                if (trailingTextStart < trailingTextEnd) TextSpan(text: text.substring(trailingTextStart, trailingTextEnd)),
+              ];
+            })
+        ],
+      );
+    }
+  }
+  static TextStyle createHighlightStyle(BuildContext context, TextStyle style) =>
+    style.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.tertiary);
+}
+
 class CookieWidget extends StatefulWidget {
   const CookieWidget({super.key});
   @override State<CookieWidget> createState() => _CookieWidgetState();
 }
 class _CookieWidgetState extends State<CookieWidget> {
-  late TextEditingController controller = TextEditingController();
+  static const _value = "value";
+  late TextEditingController controller = HighlightTextEditingController(_value);
   DateTime? pickedDate;
   bool changed = false;
-  static const simtropolisCookiePlaceholder = "ips4_device_key=<value>; ips4_member_id=<value>; ips4_login_key=<value>";
+  static const simtropolisCookiePlaceholder = "ips4_device_key=$_value; ips4_member_id=$_value; ips4_login_key=$_value";
 
   @override void initState() {
     super.initState();
@@ -138,7 +172,7 @@ To avoid this limit, authentication to Simtropolis is provided via cookies:
 - Inspect the cookies by opening the browser Dev Tools:
     - in Firefox: Storage > Cookies
     - in Chrome: Application > Storage > Cookies
-- Replace the `<value>` placeholders below by the correct cookie values.""",
+- Replace the `$_value` placeholders below by the correct cookie values.""",
             )),
           ),
         ),
@@ -150,6 +184,7 @@ To avoid this limit, authentication to Simtropolis is provided via cookies:
                 icon: Icon(Symbols.cookie),
                 labelText: "Cookie",
               ),
+              style: const TextStyle(fontFamily: "monospace"),
               controller: controller,
               maxLines: null,
               onChanged: (_) {
