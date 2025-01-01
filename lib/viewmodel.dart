@@ -46,11 +46,12 @@ class World extends ChangeNotifier {
     this.authority = authority;
     // we call `serverStatus`, even if `ready` resolved to false (launching server failed), to allow connecting to external server process instead
     initialServerStatus = (server?.ready ?? Future.value(true)).then((isReady) =>
-      isReady ? Sc4pacClient.serverStatus(authority)
+      (isReady || server?.portIsOccupied == true) ? Sc4pacClient.serverStatus(authority)
         : Future.error(server?.launchError ?? ApiError.unexpected("Failed to launch local sc4pac server.", ""))
       );
     initialServerStatus.then(
       (serverStatus) {  // connection succeeded, so proceed to next phase
+        stdout.writeln("Connection established.");
         if (serverStatus case {'sc4pacVersion': String version}) {
           serverVersion = version;
         }

@@ -214,6 +214,11 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                     " Alternatively, restarting the application might resolve the problem.")],
                 ),
                 const SizedBox(height: 15),
+                if (widget.world.server?.portIsOccupied == true)
+                  ...[
+                    Text("The port ${widget.world.server?.port ?? ''} is already occupied by another process."),
+                    const SizedBox(height: 20),
+                  ],
                 TextField(
                   controller: _controller,
                   decoration: InputDecoration(

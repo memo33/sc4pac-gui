@@ -49,14 +49,17 @@ enum ServerStatus { launching, listening, terminated }
 class Sc4pacServer {
   final String cliDir;
   final String profilesDir;
+  final int port;
   ServerStatus status = ServerStatus.launching;
   late final Future<Process> _process;
   late final Future<bool> ready;  // true once server listens, false if launching server did not work (This future never fails)
   ApiError? launchError;
+  bool? portIsOccupied;
 
   static const int _javaNotFound = 55;
+  static const int _portOccupied = 56;
 
-  Sc4pacServer({required this.cliDir, required this.profilesDir, required int port}) {
+  Sc4pacServer({required this.cliDir, required this.profilesDir, required this.port}) {
     const readyTag = "[LISTENING]";
     final completer = Completer<bool>();
     const splitter = LineSplitter();
@@ -101,12 +104,16 @@ class Sc4pacServer {
           }
         });
         process.exitCode.then((exitCode) {
-          stdout.writeln("Sc4pac server exited with code $exitCode");
           status = ServerStatus.terminated;
           if (exitCode == _javaNotFound) {
             const msg = "Java could not be found. Please install a Java Runtime Environment and make sure it is added to your PATH environment variable during the installation.";
             stdout.writeln(msg);
             launchError ??= ApiError.unexpected(msg, "");
+          } else if (exitCode == _portOccupied) {
+            stdout.writeln("Failed to launch local sc4pac server, as port $port is already occupied. Attempting to connect to existing process on port $port instead.");
+            portIsOccupied = true;
+          } else {
+            stdout.writeln("Sc4pac server exited with code $exitCode");
           }
         }).whenComplete(() {  // whenComplete runs regardless of whether future succeeded or failed
           if (!completer.isCompleted) {
