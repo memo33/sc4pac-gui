@@ -54,7 +54,6 @@ class Sc4pacServer {
   late final Future<Process> _process;
   late final Future<bool> ready;  // true once server listens, false if launching server did not work (This future never fails)
   ApiError? launchError;
-  bool? portIsOccupied;
 
   static const int _javaNotFound = 55;
   static const int _portOccupied = 56;
@@ -110,8 +109,11 @@ class Sc4pacServer {
             stdout.writeln(msg);
             launchError ??= ApiError.unexpected(msg, "");
           } else if (exitCode == _portOccupied) {
-            stdout.writeln("Failed to launch local sc4pac server, as port $port is already occupied. Attempting to connect to existing process on port $port instead.");
-            portIsOccupied = true;
+            final msg = """Another program is already running on port $port. Please quit the other program – likely another instance of sc4pac.""";
+            final detail = """Alternatively, launch the sc4pac GUI on a different port (using the "--port" launch option) or connect to an existing sc4pac process on port $port (using the "--launch-server=false" option)."""
+                """\n(For technical reasons, this error can also occur if you open and close the sc4pac GUI in quick succession. In this case, just wait for 20 seconds before re-opening the application again.)""";
+            stdout.writeln("$msg $detail");
+            launchError ??= ApiError.unexpected(msg, detail);
           } else {
             stdout.writeln("Sc4pac server exited with code $exitCode");
           }
