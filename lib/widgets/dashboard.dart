@@ -158,9 +158,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
         shrinkWrap: false,
         padding: const EdgeInsets.all(15),
         children: <Widget>[
-          ListTile(
+          ExpansionTile(
             leading: const Icon(Symbols.person_pin_circle),
-            title: Text('Profile: ${widget.dashboard.profile.name}')
+            title: Text('Profile: ${widget.dashboard.profile.name}'),
+            children: [
+              const SizedBox(height: 10),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                direction: Axis.horizontal,
+                spacing: 20,
+                runSpacing: 10,
+                children: [
+                  FutureBuilder(
+                    future: World.world.profilesFuture,
+                    builder: (context, snapshot) =>
+                      snapshot.hasData ? ProfileSelectMenu(profiles: snapshot.data!) : const SizedBox(),
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Symbols.add_location),
+                    onPressed: () {},  // TODO
+                    label: const Text("New"),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
           ),
           ExpansionTile(
             leading: const Icon(Symbols.folder_supervised),
@@ -234,6 +256,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class ProfileSelectMenu extends StatefulWidget {
+  final Profiles profiles;
+  const ProfileSelectMenu({required this.profiles, super.key});
+  @override State<ProfileSelectMenu> createState() => _ProfileSelectMenuState();
+}
+class _ProfileSelectMenuState extends State<ProfileSelectMenu> {
+  late final TextEditingController _controller = TextEditingController(text: widget.profiles.currentProfile()?.name);
+
+  void _submit(String profileId) {
+    World.world.client.switchProfile(profileId)
+      .then(
+        (_) => World.world.reloadProfiles(),  // TODO avoid hard reload of everything
+        onError: ApiErrorWidget.dialog,
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedId = widget.profiles.currentProfile()?.id;
+    return DropdownMenu<String?>(
+      controller: _controller,
+      width: 360,
+      onSelected: (id) {
+        if (id != null && id != selectedId) _submit(id);
+      },
+      leadingIcon: const Icon(Symbols.mode_of_travel),
+      initialSelection: selectedId,
+      label: const Text("Profiles"),
+      menuStyle: const MenuStyle(
+        visualDensity: VisualDensity(horizontal: 0, vertical: -2),
+      ),
+      enableSearch: false,  // to avoid mismatched highlights in case a profile names is a substring of another, see https://github.com/flutter/flutter/issues/136735
+      dropdownMenuEntries: widget.profiles.profiles.map((profile) {
+        final color = Theme.of(context).colorScheme.primary;
+        return DropdownMenuEntry<String?>(
+          value: profile.id,
+          label: profile.name,
+          labelWidget: Text(profile.name, style: profile.id == selectedId ? TextStyle(color: color) : null),
+          leadingIcon: profile.id == selectedId ? Icon(Symbols.pin_drop, color: color) : const Icon(null),
+        );
+      }).toList(),
     );
   }
 }

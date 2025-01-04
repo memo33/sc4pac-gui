@@ -73,6 +73,8 @@ class World extends ChangeNotifier {
     }
   }
 
+  void reloadProfiles() => _switchToLoadingProfiles();
+
   void _switchToLoadingProfiles() {
     initPhase = InitPhase.loadingProfiles;
     profilesFuture =
