@@ -176,7 +176,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   ElevatedButton.icon(
                     icon: const Icon(Symbols.add_location),
-                    onPressed: () {},  // TODO
+                    onPressed: () {
+                      World.world.reloadProfiles(createNewProfile: true);
+                    },
                     label: const Text("New"),
                   ),
                 ],
@@ -271,7 +273,7 @@ class _ProfileSelectMenuState extends State<ProfileSelectMenu> {
   void _submit(String profileId) {
     World.world.client.switchProfile(profileId)
       .then(
-        (_) => World.world.reloadProfiles(),  // TODO avoid hard reload of everything
+        (_) => World.world.reloadProfiles(createNewProfile: false),  // TODO avoid hard reload of everything
         onError: ApiErrorWidget.dialog,
       );
   }

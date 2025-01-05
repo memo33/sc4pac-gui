@@ -28,6 +28,7 @@ class World extends ChangeNotifier {
   String? serverVersion;
   late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
+  bool createNewProfile = false;
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
   late SettingsData settings;
@@ -73,7 +74,10 @@ class World extends ChangeNotifier {
     }
   }
 
-  void reloadProfiles() => _switchToLoadingProfiles();
+  void reloadProfiles({required bool createNewProfile}) {
+    this.createNewProfile = createNewProfile;
+    _switchToLoadingProfiles();
+  }
 
   void _switchToLoadingProfiles() {
     initPhase = InitPhase.loadingProfiles;
@@ -85,6 +89,7 @@ class World extends ChangeNotifier {
   }
 
   void updateProfile(({String id, String name}) p) {
+    createNewProfile = false;
     profile = Profile(p.id, p.name);
     _switchToInitialzingProfile();
   }

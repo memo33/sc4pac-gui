@@ -81,7 +81,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 
 ## Roadmap
 
-- [ ] managing multiple Plugins folders/profiles:
+- [x] managing multiple Plugins folders/profiles:
   The GUI needs to implement the initialization of new profiles, in particular, as well as switching of profiles.
 
 - [x] persistent profile-independent storage, such as GUI settings:
