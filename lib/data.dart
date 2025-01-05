@@ -113,6 +113,10 @@ class Profiles {
   final List<String> currentProfileId;
   Profiles(this.profiles, this.currentProfileId);
   factory Profiles.fromJson(Map<String, dynamic> json) => _$ProfilesFromJson(json);
+  ({String id, String name})? currentProfile() {
+    final idx = profiles.indexWhere((p) => currentProfileId.contains(p.id));
+    return idx == -1 ? null : profiles[idx];
+  }
 }
 
 @JsonSerializable()

@@ -347,6 +347,16 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
   }
 
+  Future<void> switchProfile(String profileId) async {
+    final response = await http.post(Uri.http(authority, '/profiles.switch'),
+      body: jsonUtf8Encode({'id': profileId}),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   Future<SettingsData> getSettings() async {
     final response = await http.get(Uri.http(authority, '/settings.all.get'));
     if (response.statusCode == 200) {

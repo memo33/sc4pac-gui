@@ -239,7 +239,7 @@ class LoadingProfilesScreen extends StatelessWidget {
         } else {
           if (snapshot.hasData) {
             final data = snapshot.data!;
-            if (data.currentProfileId.isEmpty) {
+            if (data.currentProfileId.isEmpty || world.createNewProfile) {
               return CreateProfileDialog(world);
             }
             final String id = data.currentProfileId.first;
@@ -271,7 +271,10 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
 
   void _submit() {
     widget.world.client.addProfile(_profileNameController.text).then(
-      (p) => widget.world.updateProfile(p),  // switches to next initPhase
+      (p) {
+        widget.world.profilesFuture = widget.world.client.profiles();  // reloads profiles with new current profile (async)
+        widget.world.updateProfile(p);  // instantly switches to next initPhase
+      },
       onError: ApiErrorWidget.dialog,
     );
   }
@@ -285,7 +288,7 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
           TextField(
             controller: _profileNameController,
             decoration: const InputDecoration(
-              icon: Icon(Icons.edit),
+              icon: Icon(Symbols.person_pin_circle),
               labelText: "Profile name",
               helperText: "Each profile corresponds to a Plugins folder. This allows you to manage multiple Plugins folders for different regions.",
               helperMaxLines: 10,
@@ -298,13 +301,27 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
             }
           ),
           const SizedBox(height: 20),
-          ListenableBuilder(
-            listenable: _profileNameController,
-            builder: (context, child) => FilledButton(
-              onPressed: _profileNameController.text.isEmpty ? null : _submit,
-              child: child,
-            ),
-            child: const Text("Create profile")
+          Wrap(
+            direction: Axis.horizontal,
+            spacing: 20,
+            runSpacing: 10,
+            children: [
+              if (widget.world.createNewProfile)
+                ElevatedButton(
+                  onPressed: () {
+                    widget.world.reloadProfiles(createNewProfile: false);
+                  },
+                  child: const Text("Cancel"),
+                ),
+              ListenableBuilder(
+                listenable: _profileNameController,
+                builder: (context, child) => FilledButton(
+                  onPressed: _profileNameController.text.isEmpty ? null : _submit,
+                  child: child,
+                ),
+                child: const Text("Create profile")
+              ),
+            ],
           ),
         ],
       ),
@@ -385,8 +402,11 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
           const ExpansionTile(
             trailing: Icon(Icons.info_outlined),
             title: Text("Plugins folder"),
-            children: [Text("This folder is going to contain all the SimCity 4 mods and assets you choose to install."
-              " If your Plugins folder is not empty, check the documentation on how to migrate your existing plugin files before continuing.")],
+            children: [
+              Text("Choose a different folder for each new profile you create."
+              " This folder is going to contain all the SimCity 4 mods and assets you choose to install."
+              " If your Plugins folder is not empty, check the documentation on how to migrate your existing plugin files before continuing."),
+            ],
           ),
           const SizedBox(height: 15),
           FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", onSelected: () => setState(() {})),
