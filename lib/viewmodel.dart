@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:app_links/app_links.dart';
 import 'dart:io';
 import 'model.dart';
 import 'data.dart';
@@ -21,6 +22,7 @@ enum InitPhase { connecting, loadingProfiles, initializingProfile, initialized }
 class World extends ChangeNotifier {
   final CommandlineArgs args;
   final PackageInfo appInfo;
+  final appLinks = AppLinks();
   late InitPhase initPhase;
   late String authority;
   late Sc4pacServer? server;
@@ -48,22 +50,7 @@ class World extends ChangeNotifier {
         client = Sc4pacClient(
           authority,
           onConnectionLost: () => updateConnection(authority, notify: true),
-          openPackage: (BareModule module, {required String channelUrl}) async {
-            final stats = await profile.channelStatsFuture;
-            final idx = stats.channels.indexWhere((item) => item.url == channelUrl);
-            if (idx == -1) {
-              ApiErrorWidget.dialog(ApiError.unexpected(
-                """The package "$module" comes from a channel that is not contained in your list of configured channels yet. """
-                "To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically
-                channelUrl,
-              ));
-            } else {
-              final context = NavigationService.navigatorKey.currentContext;
-              if (context != null && context.mounted) {
-                PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
-              }
-            }
-          },
+          openPackages: _openPackages,
         );
         _switchToLoadingProfiles();
       },
@@ -106,6 +93,19 @@ class World extends ChangeNotifier {
   }
 
   void _switchToInitialized() {
+    if (!kIsWeb) {
+      appLinks.stringLinkStream.listen((String arg) {
+        // if sc4pac-gui is invoked when application is already running, this might be the second argument, which must be ignored
+        if (arg.startsWith(CommandlineArgs.sc4pacProtocol)) {
+          final u = Uri.tryParse(arg);
+          if (u != null) {
+            debugPrint("Received app link: $u");
+            _handleSc4pacUrl(u);
+          }
+        }
+      });
+    }
+
     initPhase = InitPhase.initialized;
     notifyListeners();
   }
@@ -143,6 +143,46 @@ class World extends ChangeNotifier {
     }
 
     updateConnection(authority, notify: false);
+  }
+
+  // routing
+  void _handleSc4pacUrl(Uri url) {
+    if (url.path == "/package") {
+      // TODO handle channels and multiple packages
+      List<BareModule> packages = url.queryParametersAll['pkg']?.map(BareModule.parse).toList() ?? [];
+      Set<String> channelUrls = url.queryParametersAll['channel']?.toSet() ?? {};
+      _openPackages(packages, channelUrls);
+    } else {
+      debugPrint("Unsupported URL path: ${url.path}");
+    }
+  }
+
+  void _openPackages(List<BareModule> packages, Set<String> channelUrls) async {
+    if (packages.isNotEmpty) {
+      Set<String> unknownChannelUrls = channelUrls.isEmpty
+          ? {}
+          : switch (await profile.channelStatsFuture) {
+            final stats => channelUrls.difference(stats.channels.map((item) => item.url).toSet())
+          };
+      if (unknownChannelUrls.isNotEmpty) {
+        // TODO do not show error immediately, but only if package is actually not found (to facilitate forks or local copies of channels)
+        ApiErrorWidget.dialog(ApiError.unexpected(
+          "The opened package comes from a channel that is not contained in your list of configured channels yet. "
+          "To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically
+          unknownChannelUrls.join("\n"),
+        ));
+      } else {
+        assert(packages.isNotEmpty);
+        if (packages.length > 1) {
+          debugPrint("Opening more than 1 package is not implemented.");
+        }
+        final module = packages.first;  // TODO open multiple
+        final context = NavigationService.navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
+        }
+      }
+    }
   }
 }
 

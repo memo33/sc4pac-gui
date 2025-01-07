@@ -23,8 +23,10 @@ void main(List<String> args) async {
     final segments = io.File(io.Platform.resolvedExecutable).uri.pathSegments;
     final exeName = segments.isEmpty ? "sc4pac-gui" : segments.last;
     io.stdout.writeln(
-"""Usage: $exeName [options]
+"""Usage: $exeName [URI] [options]
 Version ${appInfo.version}
+
+URI: an optional "${CommandlineArgs.sc4pacProtocol}" URL passed as first argument
 
 Options
   --port number           Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
@@ -47,7 +49,14 @@ class CommandlineArgs {
   String? profilesDir;
   String? cliDir;
   bool launchServer = true;
+  Uri? uri;  // currently unused
+  static const sc4pacProtocol = "sc4pac://";
   CommandlineArgs(List<String> args) {
+    if (args.isNotEmpty && args[0].startsWith(sc4pacProtocol)) {
+      // URI currently needs to be the first argument, see https://github.com/llfbandit/app_links/issues/129
+      uri = Uri.tryParse(args[0]);
+      args = args.sublist(1);
+    }
     while (args.isNotEmpty) {
       switch (args) {
         case ["--port", var p, ...(var rest)]:           port = int.tryParse(p); args = rest; break;

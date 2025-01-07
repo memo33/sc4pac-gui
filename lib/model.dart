@@ -110,9 +110,9 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
   final void Function() onConnectionLost;
-  final void Function(BareModule, {required String channelUrl}) openPackage;
+  final void Function(List<BareModule>, Set<String> channelUrls) openPackages;
 
-  Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackage}) :
+  Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackages}) :
     wsUrl = 'ws://$authority',
     connection = serverConnect('ws://$authority')  // TODO appears to unregister automatically when application exits
   {
@@ -142,11 +142,10 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       if (type == '/prompt/open/package') {
         final msg = PromptOpenPackage.fromJson(data);
         if (msg.packages.isNotEmpty) {
-          if (msg.packages.length > 1) {
-            debugPrint("Opening more than 1 packages is not implemented.");
-          }
-          final item = msg.packages.first;
-          openPackage(BareModule.parse(item.package), channelUrl: item.channelUrl);
+          openPackages(
+            msg.packages.map((item) => BareModule.parse(item.package)).toList(),
+            msg.packages.map((item) => item.channelUrl).toSet(),
+          );
         }
       } else {
         debugPrint('Message type not implemented: $data');
