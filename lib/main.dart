@@ -204,6 +204,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                 const Text("Restart the application once the above problem is resolved."),
               ],
               null => [
+                // ApiErrorWidget(ApiError.from(snapshot.error!)),
+                // const SizedBox(height: 20),
                 ExpansionTile(
                   trailing: const Icon(Icons.info_outlined),
                   leading: const Icon(Icons.wifi_tethering_error),

@@ -54,6 +54,7 @@ class Sc4pacServer {
   late final Future<Process> _process;
   late final Future<bool> ready;  // true once server listens, false if launching server did not work (This future never fails)
   ApiError? launchError;
+  List<String> stderrBuffer = [];
 
   static const int _javaNotFound = 55;
   static const int _portOccupied = 56;
@@ -91,7 +92,11 @@ class Sc4pacServer {
             stdout.writeln("[SERVER] $line");
           }
         });
-        process.stderr.transform(utf8.decoder).forEach((String lines) {
+        Future<void> stderrTerminated = process.stderr.transform(utf8.decoder).forEach((String lines) {
+          stderrBuffer.add(lines);
+          if (stderrBuffer.length >= 10) {
+            stderrBuffer = stderrBuffer.sublist(5);
+          }
           for (final line in splitter.convert(lines)) {
             stdout.writeln("[SERVER:err] $line");
           }
@@ -102,7 +107,7 @@ class Sc4pacServer {
             );
           }
         });
-        process.exitCode.then((exitCode) {
+        process.exitCode.then((exitCode) async {
           status = ServerStatus.terminated;
           if (exitCode == _javaNotFound) {
             const msg = "Java could not be found. Please install a Java Runtime Environment and make sure it is added to your PATH environment variable during the installation.";
@@ -116,6 +121,10 @@ class Sc4pacServer {
             launchError ??= ApiError.unexpected(msg, detail);
           } else {
             stdout.writeln("Sc4pac server exited with code $exitCode");
+            if (!completer.isCompleted) {  // launching failed
+              await stderrTerminated.catchError((_) {});
+              launchError ??= ApiError.unexpected("Launching the local sc4pac server failed.", stderrBuffer.join("\n"));
+            }
           }
         }).whenComplete(() {  // whenComplete runs regardless of whether future succeeded or failed
           if (!completer.isCompleted) {
