@@ -189,6 +189,10 @@ class World extends ChangeNotifier {
         } else {  // multiple packages are opened in FindPackages screen
           profile.findPackages.customFilter = (packages: packages, unknownChannelUrls: unknownChannelUrls);
           navRailIndex = 1;  // switch to FindPackages
+          final context = NavigationService.navigatorKey.currentContext;
+          if (context != null && context.mounted) {
+            Navigator.popUntil(context, ModalRoute.withName('/'));  // close potential package pages
+          }
           notifyListeners();
         }
       }
