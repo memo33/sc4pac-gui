@@ -186,6 +186,8 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     final response = await http.get(Uri.http(authority, '/packages.info', {'pkg': module.toString(), 'profile': profileId}));
     if (response.statusCode == 200) {
       return PackageInfoResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else if (response.statusCode == 404) {
+      return PackageInfoResult.notFound;
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }

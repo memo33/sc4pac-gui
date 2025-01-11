@@ -15,15 +15,16 @@ import '../data.dart';
 
 class PackagePage extends StatefulWidget {
   final BareModule module;
-  const PackagePage(this.module, {super.key});
+  final Set<String>? debugChannelUrls;  // for messaging purposes on 404 error
+  const PackagePage(this.module, {super.key, this.debugChannelUrls});
 
   @override
   State<PackagePage> createState() => _PackagePageState();
 
-  static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage}) {
+  static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage, Set<String>? debugChannelUrls}) {
     return Navigator.push(
       context,
-      MaterialPageRoute(barrierDismissible: true, builder: (context1) => PackagePage(module)),
+      MaterialPageRoute(barrierDismissible: true, builder: (context1) => PackagePage(module, debugChannelUrls: debugChannelUrls)),
     ).then((_) => refreshPreviousPage());
   }
 
@@ -83,6 +84,8 @@ class _PackagePageState extends State<PackagePage> {
             return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
           } else if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.data == PackageInfoResult.notFound) {
+            return Center(child: PackageNotFoundMessage(widget.module, widget.debugChannelUrls));
           } else {
             final remote = snapshot.data!.remote;
             final statuses = snapshot.data!.local.statuses;
@@ -242,6 +245,41 @@ class _PackagePageState extends State<PackagePage> {
           }
         }
       ),
+    );
+  }
+}
+
+class PackageNotFoundMessage extends StatelessWidget {
+  final BareModule module;
+  final Set<String>? debugChannelUrls;
+  const PackageNotFoundMessage(this.module, this.debugChannelUrls, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Set<String>>(
+      // If openPackages was called with debugChannelUrls, determine
+      // which of the channels are not known yet to show a meaningful error.
+      future: debugChannelUrls?.isNotEmpty == true
+        ? World.world.profile.channelStatsFuture
+          .then((stats) => debugChannelUrls!.difference(stats.channels.map((item) => item.url).toSet()))
+        : Future.value({}),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox();
+        } else {
+          Set<String> unknownChannelUrls = snapshot.data!;
+          return ApiErrorWidget(unknownChannelUrls.isNotEmpty
+            ? ApiError.unexpected(
+              """The opened package "$module" comes from a channel that is not in your list of configured channels yet."""
+              " To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically
+              unknownChannelUrls.join("\n"),
+            )
+            : ApiError.unexpected(
+              """The package "$module" was not found in any of your channels.""",
+              "Maybe the package was renamed or removed from its channel, or it comes from a channel that is not in your list of configured channels yet.",
+            ),
+          );
+        }
+      },
     );
   }
 }

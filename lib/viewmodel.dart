@@ -156,7 +156,6 @@ class World extends ChangeNotifier {
   // routing
   void _handleSc4pacUrl(Uri url) {
     if (url.path == "/package") {
-      // TODO handle channels and multiple packages
       List<BareModule> packages = url.queryParametersAll['pkg']?.map(BareModule.parse).toList() ?? [];
       Set<String> channelUrls = url.queryParametersAll['channel']?.toSet() ?? {};
       _openPackages(packages, channelUrls);
@@ -167,34 +166,20 @@ class World extends ChangeNotifier {
 
   void _openPackages(List<BareModule> packages, Set<String> channelUrls) async {
     if (packages.isNotEmpty) {
-      Set<String> unknownChannelUrls = channelUrls.isEmpty
-          ? {}
-          : switch (await profile.channelStatsFuture) {
-            final stats => channelUrls.difference(stats.channels.map((item) => item.url).toSet())
-          };
-      if (unknownChannelUrls.isNotEmpty) {
-        // TODO do not show error immediately, but only if package is actually not found (to facilitate forks or local copies of channels)
-        ApiErrorWidget.dialog(ApiError.unexpected(
-          "The opened package comes from a channel that is not contained in your list of configured channels yet. "
-          "To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically
-          unknownChannelUrls.join("\n"),
-        ));
-      } else {
-        assert(packages.isNotEmpty);
-        if (packages case [final module]) {  // single package is opened directly
-          final context = NavigationService.navigatorKey.currentContext;
-          if (context != null && context.mounted) {
-            PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
-          }
-        } else {  // multiple packages are opened in FindPackages screen
-          profile.findPackages.updateCustomFilter((packages: packages, unknownChannelUrls: unknownChannelUrls));
-          navRailIndex = 1;  // switch to FindPackages
-          final context = NavigationService.navigatorKey.currentContext;
-          if (context != null && context.mounted) {
-            Navigator.popUntil(context, ModalRoute.withName('/'));  // close potential package pages
-          }
-          notifyListeners();
+      if (packages case [final module]) {  // single package is opened directly
+        final context = NavigationService.navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
         }
+      } else {  // multiple packages are opened in FindPackages screen
+        assert(packages.isNotEmpty);
+        profile.findPackages.updateCustomFilter((packages: packages, debugChannelUrls: channelUrls));
+        navRailIndex = 1;  // switch to FindPackages
+        final context = NavigationService.navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          Navigator.popUntil(context, ModalRoute.withName('/'));  // close potential package pages
+        }
+        notifyListeners();
       }
     }
   }
@@ -218,13 +203,12 @@ class FindPackages extends ChangeNotifier {
   String? get selectedCategory => _selectedCategory;
   String? _selectedChannelUrl;
   String? get selectedChannelUrl => _selectedChannelUrl;
-  ({List<BareModule> packages, Set<String> unknownChannelUrls})? _customFilter;
-  ({List<BareModule> packages, Set<String> unknownChannelUrls})? get customFilter => _customFilter;
+  ({List<BareModule> packages, Set<String> debugChannelUrls})? _customFilter;
+  ({List<BareModule> packages, Set<String> debugChannelUrls})? get customFilter => _customFilter;
   Future<List<PackageSearchResultItem>> searchResult = Future.value([]);
 
   void _search() {
     if (customFilter != null) {
-      // TODO use unknownChannelUrls
       searchResult = World.world.client.searchById(customFilter?.packages ?? [], profileId: World.world.profile.id);
     } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
       searchResult = World.world.client.search(searchTerm ?? '', category: selectedCategory, channel: selectedChannelUrl, profileId: World.world.profile.id);
@@ -257,7 +241,7 @@ class FindPackages extends ChangeNotifier {
     }
   }
 
-  void updateCustomFilter(({List<BareModule> packages, Set<String> unknownChannelUrls})? customFilter) {
+  void updateCustomFilter(({List<BareModule> packages, Set<String> debugChannelUrls})? customFilter) {
     if (customFilter != _customFilter) {
       _customFilter = customFilter;
       _search();

@@ -195,6 +195,8 @@ class PackageInfoResult {
   final Map<String, dynamic> remote;
   PackageInfoResult(this.local, this.remote);
   factory PackageInfoResult.fromJson(Map<String, dynamic> json) => _$PackageInfoResultFromJson(json);
+
+  static final PackageInfoResult notFound = PackageInfoResult((statuses: const {}), const {});
 }
 
 @JsonSerializable()

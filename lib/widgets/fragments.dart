@@ -374,10 +374,11 @@ class PackageTile extends StatelessWidget {
   final List<Widget> chips;
   final InstalledStatus? status;
   final PendingUpdateStatus? pendingStatus;
+  final Set<String>? debugChannelUrls;
   final void Function(bool)? onToggled;
   final void Function() refreshParent;
   final VisualDensity? visualDensity;
-  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.onToggled, required this.refreshParent, this.visualDensity});
+  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.onToggled, required this.refreshParent, this.visualDensity});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
@@ -404,7 +405,7 @@ class PackageTile extends StatelessWidget {
           Text((index+1).toString()),
         ],
       ),
-      onTap: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent),
+      onTap: () => PackagePage.pushPkg(context, module, debugChannelUrls: debugChannelUrls, refreshPreviousPage: refreshParent),
     );
   }
 }

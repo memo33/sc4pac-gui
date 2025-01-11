@@ -109,6 +109,7 @@ class FindPackagesScreen extends StatelessWidget {
                     return PackageTile(module, index,
                       summary: item.summary,
                       status: item.status,
+                      debugChannelUrls: findPackages.customFilter?.debugChannelUrls,
                       refreshParent: findPackages.refreshSearchResult,
                       onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: findPackages.refreshSearchResult),
                     );
