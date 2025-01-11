@@ -6,64 +6,30 @@ import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
 
-class FindPackagesScreen extends StatefulWidget {
+class FindPackagesScreen extends StatelessWidget {
   final FindPackages findPackages;
   const FindPackagesScreen(this.findPackages, {super.key});
-
-  @override
-  State<FindPackagesScreen> createState() => _FindPackagesScreenState();
-}
-class _FindPackagesScreenState extends State<FindPackagesScreen> {
-  late Future<List<PackageSearchResultItem>> searchResultFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _search();
-  }
-
-  void _search() {
-    final searchTerm = widget.findPackages.searchTerm;
-    final category = widget.findPackages.selectedCategory;
-    final channelUrl = widget.findPackages.selectedChannelUrl;
-    final customFilter = widget.findPackages.customFilter;
-    if (customFilter != null) {
-      searchResultFuture = World.world.client.searchById(customFilter.packages, profileId: World.world.profile.id);
-    } else if ((searchTerm?.isNotEmpty ?? false) || category != null) {
-      searchResultFuture = World.world.client.search(searchTerm ?? '', category: category, channel: channelUrl, profileId: World.world.profile.id);
-    } else {
-      searchResultFuture = Future.value([]);
-    }
-  }
-
-  void _refresh() {
-    setState(() {
-      _search();
-    });
-  }
 
   static const double _toolBarHeight = 100.0;
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
+    return ListenableBuilder(
+      listenable: findPackages,
+      builder: (context, child) => CustomScrollView(slivers: [
         SliverAppBar(
           floating: true,
           // pinned: true,  // TODO consider pinning to avoid scroll physics auto-scrolling to top when touching app bar
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
-          title: widget.findPackages.customFilter != null
+          title: findPackages.customFilter != null
             ? InputChip(
               label: const Text("Custom package filter"),
               backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
               labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
               onDeleted: () {
-                setState(() {
-                  widget.findPackages.customFilter = null;
-                  _search();
-                });
+                findPackages.updateCustomFilter(null);
               },
             )
             : Table(
@@ -81,12 +47,9 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   future: World.world.profile.channelStatsFuture,
                   builder: (context, snapshot) => ChannelFilterMenu(
                     stats: snapshot.data,
-                    initialChannelUrl: widget.findPackages.selectedChannelUrl,
+                    initialChannelUrl: findPackages.selectedChannelUrl,
                     onSelectionChanged: (s) {
-                      setState(() {
-                        widget.findPackages.selectedChannelUrl = s;
-                        _search();
-                      });
+                      findPackages.updateChannelUrl(s);
                     },
                   ),
                 ),
@@ -98,45 +61,36 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                     return CategoryMenu(
                       stats: switch (snapshot.data) {
                         null => null,  // data not yet available
-                        final allStats => switch (allStats.channels.indexWhere((item) => item.url == widget.findPackages.selectedChannelUrl)) {
+                        final allStats => switch (allStats.channels.indexWhere((item) => item.url == findPackages.selectedChannelUrl)) {
                           -1 => allStats.combined,  // all channels selected
                           final i => allStats.channels[i].stats,
                         },
                       },
-                      initialCategory: widget.findPackages.selectedCategory,
+                      initialCategory: findPackages.selectedCategory,
                       menuHeight: max(300,
                         MediaQuery.of(context).size.height - _toolBarHeight
                         - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
                       ),
                       onSelected: (s) {
-                        setState(() {
-                          widget.findPackages.selectedCategory = s;
-                          _search();
-                        });
+                        findPackages.updateCategory(s);
                       },
                     );
                   },
                 ),
                 const SizedBox(),
                 PackageSearchBar(
-                  initialText: widget.findPackages.searchTerm,
+                  initialText: findPackages.searchTerm,
                   hintText: "search term or URL…",
-                  onSubmitted: (String query) => setState(() {
-                    widget.findPackages.searchTerm = query;
-                    _search();
-                  }),
-                  onCanceled: () => setState(() {
-                    widget.findPackages.searchTerm = '';
-                    _search();
-                  }),
-                  resultsCount: searchResultFuture.then((data) => data.length),
+                  onSubmitted: (String query) => findPackages.updateSearchTerm(query),
+                  onCanceled: () => findPackages.updateSearchTerm(''),
+                  resultsCount: findPackages.searchResult.then((data) => data.length),
                 ),
               ],
             )],
           ),
         ),
         FutureBuilder<List<PackageSearchResultItem>>(
-          future: searchResultFuture,
+          future: findPackages.searchResult,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return SliverToBoxAdapter(child: Center(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
@@ -155,8 +109,8 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                     return PackageTile(module, index,
                       summary: item.summary,
                       status: item.status,
-                      refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: _refresh),
+                      refreshParent: findPackages.refreshSearchResult,
+                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: findPackages.refreshSearchResult),
                     );
                   },
                   childCount: snapshot.data!.length,
@@ -165,7 +119,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
             }
           },
         ),
-      ],
+      ]),
     );
   }
 }

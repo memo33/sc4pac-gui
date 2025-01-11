@@ -51,6 +51,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
     });
   }
 
+  // TODO turn MyPlugins into ChangeNotifier and move _search there (similarly to how FindPackages is set up)
   void _search() {
     final q = widget.myPlugins.searchTerm;
     final c = widget.myPlugins.selectedCategory;

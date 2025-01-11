@@ -187,7 +187,7 @@ class World extends ChangeNotifier {
             PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
           }
         } else {  // multiple packages are opened in FindPackages screen
-          profile.findPackages.customFilter = (packages: packages, unknownChannelUrls: unknownChannelUrls);
+          profile.findPackages.updateCustomFilter((packages: packages, unknownChannelUrls: unknownChannelUrls));
           navRailIndex = 1;  // switch to FindPackages
           final context = NavigationService.navigatorKey.currentContext;
           if (context != null && context.mounted) {
@@ -211,11 +211,58 @@ class Profile {
   Profile(this.id, this.name);
 }
 
-class FindPackages {
-  String? searchTerm;
-  String? selectedCategory;
-  String? selectedChannelUrl;
-  ({List<BareModule> packages, Set<String> unknownChannelUrls})? customFilter;
+class FindPackages extends ChangeNotifier {
+  String? _searchTerm;
+  String? get searchTerm => _searchTerm;
+  String? _selectedCategory;
+  String? get selectedCategory => _selectedCategory;
+  String? _selectedChannelUrl;
+  String? get selectedChannelUrl => _selectedChannelUrl;
+  ({List<BareModule> packages, Set<String> unknownChannelUrls})? _customFilter;
+  ({List<BareModule> packages, Set<String> unknownChannelUrls})? get customFilter => _customFilter;
+  Future<List<PackageSearchResultItem>> searchResult = Future.value([]);
+
+  void _search() {
+    if (customFilter != null) {
+      // TODO use unknownChannelUrls
+      searchResult = World.world.client.searchById(customFilter?.packages ?? [], profileId: World.world.profile.id);
+    } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
+      searchResult = World.world.client.search(searchTerm ?? '', category: selectedCategory, channel: selectedChannelUrl, profileId: World.world.profile.id);
+    } else {
+      searchResult = Future.value([]);
+    }
+    notifyListeners();
+  }
+
+  void refreshSearchResult() => _search();
+
+  void updateSearchTerm(String searchTerm) {
+    if (searchTerm != _searchTerm) {
+      _searchTerm = searchTerm;
+      _search();
+    }
+  }
+
+  void updateCategory(String? selectedCategory) {
+    if (selectedCategory != _selectedCategory) {
+      _selectedCategory = selectedCategory;
+      _search();
+    }
+  }
+
+  void updateChannelUrl(String? selectedChannelUrl) {
+    if (selectedChannelUrl != _selectedChannelUrl) {
+      _selectedChannelUrl = selectedChannelUrl;
+      _search();
+    }
+  }
+
+  void updateCustomFilter(({List<BareModule> packages, Set<String> unknownChannelUrls})? customFilter) {
+    if (customFilter != _customFilter) {
+      _customFilter = customFilter;
+      _search();
+    }
+  }
 }
 
 enum InstallStateType { markedForInstall, explicitlyInstalled, installedAsDependency }
