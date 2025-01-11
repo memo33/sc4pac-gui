@@ -50,7 +50,8 @@ class CommandlineArgs {
   String? cliDir;
   bool launchServer = true;
   Uri? uri;  // currently unused
-  static const sc4pacProtocol = "sc4pac://";
+  static const sc4pacProtocolScheme = "sc4pac";
+  static const sc4pacProtocol = "$sc4pacProtocolScheme://";
   CommandlineArgs(List<String> args) {
     if (args.isNotEmpty && args[0].startsWith(sc4pacProtocol)) {
       // URI currently needs to be the first argument, see https://github.com/llfbandit/app_links/issues/129

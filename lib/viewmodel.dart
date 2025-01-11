@@ -10,6 +10,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:io';
+import 'protocol_handler_none.dart'  // web
+  if (dart.library.io) 'protocol_handler.dart'  // desktop
+  as protocol_handler;
 import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
@@ -92,18 +95,22 @@ class World extends ChangeNotifier {
     _switchToInitialized();
   }
 
-  void _switchToInitialized() {
+  void _switchToInitialized() async {
     if (!kIsWeb) {
       appLinks.stringLinkStream.listen((String arg) {
         // if sc4pac-gui is invoked when application is already running, this might be the second argument, which must be ignored
         if (arg.startsWith(CommandlineArgs.sc4pacProtocol)) {
           final u = Uri.tryParse(arg);
           if (u != null) {
-            debugPrint("Received app link: $u");
             _handleSc4pacUrl(u);
           }
         }
       });
+      await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
+        .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
+          """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
+          e.toString(),
+        )));
     }
 
     initPhase = InitPhase.initialized;
