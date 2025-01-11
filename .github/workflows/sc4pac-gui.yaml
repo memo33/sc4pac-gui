@@ -60,6 +60,10 @@ jobs:
       - name: Find pinned Flutter version
         shell: bash
         run: echo "FLUTTER_COMMIT_SHA1=$(git ls-tree --object-only HEAD -- vendor/flutter)" >> "$GITHUB_ENV"
+      - name: Enable long paths for Flutter repo on Windows
+        if: ${{ matrix.platform == 'windows' }}
+        shell: bash
+        run: git config --system core.longpaths true
       - name: Setup Flutter with pinned version
         uses: subosito/flutter-action@v2
         with:
