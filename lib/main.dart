@@ -498,7 +498,6 @@ class NavRail extends StatefulWidget {
   State<NavRail> createState() => _NavRailState();
 }
 class _NavRailState extends State<NavRail> {
-  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -511,10 +510,10 @@ class _NavRailState extends State<NavRail> {
                 constraints: BoxConstraints(minHeight: constraint.maxHeight),
                 child: IntrinsicHeight(child:
                   NavigationRail(
-                    selectedIndex: _selectedIndex,
+                    selectedIndex: widget.world.navRailIndex,
                     onDestinationSelected: (int index) {
                       setState(() {
-                        _selectedIndex = index;
+                        widget.world.navRailIndex = index;
                       });
                     },
                     labelType: NavigationRailLabelType.all,  // or selected,
@@ -547,7 +546,7 @@ class _NavRailState extends State<NavRail> {
             // const VerticalDivider(thickness: 1, width: 1),
             // This is the main content.
             Expanded(
-              child: switch (_selectedIndex) {
+              child: switch (widget.world.navRailIndex) {
                 0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
                 1 => FindPackagesScreen(widget.world.profile.findPackages),
                 2 => MyPluginsScreen(widget.world.profile.myPlugins),

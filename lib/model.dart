@@ -16,6 +16,7 @@ class BareModule extends Equatable {
   final String group, name;
   const BareModule(this.group, this.name);
   @override toString() => '$group:$name';
+  String toJson() => toString();
   @override List<Object> get props => [group, name];
 
   factory BareModule.parse(String s) {
@@ -197,6 +198,20 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       if (category?.isNotEmpty == true) 'category': category,
       if (channel?.isNotEmpty == true) 'channel': channel,
     }));
+    if (response.statusCode == 200) {
+      return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
+          .map((item) => PackageSearchResultItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  Future<List<PackageSearchResultItem>> searchById(List<BareModule> packages, {required String profileId}) async {
+    final response = await http.post(Uri.http(authority, '/packages.search.id', {'profile': profileId}),
+      body: jsonUtf8Encode({'packages': packages}),
+      headers: {'Content-Type': 'application/json'},
+    );
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
           .map((item) => PackageSearchResultItem.fromJson(item as Map<String, dynamic>))

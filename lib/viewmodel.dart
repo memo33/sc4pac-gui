@@ -37,6 +37,7 @@ class World extends ChangeNotifier {
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
   late SettingsData settings;
+  int navRailIndex = 0;
   // themeMode
   // other gui settings
 
@@ -180,13 +181,15 @@ class World extends ChangeNotifier {
         ));
       } else {
         assert(packages.isNotEmpty);
-        if (packages.length > 1) {
-          debugPrint("Opening more than 1 package is not implemented.");
-        }
-        final module = packages.first;  // TODO open multiple
-        final context = NavigationService.navigatorKey.currentContext;
-        if (context != null && context.mounted) {
-          PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
+        if (packages case [final module]) {  // single package is opened directly
+          final context = NavigationService.navigatorKey.currentContext;
+          if (context != null && context.mounted) {
+            PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
+          }
+        } else {  // multiple packages are opened in FindPackages screen
+          profile.findPackages.customFilter = (packages: packages, unknownChannelUrls: unknownChannelUrls);
+          navRailIndex = 1;  // switch to FindPackages
+          notifyListeners();
         }
       }
     }
@@ -208,6 +211,7 @@ class FindPackages {
   String? searchTerm;
   String? selectedCategory;
   String? selectedChannelUrl;
+  ({List<BareModule> packages, Set<String> unknownChannelUrls})? customFilter;
 }
 
 enum InstallStateType { markedForInstall, explicitlyInstalled, installedAsDependency }

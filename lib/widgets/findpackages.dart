@@ -26,7 +26,10 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
     final searchTerm = widget.findPackages.searchTerm;
     final category = widget.findPackages.selectedCategory;
     final channelUrl = widget.findPackages.selectedChannelUrl;
-    if ((searchTerm?.isNotEmpty ?? false) || category != null) {
+    final customFilter = widget.findPackages.customFilter;
+    if (customFilter != null) {
+      searchResultFuture = World.world.client.searchById(customFilter.packages, profileId: World.world.profile.id);
+    } else if ((searchTerm?.isNotEmpty ?? false) || category != null) {
       searchResultFuture = World.world.client.search(searchTerm ?? '', category: category, channel: channelUrl, profileId: World.world.profile.id);
     } else {
       searchResultFuture = Future.value([]);
@@ -51,7 +54,19 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
-          title: Table(
+          title: widget.findPackages.customFilter != null
+            ? InputChip(
+              label: const Text("Custom package filter"),
+              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
+              onDeleted: () {
+                setState(() {
+                  widget.findPackages.customFilter = null;
+                  _search();
+                });
+              },
+            )
+            : Table(
             columnWidths: const {
               0: IntrinsicColumnWidth(),
               1: FixedColumnWidth(10),  // padding
