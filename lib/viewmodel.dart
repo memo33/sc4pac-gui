@@ -192,7 +192,8 @@ class Profile {
   late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
-  late Future<ChannelStatsAll> channelStatsFuture = World.world.client.channelsStats(profileId: id);
+  late Future<ChannelStatsAll> channelStatsFuture = World.world.client.channelsStats(profileId: id)
+      ..then<void>((_) {}, onError: ApiErrorWidget.dialog);
   Profile(this.id, this.name);
 }
 
@@ -272,6 +273,7 @@ class Dashboard extends ChangeNotifier {
   final Profile profile;
   final pendingUpdates = PendingUpdates();
   late Future<Map<String, dynamic>> variantsFuture;
+  late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
     fetchVariants();
   }
@@ -286,8 +288,21 @@ class Dashboard extends ChangeNotifier {
       pendingUpdates.clear();
     }
     fetchVariants();
-    profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id);
+    profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id)
+        // we ignore errors here (e.g. channel server down) as they will be displayed in the Update process log
+        ..then<void>((_) {}, onError: (_) {});
     notifyListeners();
+  }
+
+  Future<void> updateChannelUrls(List<String> urls) {
+    return World.world.client.channelsSet(urls, profileId: World.world.profile.id).then(
+      (_) {
+        channelUrls = World.world.client.channelsList(profileId: profile.id);
+        profile.channelStatsFuture = World.world.client.channelsStats(profileId: World.world.profile.id)
+            ..then<void>((_) {}, onError: ApiErrorWidget.dialog);
+      },
+      onError: (e) => throw ApiError.unexpected("Malformed channel URLs", "Something does not look like a proper URL."),
+    );
   }
 
 }

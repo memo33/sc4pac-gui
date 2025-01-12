@@ -12,6 +12,7 @@ import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
 import '../data.dart';
+import '../main.dart' show NavigationService;
 
 class PackagePage extends StatefulWidget {
   final BareModule module;
@@ -55,7 +56,49 @@ class _PackagePageState extends State<PackagePage> {
   }
 
   void _fetchInfo() {
-    futureJson = World.world.client.info(widget.module, profileId: World.world.profile.id);
+    futureJson = World.world.client.info(widget.module, profileId: World.world.profile.id)
+      .then((PackageInfoResult data) async {
+        if (data == PackageInfoResult.notFound && widget.debugChannelUrls?.isNotEmpty == true) {
+          final myChannelUrls = await World.world.client.channelsList(profileId: World.world.profile.id);
+          final unknownChannelUrls = (widget.debugChannelUrls ?? {}).difference(myChannelUrls.toSet()).toList();
+          if (unknownChannelUrls.isNotEmpty) {
+            bool? confirmed = await showDialog<bool>(
+              context: NavigationService.navigatorKey.currentContext!,
+              builder: (context) => AlertDialog(
+                icon: const Icon(Symbols.stacks),
+                title: Text(unknownChannelUrls.length > 1 ? "Add ${unknownChannelUrls.length} new channels?" : "Add a new channel?"),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "The package comes from another channel."
+                      " Do you want to add ${unknownChannelUrls.length > 1 ? "these channels" : "this channel"} to your profile?"
+                    ),
+                    const SizedBox(height: 10),
+                    ...unknownChannelUrls.map((url) => Text(url, style: TextStyle(color: Theme.of(context).colorScheme.tertiary))),
+                  ]
+                ),
+                actions: [
+                  OutlinedButton(
+                    child: const Text("Cancel"),
+                    onPressed: () => Navigator.pop(context, false),
+                  ),
+                  OutlinedButton(
+                    child: const Text("OK"),
+                    onPressed: () => Navigator.pop(context, true),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true) {
+              await World.world.profile.dashboard.updateChannelUrls(myChannelUrls + unknownChannelUrls);
+              // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
+              return World.world.client.info(widget.module, profileId: World.world.profile.id);
+            }
+          }
+        }
+        return data;
+      });
   }
 
   void _refresh() {
@@ -269,7 +312,7 @@ class PackageNotFoundMessage extends StatelessWidget {
           Set<String> unknownChannelUrls = snapshot.data!;
           return ApiErrorWidget(unknownChannelUrls.isNotEmpty
             ? ApiError.unexpected(
-              """The opened package "$module" comes from a channel that is not in your list of configured channels yet."""
+              """The opened package "$module" comes from another channel."""
               " To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically
               unknownChannelUrls.join("\n"),
             )
