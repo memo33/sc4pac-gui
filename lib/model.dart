@@ -16,6 +16,7 @@ class BareModule extends Equatable {
   final String group, name;
   const BareModule(this.group, this.name);
   @override toString() => '$group:$name';
+  String toJson() => toString();
   @override List<Object> get props => [group, name];
 
   factory BareModule.parse(String s) {
@@ -110,9 +111,9 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
   final void Function() onConnectionLost;
-  final void Function(BareModule, {required String channelUrl}) openPackage;
+  final void Function(List<BareModule>, Set<String> channelUrls) openPackages;
 
-  Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackage}) :
+  Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackages}) :
     wsUrl = 'ws://$authority',
     connection = serverConnect('ws://$authority')  // TODO appears to unregister automatically when application exits
   {
@@ -142,11 +143,10 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       if (type == '/prompt/open/package') {
         final msg = PromptOpenPackage.fromJson(data);
         if (msg.packages.isNotEmpty) {
-          if (msg.packages.length > 1) {
-            debugPrint("Opening more than 1 packages is not implemented.");
-          }
-          final item = msg.packages.first;
-          openPackage(BareModule.parse(item.package), channelUrl: item.channelUrl);
+          openPackages(
+            msg.packages.map((item) => BareModule.parse(item.package)).toList(),
+            msg.packages.map((item) => item.channelUrl).toSet(),
+          );
         }
       } else {
         debugPrint('Message type not implemented: $data');
@@ -186,6 +186,8 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     final response = await http.get(Uri.http(authority, '/packages.info', {'pkg': module.toString(), 'profile': profileId}));
     if (response.statusCode == 200) {
       return PackageInfoResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else if (response.statusCode == 404) {
+      return PackageInfoResult.notFound;
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }
@@ -198,6 +200,20 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       if (category?.isNotEmpty == true) 'category': category,
       if (channel?.isNotEmpty == true) 'channel': channel,
     }));
+    if (response.statusCode == 200) {
+      return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
+          .map((item) => PackageSearchResultItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  Future<List<PackageSearchResultItem>> searchById(List<BareModule> packages, {required String profileId}) async {
+    final response = await http.post(Uri.http(authority, '/packages.search.id', {'profile': profileId}),
+      body: jsonUtf8Encode({'packages': packages}),
+      headers: {'Content-Type': 'application/json'},
+    );
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
           .map((item) => PackageSearchResultItem.fromJson(item as Map<String, dynamic>))

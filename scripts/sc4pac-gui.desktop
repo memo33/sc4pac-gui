@@ -1,0 +1,24 @@
+[Desktop Entry]
+Name=sc4pac GUI
+Comment=Mod Manager for SimCity 4.
+#
+# First, add sc4pac-gui to PATH or adjust the path to sc4pac-gui in "Exec" as necessary.
+#
+# Install this .desktop file in ~/.local/share/applications/
+#
+# (This step is maybe not necessary.) Update the mimeinfo.cache:
+#   update-desktop-database ~/.local/share/applications/
+#
+# Register the new MIME type by running (which adds an entry to ~/.config/mimeapps.list):
+#   xdg-mime default sc4pac-gui.desktop x-scheme-handler/sc4pac
+#
+# Test with:
+#   xdg-open "sc4pac:///package?pkg=memo:submenus-dll"
+#
+Exec=sc4pac-gui %u
+StartupNotify=false
+MimeType=x-scheme-handler/sc4pac;
+# Icon=sc4pac-gui.png
+Terminal=false
+Type=Application
+Categories=Game;PackageManager;

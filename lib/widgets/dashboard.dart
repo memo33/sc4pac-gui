@@ -616,20 +616,16 @@ class ChannelsList extends StatefulWidget {
   @override State<ChannelsList> createState() => _ChannelsListState();
 }
 class _ChannelsListState extends State<ChannelsList> {
-  late Future<List<String>> urlsFuture;
   late TextEditingController controller = TextEditingController();
   bool changed = false;
 
   @override void initState() {
     super.initState();
-    _initUrlsFuture();
+    _initText();
   }
 
-  void _initUrlsFuture() {
-    urlsFuture = World.world.client.channelsList(profileId: World.world.profile.id)
-      ..then((urls) {
-        controller.text = _stringifyUrls(urls);
-      });
+  void _initText() async {
+    controller.text = _stringifyUrls(await World.world.profile.dashboard.channelUrls);
   }
 
   List<String> _parseUrls(String text) => text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
@@ -637,15 +633,14 @@ class _ChannelsListState extends State<ChannelsList> {
   String _stringifyUrls(List<String> urls) => urls.isEmpty ? "" : "${urls.join('\n')}\n";
 
   void _submit(List<String> urls) {
-    World.world.client.channelsSet(urls, profileId: World.world.profile.id).then(
-      (_) {
+    World.world.profile.dashboard.updateChannelUrls(urls)
+      .then((_) {
         setState(() {
-          _initUrlsFuture();
-          World.world.profile.channelStatsFuture = World.world.client.channelsStats(profileId: World.world.profile.id);
+          _initText();
           changed = false;
         });
       },
-      onError: (e) => ApiErrorWidget.dialog(ApiError.unexpected("Malformed channel URLs", "Something does not look like a proper URL.")),
+      onError: ApiErrorWidget.dialog,
     );
   }
 
@@ -659,7 +654,7 @@ class _ChannelsListState extends State<ChannelsList> {
             " Append additional channel URLs below. The first URL has the highest priority."),
         ),
         FutureBuilder(
-          future: urlsFuture,
+          future: World.world.profile.dashboard.channelUrls,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));

@@ -8,7 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:app_links/app_links.dart';
 import 'dart:io';
+import 'protocol_handler_none.dart'  // web
+  if (dart.library.io) 'protocol_handler.dart'  // desktop
+  as protocol_handler;
 import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
@@ -21,6 +25,7 @@ enum InitPhase { connecting, loadingProfiles, initializingProfile, initialized }
 class World extends ChangeNotifier {
   final CommandlineArgs args;
   final PackageInfo appInfo;
+  final appLinks = AppLinks();
   late InitPhase initPhase;
   late String authority;
   late Sc4pacServer? server;
@@ -32,6 +37,7 @@ class World extends ChangeNotifier {
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
   late SettingsData settings;
+  int navRailIndex = 0;
   // themeMode
   // other gui settings
 
@@ -48,22 +54,7 @@ class World extends ChangeNotifier {
         client = Sc4pacClient(
           authority,
           onConnectionLost: () => updateConnection(authority, notify: true),
-          openPackage: (BareModule module, {required String channelUrl}) async {
-            final stats = await profile.channelStatsFuture;
-            final idx = stats.channels.indexWhere((item) => item.url == channelUrl);
-            if (idx == -1) {
-              ApiErrorWidget.dialog(ApiError.unexpected(
-                """The package "$module" comes from a channel that is not contained in your list of configured channels yet. """
-                "To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically
-                channelUrl,
-              ));
-            } else {
-              final context = NavigationService.navigatorKey.currentContext;
-              if (context != null && context.mounted) {
-                PackagePage.pushPkg(context, module, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
-              }
-            }
-          },
+          openPackages: _openPackages,
         );
         _switchToLoadingProfiles();
       },
@@ -105,7 +96,24 @@ class World extends ChangeNotifier {
     _switchToInitialized();
   }
 
-  void _switchToInitialized() {
+  void _switchToInitialized() async {
+    if (!kIsWeb) {
+      appLinks.stringLinkStream.listen((String arg) {
+        // if sc4pac-gui is invoked when application is already running, this might be the second argument, which must be ignored
+        if (arg.startsWith(CommandlineArgs.sc4pacProtocol)) {
+          final u = Uri.tryParse(arg);
+          if (u != null) {
+            _handleSc4pacUrl(u);
+          }
+        }
+      });
+      await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
+        .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
+          """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
+          e.toString(),
+        )));
+    }
+
     initPhase = InitPhase.initialized;
     notifyListeners();
   }
@@ -144,6 +152,37 @@ class World extends ChangeNotifier {
 
     updateConnection(authority, notify: false);
   }
+
+  // routing
+  void _handleSc4pacUrl(Uri url) {
+    if (url.path == "/package") {
+      List<BareModule> packages = url.queryParametersAll['pkg']?.map(BareModule.parse).toList() ?? [];
+      Set<String> channelUrls = url.queryParametersAll['channel']?.toSet() ?? {};
+      _openPackages(packages, channelUrls);
+    } else {
+      debugPrint("Unsupported URL path: ${url.path}");
+    }
+  }
+
+  void _openPackages(List<BareModule> packages, Set<String> channelUrls) async {
+    if (packages.isNotEmpty) {
+      if (packages case [final module]) {  // single package is opened directly
+        final context = NavigationService.navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
+        }
+      } else {  // multiple packages are opened in FindPackages screen
+        assert(packages.isNotEmpty);
+        profile.findPackages.updateCustomFilter((packages: packages, debugChannelUrls: channelUrls));
+        navRailIndex = 1;  // switch to FindPackages
+        final context = NavigationService.navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          Navigator.popUntil(context, ModalRoute.withName('/'));  // close potential package pages
+        }
+        notifyListeners();
+      }
+    }
+  }
 }
 
 class Profile {
@@ -153,14 +192,62 @@ class Profile {
   late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
-  late Future<ChannelStatsAll> channelStatsFuture = World.world.client.channelsStats(profileId: id);
+  late Future<ChannelStatsAll> channelStatsFuture = World.world.client.channelsStats(profileId: id)
+      ..then<void>((_) {}, onError: ApiErrorWidget.dialog);
   Profile(this.id, this.name);
 }
 
-class FindPackages {
-  String? searchTerm;
-  String? selectedCategory;
-  String? selectedChannelUrl;
+class FindPackages extends ChangeNotifier {
+  String? _searchTerm;
+  String? get searchTerm => _searchTerm;
+  String? _selectedCategory;
+  String? get selectedCategory => _selectedCategory;
+  String? _selectedChannelUrl;
+  String? get selectedChannelUrl => _selectedChannelUrl;
+  ({List<BareModule> packages, Set<String> debugChannelUrls})? _customFilter;
+  ({List<BareModule> packages, Set<String> debugChannelUrls})? get customFilter => _customFilter;
+  Future<List<PackageSearchResultItem>> searchResult = Future.value([]);
+
+  void _search() {
+    if (customFilter != null) {
+      searchResult = World.world.client.searchById(customFilter?.packages ?? [], profileId: World.world.profile.id);
+    } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
+      searchResult = World.world.client.search(searchTerm ?? '', category: selectedCategory, channel: selectedChannelUrl, profileId: World.world.profile.id);
+    } else {
+      searchResult = Future.value([]);
+    }
+    notifyListeners();
+  }
+
+  void refreshSearchResult() => _search();
+
+  void updateSearchTerm(String searchTerm) {
+    if (searchTerm != _searchTerm) {
+      _searchTerm = searchTerm;
+      _search();
+    }
+  }
+
+  void updateCategory(String? selectedCategory) {
+    if (selectedCategory != _selectedCategory) {
+      _selectedCategory = selectedCategory;
+      _search();
+    }
+  }
+
+  void updateChannelUrl(String? selectedChannelUrl) {
+    if (selectedChannelUrl != _selectedChannelUrl) {
+      _selectedChannelUrl = selectedChannelUrl;
+      _search();
+    }
+  }
+
+  void updateCustomFilter(({List<BareModule> packages, Set<String> debugChannelUrls})? customFilter) {
+    if (customFilter != _customFilter) {
+      _customFilter = customFilter;
+      _search();
+    }
+  }
 }
 
 enum InstallStateType { markedForInstall, explicitlyInstalled, installedAsDependency }
@@ -186,6 +273,7 @@ class Dashboard extends ChangeNotifier {
   final Profile profile;
   final pendingUpdates = PendingUpdates();
   late Future<Map<String, dynamic>> variantsFuture;
+  late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
     fetchVariants();
   }
@@ -200,8 +288,21 @@ class Dashboard extends ChangeNotifier {
       pendingUpdates.clear();
     }
     fetchVariants();
-    profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id);
+    profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id)
+        // we ignore errors here (e.g. channel server down) as they will be displayed in the Update process log
+        ..then<void>((_) {}, onError: (_) {});
     notifyListeners();
+  }
+
+  Future<void> updateChannelUrls(List<String> urls) {
+    return World.world.client.channelsSet(urls, profileId: World.world.profile.id).then(
+      (_) {
+        channelUrls = World.world.client.channelsList(profileId: profile.id);
+        profile.channelStatsFuture = World.world.client.channelsStats(profileId: World.world.profile.id)
+            ..then<void>((_) {}, onError: ApiErrorWidget.dialog);
+      },
+      onError: (e) => throw ApiError.unexpected("Malformed channel URLs", "Something does not look like a proper URL."),
+    );
   }
 
 }
