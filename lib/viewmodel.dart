@@ -107,11 +107,13 @@ class World extends ChangeNotifier {
           }
         }
       });
-      await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
-        .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
-          """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
-          e.toString(),
-        )));
+      if (args.registerProtocol) {
+        await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
+          .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
+            """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
+            e.toString(),
+          )));
+      }
     }
 
     initPhase = InitPhase.initialized;
