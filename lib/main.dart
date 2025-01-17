@@ -32,7 +32,7 @@ Options
   --port number              Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
   --host IP                  Hostname of sc4pac server (default: localhost)
   --launch-server=false      Do not launch sc4pac server from GUI, but connect to external process instead (default: true)
-  --profiles-dir path        Profiles directory for sc4pac server (default: BUNDLEDIR/profiles), resolved relative to current directory
+  --profiles-dir path        Profiles directory for sc4pac server (default: platform-dependent), resolved relatively to current directory
   --sc4pac-cli-dir path      Contains sc4pac CLI scripts for launching the server (default: BUNDLEDIR/cli), resolved relative to current directory
   --register-protocol=false  Do not register "${CommandlineArgs.sc4pacProtocol}" protocol handler in Windows registry (default: true, Windows only).
                              Disabling this is useful if you manually changed the registry entry.

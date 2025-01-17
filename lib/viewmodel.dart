@@ -147,7 +147,7 @@ class World extends ChangeNotifier {
       final String bundleRoot = FileSystemEntity.parentOf(Platform.resolvedExecutable);
       server = Sc4pacServer(
         cliDir: args.cliDir ?? "$bundleRoot/cli",
-        profilesDir: args.profilesDir ?? "$bundleRoot/profiles",
+        profilesDir: args.profilesDir,
         port: port,
       );
     } else {

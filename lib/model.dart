@@ -48,7 +48,7 @@ enum ServerStatus { launching, listening, terminated }
 // server is launched from desktop GUI, but not from webapp
 class Sc4pacServer {
   final String cliDir;
-  final String profilesDir;
+  final String? profilesDir;
   final int port;
   ServerStatus status = ServerStatus.launching;
   late final Future<Process> _process;
@@ -75,7 +75,8 @@ class Sc4pacServer {
         [
           "server",
           "--port", port.toString(),
-          "--profiles-dir", profilesDir,
+          if (profilesDir != null)
+            ...["--profiles-dir", profilesDir!],
           "--auto-shutdown",
           "--startup-tag", readyTag,
         ],
