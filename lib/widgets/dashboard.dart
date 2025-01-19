@@ -190,29 +190,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             leading: const Icon(Symbols.folder_supervised),
             title: const Text("Plugins folder"),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Path'
-                        ),
-                        readOnly: true,
-                        initialValue: widget.dashboard.profile.paths?.plugins,
-                      ),
-                    ),
-                  ),
-                  if (!kIsWeb)
-                    Tooltip(message: 'Open in file browser', child: IconButton(
-                      icon: const Icon(Symbols.open_in_new_down),
-                      onPressed: widget.dashboard.profile.paths == null ? null : () {
-                        OpenFile.open(widget.dashboard.profile.paths?.plugins);  // does not work in web
-                      },
-                    )),
-                ],
-              ),
+              switch (widget.dashboard.profile.paths?.plugins) {
+                null => const SizedBox(),
+                String path => PathField(path: path),
+              },
             ],
           ),
           const ExpansionTile(

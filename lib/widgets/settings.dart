@@ -22,6 +22,22 @@ class SettingsScreen extends StatelessWidget {
             CookieWidget(),
           ],
         ),
+        ExpansionTile(
+          leading: const Icon(Symbols.folder_managed),
+          title: const Text("Profiles configuration folder"),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(10),
+              child: Text("This folder contains configuration files that store application settings as well as your profiles."),
+            ),
+            FutureBuilder<Profiles>(
+              future: World.world.profilesFuture,
+              builder: (context, snapshot) =>
+                snapshot.hasData ? PathField(path: snapshot.data!.profilesDir) : const SizedBox(),
+            ),
+          ],
+        ),
         ListenableBuilder(
           listenable: World.world,
           builder: (context, child) => SwitchListTile(
