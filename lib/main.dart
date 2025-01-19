@@ -440,7 +440,7 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
           const SizedBox(height: 30),
           const ExpansionTile(
             trailing: Icon(Icons.info_outlined),
-            title: Text("Cache folder"),
+            title: Text("Download cache folder"),
             children: [Text("The Cache folder stores all the files that are downloaded."
               " It requires several gigabytes of space."
               " To avoid unnecessary downloads, it is best to keep the default location for the cache, so that all your profiles share the same Cache folder.")],

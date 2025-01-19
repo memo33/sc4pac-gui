@@ -161,6 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ExpansionTile(
             leading: const Icon(Symbols.person_pin_circle),
             title: Text('Profile: ${widget.dashboard.profile.name}'),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
               Wrap(
@@ -188,11 +189,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ExpansionTile(
             leading: const Icon(Symbols.folder_supervised),
-            title: const Text("Plugins folder"),
+            title: const Text("Folders"),
             children: [
-              switch (widget.dashboard.profile.paths?.plugins) {
-                null => const SizedBox(),
-                String path => PathField(path: path),
+              ...switch (widget.dashboard.profile.paths?.plugins) {
+                null => [],
+                String path => [
+                  const ListTile(title: Text("Plugins"), leading: Icon(Symbols.folder_special)),
+                  PathField(path: path),
+                ],
+              },
+              ...switch (widget.dashboard.profile.paths?.cache) {
+                null => [],
+                String path => [
+                  const ListTile(title: Text("Download cache"), leading: Icon(Symbols.cloud_download)),
+                  PathField(path: path),
+                ],
               },
             ],
           ),
