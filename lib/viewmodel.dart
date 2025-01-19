@@ -44,8 +44,10 @@ class World extends ChangeNotifier {
   void updateConnection(String authority, {required bool notify}) {
     initPhase = InitPhase.connecting;
     this.authority = authority;
-    // we call `serverStatus`, even if `ready` resolved to false (launching server failed), to allow connecting to external server process instead
-    initialServerStatus = (server?.ready ?? Future.value(true)).then((_) => Sc4pacClient.serverStatus(authority));
+    initialServerStatus = (server?.ready ?? Future.value(true)).then((isReady) =>
+      isReady ? Sc4pacClient.serverStatus(authority)
+        : Future.error(server?.launchError ?? ApiError.unexpected("Failed to launch local sc4pac server.", ""))
+      );
     initialServerStatus.then(
       (serverStatus) {  // connection succeeded, so proceed to next phase
         if (serverStatus case {'sc4pacVersion': String version}) {
@@ -107,11 +109,13 @@ class World extends ChangeNotifier {
           }
         }
       });
-      await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
-        .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
-          """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
-          e.toString(),
-        )));
+      if (args.registerProtocol) {
+        await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
+          .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
+            """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
+            e.toString(),
+          )));
+      }
     }
 
     initPhase = InitPhase.initialized;
@@ -143,7 +147,7 @@ class World extends ChangeNotifier {
       final String bundleRoot = FileSystemEntity.parentOf(Platform.resolvedExecutable);
       server = Sc4pacServer(
         cliDir: args.cliDir ?? "$bundleRoot/cli",
-        profilesDir: args.profilesDir ?? "$bundleRoot/profiles",
+        profilesDir: args.profilesDir,
         port: port,
       );
     } else {

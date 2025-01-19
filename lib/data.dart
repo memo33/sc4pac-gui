@@ -111,7 +111,8 @@ class InstalledListItem {
 class Profiles {
   final List<({String id, String name})> profiles;
   final List<String> currentProfileId;
-  Profiles(this.profiles, this.currentProfileId);
+  final String profilesDir;
+  Profiles(this.profiles, this.currentProfileId, this.profilesDir);
   factory Profiles.fromJson(Map<String, dynamic> json) => _$ProfilesFromJson(json);
   ({String id, String name})? currentProfile() {
     final idx = profiles.indexWhere((p) => currentProfileId.contains(p.id));

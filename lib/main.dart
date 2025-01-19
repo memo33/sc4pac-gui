@@ -29,12 +29,14 @@ Version ${appInfo.version}
 URI: an optional "${CommandlineArgs.sc4pacProtocol}" URL passed as first argument
 
 Options
-  --port number           Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
-  --host IP               Hostname of sc4pac server (default: localhost)
-  --launch-server=false   Do not launch sc4pac server from GUI, but connect to external process instead (default: true)
-  --profiles-dir path     Profiles directory for sc4pac server (default: BUNDLEDIR/profiles), resolved relative to current directory
-  --sc4pac-cli-dir path   Contains sc4pac CLI scripts for launching the server (default: BUNDLEDIR/cli), resolved relative to current directory
-  -h, --help              Print help message and exit"""
+  --port number              Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
+  --host IP                  Hostname of sc4pac server (default: localhost)
+  --launch-server=false      Do not launch sc4pac server from GUI, but connect to external process instead (default: true)
+  --profiles-dir path        Profiles directory for sc4pac server (default: platform-dependent), resolved relatively to current directory
+  --sc4pac-cli-dir path      Contains sc4pac CLI scripts for launching the server (default: BUNDLEDIR/cli), resolved relative to current directory
+  --register-protocol=false  Do not register "${CommandlineArgs.sc4pacProtocol}" protocol handler in Windows registry (default: true, Windows only).
+                             Disabling this is useful if you manually changed the registry entry.
+  -h, --help                 Print help message and exit"""
     );
     io.exit(0);
   } else {
@@ -49,6 +51,7 @@ class CommandlineArgs {
   String? profilesDir;
   String? cliDir;
   bool launchServer = true;
+  bool registerProtocol = true;
   Uri? uri;  // currently unused
   static const sc4pacProtocolScheme = "sc4pac";
   static const sc4pacProtocol = "$sc4pacProtocolScheme://";
@@ -60,18 +63,23 @@ class CommandlineArgs {
     }
     while (args.isNotEmpty) {
       switch (args) {
-        case ["--port", var p, ...(var rest)]:           port = int.tryParse(p); args = rest; break;
-        case ["--host", var h, ...(var rest)]:           host = h;               args = rest; break;
-        case ["--profiles-dir", var p, ...(var rest)]:   profilesDir = p;        args = rest; break;
-        case ["--sc4pac-cli-dir", var p, ...(var rest)]: cliDir = p;             args = rest; break;
-        case ["--launch-server=true",  ...(var rest)]:   launchServer = true;    args = rest; break;
-        case ["--launch-server=false", ...(var rest)]:   launchServer = false;   args = rest; break;
-        case ["--help" || "-h", ...(var rest)]:          help = true;            args = rest; break;
+        case ["--port", var p, ...(var rest)]:             port = int.tryParse(p);   args = rest; break;
+        case ["--host", var h, ...(var rest)]:             host = h;                 args = rest; break;
+        case ["--profiles-dir", var p, ...(var rest)]:     profilesDir = p;          args = rest; break;
+        case ["--sc4pac-cli-dir", var p, ...(var rest)]:   cliDir = p;               args = rest; break;
+        case ["--launch-server=true",  ...(var rest)]:     launchServer = true;      args = rest; break;
+        case ["--launch-server=false", ...(var rest)]:     launchServer = false;     args = rest; break;
+        case ["--register-protocol=true",  ...(var rest)]: registerProtocol = true;  args = rest; break;
+        case ["--register-protocol=false", ...(var rest)]: registerProtocol = false; args = rest; break;
+        case ["--help" || "-h", ...(var rest)]:            help = true;              args = rest; break;
         default:
           io.stderr.writeln("Unknown trailing arguments (try --help): ${args.join(" ")}");
           args = [];
           io.exit(1);
       }
+    }
+    if (uri != null) {
+      registerProtocol = false;
     }
   }
 }
@@ -189,14 +197,23 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         if (snapshot.hasError) {
           return CenteredFullscreenDialog(
             title: const Text("Establish connection"),
-            child: Column(
-              children: [
+            child: Column(children: switch (widget.world.server?.launchError) {
+              ApiError error => [
+                ApiErrorWidget(error),  // this is a dead end (e.g. Java not found or too old), so requires restarting the application once resolved
+                const SizedBox(height: 20),
+                const Text("Restart the application once the above problem is resolved."),
+              ],
+              null => [
+                // ApiErrorWidget(ApiError.from(snapshot.error!)),
+                // const SizedBox(height: 20),
                 ExpansionTile(
                   trailing: const Icon(Icons.info_outlined),
                   leading: const Icon(Icons.wifi_tethering_error),
                   title: Text("Connection to local sc4pac server not possible at ${widget.world.authority}"),
                   children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system. "
-                    "The local backend server is either not running or the GUI does not know its address.")],
+                    "The local backend server is either not running or the GUI does not know its address."
+                    " As a workaround, you may connect to an existing sc4pac server process using the input field below."
+                    " Alternatively, restarting the application might resolve the problem.")],
                 ),
                 const SizedBox(height: 15),
                 TextField(
@@ -225,7 +242,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                   child: const Text("Connect")
                 ),
               ],
-            ),
+            }),
           );
         } else {
           // connecting (or connection established; we don't care about the result, as initPhase change triggers next screen)

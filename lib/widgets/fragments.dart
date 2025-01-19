@@ -2,12 +2,14 @@
 import 'dart:math' show Random;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/link.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:markdown/markdown.dart' as md;
 import 'package:flutter_markdown/flutter_markdown.dart' as fmd;
+import 'package:open_file/open_file.dart';
 import '../model.dart';
 import '../viewmodel.dart' show PendingUpdateStatus;
 import 'packagepage.dart';
@@ -563,4 +565,38 @@ class _CategoryMenuState extends State<CategoryMenu> {
     '710-automata': Symbols.traffic_jam,
     '900-overrides': Symbols.event_repeat,
   };
+}
+
+class PathField extends StatelessWidget {
+  final String path;
+  const PathField({required this.path, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Path'
+              ),
+              readOnly: true,
+              initialValue: path,
+            ),
+          ),
+        ),
+        if (!kIsWeb)
+          Tooltip(message: 'Open in file browser', child: IconButton(
+            icon: const Icon(Symbols.open_in_new_down),
+            onPressed: () async {
+              OpenResult result = await OpenFile.open(path);  // does not work in web
+              if (result.type != ResultType.done) {
+                debugPrint("${result.type}: ${result.message}");
+              }
+            },
+          )),
+      ],
+    );
+  }
 }

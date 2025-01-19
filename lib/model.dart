@@ -48,56 +48,97 @@ enum ServerStatus { launching, listening, terminated }
 // server is launched from desktop GUI, but not from webapp
 class Sc4pacServer {
   final String cliDir;
-  final String profilesDir;
+  final String? profilesDir;
+  final int port;
   ServerStatus status = ServerStatus.launching;
-  late final Future<Process> process;
+  late final Future<Process> _process;
   late final Future<bool> ready;  // true once server listens, false if launching server did not work (This future never fails)
+  ApiError? launchError;
+  List<String> stderrBuffer = [];
 
-  Sc4pacServer({required this.cliDir, required this.profilesDir, required int port}) {
+  static const int _javaNotFound = 55;
+  static const int _portOccupied = 56;
+
+  Sc4pacServer({required this.cliDir, required this.profilesDir, required this.port}) {
     const readyTag = "[LISTENING]";
     final completer = Completer<bool>();
     const splitter = LineSplitter();
     ready = completer.future;
-    process = Process.start(
-      Platform.isWindows ? "$cliDir/sc4pac.bat" : "$cliDir/sc4pac",
-      [
-        "server",
-        "--port", port.toString(),
-        "--profiles-dir", profilesDir,
-        "--auto-shutdown",
-        "--startup-tag", readyTag,
-      ],
-    )
-    ..then((process) {
-      stdout.writeln("Sc4pac server PID: ${process.pid}");
-      // it's important to consume both stdout and stderr to avoid freezes
-      process.stdout.transform(utf8.decoder).forEach((String lines) {
-        if (status == ServerStatus.launching && lines.contains(readyTag)) {
-          status = ServerStatus.listening;
-          completer.complete(true);
-        }
-        for (final line in splitter.convert(lines)) {
-          stdout.writeln("[SERVER] $line");
-        }
-      });
-      process.stderr.transform(utf8.decoder).forEach((String lines) {
-        for (final line in splitter.convert(lines)) {
-          stdout.writeln("[SERVER:err] $line");
-        }
-      });
-      process.exitCode.then((exitCode) {
-        stdout.writeln("Sc4pac server exited with code $exitCode");
-        status = ServerStatus.terminated;
-      }).whenComplete(() {  // whenComplete runs regardless of whether future succeeded or failed
-        if (!completer.isCompleted) {
-          completer.complete(false);
-        }
-      });
-    }, onError: (err) {
-      stderr.writeln("Failed to launch server: $err");  // failed to launch server, probably because cliDir is wrong
+    final cliExePath = Platform.isWindows ? "$cliDir/sc4pac.bat" : "$cliDir/sc4pac";
+    if (!File(cliExePath).existsSync()) {
+      launchError = ApiError.unexpected("Failed to launch the local sc4pac server, as the sc4pac CLI executable was not found in the expected location.", cliExePath);
       status = ServerStatus.terminated;
       completer.complete(false);
-    });
+    } else {
+      _process = Process.start(
+        cliExePath,
+        [
+          "server",
+          "--port", port.toString(),
+          if (profilesDir != null)
+            ...["--profiles-dir", profilesDir!],
+          "--auto-shutdown",
+          "--startup-tag", readyTag,
+        ],
+      )
+      ..then((process) {
+        stdout.writeln("Sc4pac server PID: ${process.pid}");
+        // it's important to consume both stdout and stderr to avoid freezes
+        process.stdout.transform(utf8.decoder).forEach((String lines) {
+          if (status == ServerStatus.launching && lines.contains(readyTag)) {
+            status = ServerStatus.listening;
+            completer.complete(true);
+          }
+          for (final line in splitter.convert(lines)) {
+            stdout.writeln("[SERVER] $line");
+          }
+        });
+        Future<void> stderrTerminated = process.stderr.transform(utf8.decoder).forEach((String lines) {
+          stderrBuffer.add(lines);
+          if (stderrBuffer.length >= 10) {
+            stderrBuffer = stderrBuffer.sublist(5);
+          }
+          for (final line in splitter.convert(lines)) {
+            stdout.writeln("[SERVER:err] $line");
+          }
+          if (!completer.isCompleted && lines.contains("UnsupportedClassVersion")) {
+            launchError ??= ApiError.unexpected(
+              "The Java version installed on your system is too old. Install a more recent version of Java.",
+              lines,
+            );
+          }
+        });
+        process.exitCode.then((exitCode) async {
+          status = ServerStatus.terminated;
+          if (exitCode == _javaNotFound) {
+            const msg = "Java could not be found. Please install a Java Runtime Environment and make sure it is added to your PATH environment variable during the installation.";
+            stdout.writeln(msg);
+            launchError ??= ApiError.unexpected(msg, "");
+          } else if (exitCode == _portOccupied) {
+            final msg = """Another program is already running on port $port. Please quit the other program – likely another instance of sc4pac.""";
+            final detail = """Alternatively, launch the sc4pac GUI on a different port (using the "--port" launch option) or connect to an existing sc4pac process on port $port (using the "--launch-server=false" option)."""
+                """\n(For technical reasons, this error can also occur if you open and close the sc4pac GUI in quick succession. In this case, just wait for 20 seconds before re-opening the application again.)""";
+            stdout.writeln("$msg $detail");
+            launchError ??= ApiError.unexpected(msg, detail);
+          } else {
+            stdout.writeln("Sc4pac server exited with code $exitCode");
+            if (!completer.isCompleted) {  // launching failed
+              await stderrTerminated.catchError((_) {});
+              launchError ??= ApiError.unexpected("Launching the local sc4pac server failed.", stderrBuffer.join("\n"));
+            }
+          }
+        }).whenComplete(() {  // whenComplete runs regardless of whether future succeeded or failed
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+        });
+      }, onError: (err) {
+        stderr.writeln("Failed to launch server: $err");  // failed to launch server, probably because cliDir is wrong
+        status = ServerStatus.terminated;
+        completer.complete(false);
+        launchError ??= ApiError.unexpected("Failed to launch local sc4pac server.", err.toString());
+      });
+    }
   }
 }
 
