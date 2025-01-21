@@ -6,16 +6,25 @@ import '../model.dart';
 import '../viewmodel.dart';
 import 'fragments.dart';
 
-class FindPackagesScreen extends StatelessWidget {
+class FindPackagesScreen extends StatefulWidget {
   final FindPackages findPackages;
   const FindPackagesScreen(this.findPackages, {super.key});
+  @override State<FindPackagesScreen> createState() => _FindPackagesScreenState();
+}
+class _FindPackagesScreenState extends State<FindPackagesScreen> {
 
   static const double _toolBarHeight = 100.0;
 
   @override
+  void initState() {
+    super.initState();
+    widget.findPackages.refreshSearchResult();  // important in case of Update or Add/Remove in other screens
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: findPackages,
+      listenable: widget.findPackages,
       builder: (context, child) => CustomScrollView(slivers: [
         SliverAppBar(
           floating: true,
@@ -23,13 +32,13 @@ class FindPackagesScreen extends StatelessWidget {
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
-          title: findPackages.customFilter != null
+          title: widget.findPackages.customFilter != null
             ? InputChip(
               label: const Text("Custom package filter"),
               backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
               labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
               onDeleted: () {
-                findPackages.updateCustomFilter(null);
+                widget.findPackages.updateCustomFilter(null);
               },
             )
             : Table(
@@ -47,9 +56,9 @@ class FindPackagesScreen extends StatelessWidget {
                   future: World.world.profile.channelStatsFuture,
                   builder: (context, snapshot) => ChannelFilterMenu(
                     stats: snapshot.data,
-                    initialChannelUrl: findPackages.selectedChannelUrl,
+                    initialChannelUrl: widget.findPackages.selectedChannelUrl,
                     onSelectionChanged: (s) {
-                      findPackages.updateChannelUrl(s);
+                      widget.findPackages.updateChannelUrl(s);
                     },
                   ),
                 ),
@@ -61,36 +70,36 @@ class FindPackagesScreen extends StatelessWidget {
                     return CategoryMenu(
                       stats: switch (snapshot.data) {
                         null => null,  // data not yet available
-                        final allStats => switch (allStats.channels.indexWhere((item) => item.url == findPackages.selectedChannelUrl)) {
+                        final allStats => switch (allStats.channels.indexWhere((item) => item.url == widget.findPackages.selectedChannelUrl)) {
                           -1 => allStats.combined,  // all channels selected
                           final i => allStats.channels[i].stats,
                         },
                       },
-                      initialCategory: findPackages.selectedCategory,
+                      initialCategory: widget.findPackages.selectedCategory,
                       menuHeight: max(300,
                         MediaQuery.of(context).size.height - _toolBarHeight
                         - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
                       ),
                       onSelected: (s) {
-                        findPackages.updateCategory(s);
+                        widget.findPackages.updateCategory(s);
                       },
                     );
                   },
                 ),
                 const SizedBox(),
                 PackageSearchBar(
-                  initialText: findPackages.searchTerm,
+                  initialText: widget.findPackages.searchTerm,
                   hintText: "search term or URL…",
-                  onSubmitted: (String query) => findPackages.updateSearchTerm(query),
-                  onCanceled: () => findPackages.updateSearchTerm(''),
-                  resultsCount: findPackages.searchResult.then((data) => data.length),
+                  onSubmitted: (String query) => widget.findPackages.updateSearchTerm(query),
+                  onCanceled: () => widget.findPackages.updateSearchTerm(''),
+                  resultsCount: widget.findPackages.searchResult.then((data) => data.length),
                 ),
               ],
             )],
           ),
         ),
         FutureBuilder<List<PackageSearchResultItem>>(
-          future: findPackages.searchResult,
+          future: widget.findPackages.searchResult,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return SliverToBoxAdapter(child: Center(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
@@ -109,9 +118,9 @@ class FindPackagesScreen extends StatelessWidget {
                     return PackageTile(module, index,
                       summary: item.summary,
                       status: item.status,
-                      debugChannelUrls: findPackages.customFilter?.debugChannelUrls,
-                      refreshParent: findPackages.refreshSearchResult,
-                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: findPackages.refreshSearchResult),
+                      debugChannelUrls: widget.findPackages.customFilter?.debugChannelUrls,
+                      refreshParent: widget.findPackages.refreshSearchResult,
+                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: widget.findPackages.refreshSearchResult),
                     );
                   },
                   childCount: snapshot.data!.length,
