@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:collection/collection.dart';
-import 'package:open_file/open_file.dart';
 import 'package:badges/badges.dart' as badges;
 import '../data.dart';
 import '../model.dart';
