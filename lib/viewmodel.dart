@@ -26,6 +26,7 @@ class World extends ChangeNotifier {
   final CommandlineArgs args;
   final PackageInfo appInfo;
   final appLinks = AppLinks();
+  bool appLinksInitialized = false;
   late InitPhase initPhase;
   late String authority;
   late Sc4pacServer? server;
@@ -99,7 +100,7 @@ class World extends ChangeNotifier {
   }
 
   void _switchToInitialized() async {
-    if (!kIsWeb) {
+    if (!kIsWeb && !appLinksInitialized) {
       appLinks.stringLinkStream.listen((String arg) {
         // if sc4pac-gui is invoked when application is already running, this might be the second argument, which must be ignored
         if (arg.startsWith(CommandlineArgs.sc4pacProtocol)) {
@@ -109,6 +110,7 @@ class World extends ChangeNotifier {
           }
         }
       });
+      appLinksInitialized = true;
       if (args.registerProtocol) {
         await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
           .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
