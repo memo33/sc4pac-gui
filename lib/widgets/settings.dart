@@ -56,6 +56,7 @@ class SettingsScreen extends StatelessWidget {
         ),
         AboutListTile(
           icon: const Icon(Symbols.info),
+          applicationIcon: Image.asset("assets/sc4pac-gui.png", width: 96, height: 96),
           applicationVersion: "Version ${World.world.appInfo.version}\n(with sc4pac CLI version ${World.world.serverVersion})",
           aboutBoxChildren: const [
             AboutMessage(),

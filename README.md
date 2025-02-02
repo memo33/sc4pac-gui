@@ -112,7 +112,7 @@ Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for we
 - [x] inter-channel reverse dependencies (non-GUI related): for the "required by" field to show dependencies from other channels,
   each channel must provide a list of packages that it depends on, as well as a JSON file for each such package that contains the reverse dependencies.
 
-- [ ] color scheme, logo/launcher icon
+- [x] (color scheme), logo/launcher icon
 
 - [x] deployment: launch scripts for each platform for reliably starting both server and client.
   If one of the processes terminates, this should be handled gracefully by the other.
