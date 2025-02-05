@@ -123,11 +123,11 @@ class DashboardScreen extends StatefulWidget {
         title: Column(
           children: [
             Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
-            Text('Choose a variant of type "${msg.label}" for ${msg.package}:'),
+            MarkdownText('## Choose a variant of type `${msg.variantId}` for `pkg=${msg.package}`:\n\n${msg.info.description ?? ""}'),
           ],
         ),
         children: msg.choices.map((choice) => SimpleDialogOption(
-          child: ListTile(title: Text(choice), subtitle: msg.descriptions.containsKey(choice) ? Text('${msg.descriptions[choice]}') : null),
+          child: ListTile(title: Text(choice), subtitle: msg.info.valueDescriptions.containsKey(choice) ? Text('${msg.info.valueDescriptions[choice]}') : null),
           onPressed: () {
             Navigator.pop(context, choice);
           },

@@ -49,13 +49,22 @@ class ConfirmationUpdateWarnings {
 }
 
 @JsonSerializable()
+class ChoiceUpdateVariantInfoValue {
+  final String? description;
+  final Map<String, String> valueDescriptions;
+  @JsonKey(name: 'default')
+  final List<String> defaultValue;
+  const ChoiceUpdateVariantInfoValue({this.description, this.valueDescriptions = const {}, this.defaultValue = const []});
+  factory ChoiceUpdateVariantInfoValue.fromJson(Map<String, dynamic> json) => _$ChoiceUpdateVariantInfoValueFromJson(json);
+}
+@JsonSerializable()
 class ChoiceUpdateVariant {
   final String package;
-  final String label;
+  final String variantId;
   final List<String> choices;
-  final Map<String, String> descriptions;
+  final ChoiceUpdateVariantInfoValue info;
   final Map<String, dynamic> responses;
-  const ChoiceUpdateVariant(this.package, this.label, this.choices, this.descriptions, this.responses);
+  const ChoiceUpdateVariant(this.package, this.variantId, this.choices, this.info, this.responses);
   factory ChoiceUpdateVariant.fromJson(Map<String, dynamic> json) => _$ChoiceUpdateVariantFromJson(json);
 }
 

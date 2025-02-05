@@ -207,7 +207,7 @@ class MarkdownText extends StatelessWidget {
       softLineBreak: false,
       styleSheet: fmd.MarkdownStyleSheet(
         blockquoteDecoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(4)),
-        code: TextStyle(color: Theme.of(context).colorScheme.tertiary),
+        code: DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).colorScheme.tertiary),
       ),
       onTapLink: (text, href, title) {
         if (href != null) {
