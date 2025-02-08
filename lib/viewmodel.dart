@@ -203,6 +203,8 @@ class Profile {
   Profile(this.id, this.name);
 }
 
+enum FindPkgToggleFilter { includeInstalled, includeResources }
+
 class FindPackages extends ChangeNotifier {
   String? _searchTerm;
   String? get searchTerm => _searchTerm;
@@ -210,6 +212,8 @@ class FindPackages extends ChangeNotifier {
   String? get selectedCategory => _selectedCategory;
   String? _selectedChannelUrl;
   String? get selectedChannelUrl => _selectedChannelUrl;
+  final Set<FindPkgToggleFilter> _selectedToggleFilters = {FindPkgToggleFilter.includeInstalled, FindPkgToggleFilter.includeResources};
+  Set<FindPkgToggleFilter> get selectedToggleFilters => _selectedToggleFilters;
   ({List<BareModule> packages, Set<String> debugChannelUrls})? _customFilter;
   ({List<BareModule> packages, Set<String> debugChannelUrls})? get customFilter => _customFilter;
   Future<List<PackageSearchResultItem>> searchResult = Future.value([]);
@@ -218,7 +222,22 @@ class FindPackages extends ChangeNotifier {
     if (customFilter != null) {
       searchResult = World.world.client.searchById(customFilter?.packages ?? [], profileId: World.world.profile.id);
     } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
-      searchResult = World.world.client.search(searchTerm ?? '', category: selectedCategory, channel: selectedChannelUrl, profileId: World.world.profile.id);
+      final Future<List<String>> notCategoriesFuture =
+        !includeResourcesFilterEnabled() || selectedToggleFilters.contains(FindPkgToggleFilter.includeResources)
+          ? Future.value(const [])
+          : World.world.profile.channelStatsFuture.then((stats) =>
+              stats.combined.categories
+                .map((c) => c.category)
+                .where((c) => c.startsWith("10") || c.startsWith("11")).toList()  // 100-props-textures, 110-resources
+            );
+      searchResult = notCategoriesFuture.then((notCategories) => World.world.client.search(
+        searchTerm ?? '',
+        category: selectedCategory,
+        notCategories: notCategories,
+        channel: selectedChannelUrl,
+        ignoreInstalled: !selectedToggleFilters.contains(FindPkgToggleFilter.includeInstalled),
+        profileId: World.world.profile.id,
+      ));
     } else {
       searchResult = Future.value([]);
     }
@@ -247,6 +266,16 @@ class FindPackages extends ChangeNotifier {
       _search();
     }
   }
+
+  void updateToggleFilters(Set<FindPkgToggleFilter> newSelection) {
+    if (newSelection != _selectedToggleFilters) {
+      _selectedToggleFilters.clear();
+      _selectedToggleFilters.addAll(newSelection);
+      _search();
+    }
+  }
+
+  bool includeResourcesFilterEnabled() => selectedCategory == null;
 
   void updateCustomFilter(({List<BareModule> packages, Set<String> debugChannelUrls})? customFilter) {
     if (customFilter != _customFilter) {

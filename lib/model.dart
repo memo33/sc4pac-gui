@@ -234,12 +234,14 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<List<PackageSearchResultItem>> search(String query, {String? category, String? channel, required String profileId}) async {
+  Future<List<PackageSearchResultItem>> search(String query, {String? category, List<String> notCategories = const [], String? channel, bool ignoreInstalled = false, required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/packages.search', {
       'q': query,
       'profile': profileId,
       if (category?.isNotEmpty == true) 'category': category,
+      if (notCategories.isNotEmpty) 'notCategory': notCategories,
       if (channel?.isNotEmpty == true) 'channel': channel,
+      if (ignoreInstalled) 'ignoreInstalled': null,
     }));
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)

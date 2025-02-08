@@ -14,6 +14,7 @@ class FindPackagesScreen extends StatefulWidget {
 class _FindPackagesScreenState extends State<FindPackagesScreen> {
 
   static const double _toolBarHeight = 100.0;
+  static const double _toolbarBottomHeight = 40.0;
 
   @override
   void initState() {
@@ -96,6 +97,37 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 ),
               ],
             )],
+          ),
+          bottom: widget.findPackages.customFilter != null ? null : PreferredSize(
+            preferredSize: const Size.fromHeight(_toolbarBottomHeight),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 5,
+              children: <Widget>[
+                SegmentedButton<FindPkgToggleFilter>(
+                  segments: [
+                    const ButtonSegment(
+                      value: FindPkgToggleFilter.includeInstalled,
+                      label: Text("Installed"),
+                      tooltip: "Deselect to hide packages already installed",
+                    ),
+                    ButtonSegment(
+                      value: FindPkgToggleFilter.includeResources,
+                      label: const Text("Props/textures/resources"),
+                      enabled: widget.findPackages.includeResourcesFilterEnabled(),
+                      tooltip: widget.findPackages.includeResourcesFilterEnabled()
+                        ? "Deselect to hide such dependency packages from the results"
+                        : "Disabled while a Category is selected",
+                    ),
+                  ],
+                  showSelectedIcon: true,
+                  multiSelectionEnabled: true,
+                  emptySelectionAllowed: true,
+                  selected: widget.findPackages.selectedToggleFilters,
+                  onSelectionChanged: widget.findPackages.updateToggleFilters,
+                ),
+              ],
+            ),
           ),
         ),
         FutureBuilder<List<PackageSearchResultItem>>(
