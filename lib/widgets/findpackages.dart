@@ -104,7 +104,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
               alignment: WrapAlignment.center,
               spacing: 5,
               children: <Widget>[
-                SegmentedButton<FindPkgToggleFilter>(
+                Padding(padding: const EdgeInsets.only(bottom: 5), child: SegmentedButton<FindPkgToggleFilter>(
                   segments: [
                     const ButtonSegment(
                       value: FindPkgToggleFilter.includeInstalled,
@@ -125,7 +125,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   emptySelectionAllowed: true,
                   selected: widget.findPackages.selectedToggleFilters,
                   onSelectionChanged: widget.findPackages.updateToggleFilters,
-                ),
+                )),
               ],
             ),
           ),

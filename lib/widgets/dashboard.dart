@@ -553,7 +553,7 @@ class _VariantsTableState extends State<VariantsTable> {
   @override
   Widget build(BuildContext context) {
     if (widget.variants.isEmpty) {
-      return const Text("No variants installed yet.");
+      return const Padding(padding: listViewTextPadding, child: Text("No variants installed yet."));
     } else {
       final entries = (widget.variants.entries.map((e) => (key: e.key, value: e.value, keyParts: e.key.split(':')))).toList();
       entries.sort((a, b) {  // first global, then local variants (first leafs, then nodes -> recursively)
@@ -648,8 +648,11 @@ class _ChannelsListState extends State<ChannelsList> {
       children: [
         const Align(
           alignment: Alignment.centerLeft,
-          child: Text("Channels contain definitions for packages you can install."
-            " Append additional channel URLs below. The first URL has the highest priority."),
+          child: Padding(
+            padding: listViewTextPadding,
+            child: Text("Channels contain definitions for packages you can install."
+              " Append additional channel URLs below. The first URL has the highest priority."),
+          ),
         ),
         FutureBuilder(
           future: World.world.profile.dashboard.channelUrls,
@@ -712,9 +715,9 @@ class PendingUpdatesWidget extends StatelessWidget {
       // expandedAlignment: Alignment.centerLeft,
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
       children: runningInBackground
-        ? const [Text("Checking for updates...")]
+        ? const [Padding(padding: listViewTextPadding, child: Text("Checking for updates..."))]
         : count == 0
-        ? const [Text("No pending updates")]
+        ? const [Padding(padding: listViewTextPadding, child: Text("No pending updates"))]
         : dashboard.pendingUpdates.sortedEntries().mapIndexed((index, entry) =>
           PackageTile(entry.key, index,
             pendingStatus: entry.value,

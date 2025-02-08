@@ -134,7 +134,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
               alignment: WrapAlignment.center,
               spacing: 5,
               children: <Widget>[
-                SegmentedButton<InstallStateType>(
+                Padding(padding: const EdgeInsets.only(bottom: 5), child: SegmentedButton<InstallStateType>(
                   segments: [
                     // ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
                     ButtonSegment(
@@ -164,7 +164,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       _filter();
                     });
                   },
-                ),
+                )),
                 SortMenu(
                   selected: widget.myPlugins.sortOrder,
                   onSelectionChanged: (newOrder) {

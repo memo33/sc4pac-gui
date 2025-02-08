@@ -16,6 +16,8 @@ import 'packagepage.dart';
 import '../main.dart' show NavigationService;
 import '../data.dart' show ChannelStats, InstalledStatus;
 
+const listViewTextPadding = EdgeInsets.symmetric(vertical: 10, horizontal: 5);
+
 class ApiErrorWidget extends StatelessWidget {
   final ApiError error;
   const ApiErrorWidget(this.error, {super.key});
@@ -26,7 +28,7 @@ class ApiErrorWidget extends StatelessWidget {
       return ExpansionTile(
         leading: const Icon(Icons.error_outline),
         title: Text(error.title),
-        children: [Text(error.detail)],
+        children: [Padding(padding: listViewTextPadding, child: Text(error.detail))],
       );
     } else {
       return ListTile(
