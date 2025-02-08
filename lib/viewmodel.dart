@@ -277,6 +277,12 @@ class FindPackages extends ChangeNotifier {
 
   bool includeResourcesFilterEnabled() => selectedCategory == null;
 
+  bool searchWithAnyFilterActive() =>
+      _searchTerm?.isNotEmpty == true &&
+      (_selectedChannelUrl != null || _selectedCategory != null || _selectedToggleFilters.length < FindPkgToggleFilter.values.length);
+
+  bool noCategoryOrSearchActive() => _selectedCategory == null && _searchTerm?.isNotEmpty != true;
+
   void updateCustomFilter(({List<BareModule> packages, Set<String> debugChannelUrls})? customFilter) {
     if (customFilter != _customFilter) {
       _customFilter = customFilter;

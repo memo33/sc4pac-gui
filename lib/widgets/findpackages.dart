@@ -138,7 +138,11 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
             } else if (!snapshot.hasData) {
               return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
             } else if (snapshot.data!.isEmpty) {
-              return const SliverToBoxAdapter(child: ListTile(leading: Icon(Icons.search_off), title: Text("No search results.")));
+              return SliverToBoxAdapter(child: ListTile(leading: const Icon(Icons.search_off), title: Text(
+                    widget.findPackages.searchWithAnyFilterActive() ? "No search results. Check the filtering options." :
+                    widget.findPackages.noCategoryOrSearchActive() ? "No search results. Select a Category or use the Search." :
+                    "No search results."
+              )));
             } else {
               // Next, create a SliverList
               return SliverList(
