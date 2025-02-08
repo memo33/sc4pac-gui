@@ -119,20 +119,27 @@ class DashboardScreen extends StatefulWidget {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: true,  // allow to cancel update process without selecting a variant
-      builder: (context) => SimpleDialog(
-        title: Column(
-          children: [
-            Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
-            MarkdownText('## Choose a variant of type `${msg.variantId}` for `pkg=${msg.package}`:\n\n${msg.info.description ?? ""}'),
-          ],
-        ),
-        children: msg.choices.map((choice) => SimpleDialogOption(
-          child: ListTile(title: Text(choice), subtitle: msg.info.valueDescriptions.containsKey(choice) ? Text('${msg.info.valueDescriptions[choice]}') : null),
-          onPressed: () {
-            Navigator.pop(context, choice);
-          },
-        )).toList(),
-      ),
+      builder: (context) {
+        final hintStyle = TextStyle(color: Theme.of(context).hintColor);
+        return SimpleDialog(
+          title: Column(
+            children: [
+              Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
+              MarkdownText('## Choose a variant of type `${msg.variantId}` for `pkg=${msg.package}`:\n\n${msg.info.description ?? ""}'),
+              const Divider(),
+            ],
+          ),
+          children: msg.choices.map((choice) => SimpleDialogOption(
+            child: ListTile(
+              title: Text(choice),
+              subtitle: msg.info.valueDescriptions.containsKey(choice) ? Text('${msg.info.valueDescriptions[choice]}', style: hintStyle) : null,
+            ),
+            onPressed: () {
+              Navigator.pop(context, choice);
+            },
+          )).toList(),
+        );
+      }
     );
   }
 
