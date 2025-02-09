@@ -1,0 +1,25 @@
+
+- upgraded to sc4pac [x.y.z](https://github.com/memo33/sc4pac-tools/releases/tag/x.y.z) (from a.b.c)
+
+---
+### Installing
+#### Prerequisites
+
+- Java 11+ ([Windows]/[macOS]/[Linux], see [Adoptium] for details)
+- Mono ([macOS](https://www.mono-project.com/docs/getting-started/install/)/[Linux](https://repology.org/project/mono/versions), not needed on Windows)
+
+[Adoptium]: https://adoptium.net/installation/
+[Windows]: https://adoptium.net/temurin/releases/?os=windows&package=jre
+[macOS]: https://adoptium.net/temurin/releases/?os=mac&package=jre
+[Linux]: https://repology.org/project/openjdk/versions
+
+#### Upgrading from previous versions
+
+Simply extract the ZIP file. You can remove the previous application files in favor of the newly extracted files.
+
+#### Uninstalling
+
+Uninstall all packages for each profile, remove the cache folder, remove the profiles configuration folder, and remove the install directory containing the application files.
+
+#### Checksums (SHA-256)
+

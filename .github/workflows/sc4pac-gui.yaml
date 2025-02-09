@@ -128,11 +128,20 @@ jobs:
           cp -p scripts/launch-GUI-web* dist-web/
           (cd dist-web && zip -r ../sc4pac-gui-webapp-crossplatform.zip .)
 
+      - name: Compute checksums
+        run: |
+          cp scripts/release-body.part.txt release-body.txt
+          echo '```' >> release-body.txt
+          sha256sum sc4pac-gui-*.zip >> release-body.txt
+          echo '```' >> release-body.txt
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          prerelease: true
+          prerelease: false
           draft: true
+          body_path: release-body.txt
+          append_body: true
           files: |
             sc4pac-gui-linux-x64.zip
             sc4pac-gui-windows-x64.zip
