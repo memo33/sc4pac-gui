@@ -58,6 +58,10 @@ class Sc4pacServer {
 
   static const int _javaNotFound = 55;
   static const int _portOccupied = 56;
+  static const unknownLaunchErrorDetail =
+      "To diagnose the problem, start the application in a terminal und check"
+      " whether the console output contains any error messages indicating what the problem could be."
+      " Alternatively, try the web-app version of the sc4pac GUI.";
 
   Sc4pacServer({required this.cliDir, required this.profilesDir, required this.port}) {
     const readyTag = "[LISTENING]";
@@ -124,7 +128,10 @@ class Sc4pacServer {
             stdout.writeln("Sc4pac server exited with code $exitCode");
             if (!completer.isCompleted) {  // launching failed
               await stderrTerminated.catchError((_) {});
-              launchError ??= ApiError.unexpected("Launching the local sc4pac server failed.", stderrBuffer.join("\n"));
+              final detail = stderrBuffer.join("\n");
+              launchError ??= detail.isNotEmpty
+                  ? ApiError.unexpected("Launching the local sc4pac server failed.", detail)
+                  : ApiError.unexpected("Launching the local sc4pac server failed (unknown reason).", unknownLaunchErrorDetail);
             }
           }
         }).whenComplete(() {  // whenComplete runs regardless of whether future succeeded or failed

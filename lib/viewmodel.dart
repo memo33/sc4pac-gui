@@ -47,7 +47,7 @@ class World extends ChangeNotifier {
     this.authority = authority;
     initialServerStatus = (server?.ready ?? Future.value(true)).then((isReady) =>
       isReady ? Sc4pacClient.serverStatus(authority)
-        : Future.error(server?.launchError ?? ApiError.unexpected("Failed to launch local sc4pac server.", ""))
+        : Future.error(server?.launchError ?? ApiError.unexpected("Failed to launch local sc4pac server (unknown reason).", Sc4pacServer.unknownLaunchErrorDetail))
       );
     initialServerStatus.then(
       (serverStatus) {  // connection succeeded, so proceed to next phase
