@@ -429,13 +429,10 @@ class UpdateProcess extends ChangeNotifier {
 
   UpdateProcess({required this.pendingUpdates, required this.onFinished, this.isBackground = false}) {
     final stAuth = World.world.settings.stAuth;
-    if (stAuth?.expired == true) {
-      err = ApiError.unexpected("The Simtropolis authentication cookie has expired. Go to Settings to create a new one.", "");
-      status = UpdateStatus.finishedWithError;
-    } else {
+    {
       _ws = World.world.client.update(
         profileId: World.world.profile.id,
-        simtropolisCookie: stAuth?.cookie,
+        simtropolisToken: stAuth?.token,
         refreshChannels: World.world.settings.refreshChannels,
       );
       _stream = _ws.ready

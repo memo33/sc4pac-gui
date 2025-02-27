@@ -222,23 +222,21 @@ class PackageInfoResult {
 class AuthItem {
   static const simtropolisDomain = "community.simtropolis.com";
   final String domain;
-  final DateTime? expirationDate;
-  bool? get expired => expirationDate?.isBefore(DateTime.now());
   @JsonKey(
     toJson: _base64Encode,
     fromJson: _base64Decode,
   )
-  final List<int> cookieBytes;
-  late final String? cookie = _deobfuscateCookieSync(cookieBytes);
-  AuthItem({required this.domain, required this.cookieBytes, this.expirationDate});
+  final List<int>? tokenBytes;
+  late final String? token = tokenBytes != null ? _deobfuscateTokenSync(tokenBytes!) : null;
+  AuthItem({required this.domain, this.tokenBytes});
   factory AuthItem.fromJson(Map<String, dynamic> json) => _$AuthItemFromJson(json);
   Map<String, dynamic> toJson() => _$AuthItemToJson(this);
-  bool isSimtropolisCookie() => domain == simtropolisDomain && cookie?.isNotEmpty == true;
+  bool isSimtropolisToken() => domain == simtropolisDomain && token?.isNotEmpty == true;
 
-  static String _base64Encode(List<int> bytes) => base64.encode(bytes);
-  static List<int> _base64Decode(String text) => base64.decode(text);
+  static String? _base64Encode(List<int>? bytes) => bytes != null ? base64.encode(bytes) : null;
+  static List<int>? _base64Decode(String? text) => text != null ? base64.decode(text) : null;
 
-  // We merely obfuscate the stored cookie to prevent *untargeted* malware from reading the cookie from disk.
+  // We merely obfuscate the stored token to prevent *untargeted* malware from reading the token from disk.
   // There is no need to keep this secret from the end user, so we store the plain key here.
   static SecretKeyData _createKey() =>
     SecretKeyData([
@@ -246,13 +244,13 @@ class AuthItem {
       0x4d,0x06,0x5d,0xe8,0xe8,0x2e,0xfc,0x6c,0x38,0xa6,0x7c,0xc4,0xeb,0x22,0x19,0x3b,
     ]);
 
-  static Future<List<int>> obfuscateCookie(String cookie) async {
+  static Future<List<int>> obfuscateToken(String token) async {
     final algorithm = AesGcm.with256bits();
-    final secretBox = await algorithm.encryptString(cookie, secretKey: _createKey());
+    final secretBox = await algorithm.encryptString(token, secretKey: _createKey());
     return secretBox.concatenation();
   }
 
-  static String? _deobfuscateCookieSync(List<int> concatenatedBytes) {
+  static String? _deobfuscateTokenSync(List<int> concatenatedBytes) {
     final algorithm = AesGcm.with256bits().toSync();  // synchronous for simplicity, even though it may be slower
     try {
       final secretBox = SecretBox.fromConcatenation(
@@ -282,7 +280,7 @@ class SettingsData {
   factory SettingsData.fromJson(Map<String, dynamic> json) => _$SettingsDataFromJson(json);
   Map<String, dynamic> toJson() => _$SettingsDataToJson(this);
 
-  late final AuthItem? stAuth = switch(auth.where((a) => a.isSimtropolisCookie())) {
+  late final AuthItem? stAuth = switch(auth.where((a) => a.isSimtropolisToken())) {
     final auth2 => auth2.isNotEmpty ? auth2.first : null,
   };
 }

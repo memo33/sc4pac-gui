@@ -362,10 +362,10 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  WebSocketChannel update({required String profileId, required String? simtropolisCookie, required bool refreshChannels}) {
+  WebSocketChannel update({required String profileId, required String? simtropolisToken, required bool refreshChannels}) {
     final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update').replace(queryParameters: {
       'profile': profileId,
-      if (simtropolisCookie != null) 'simtropolisCookie': simtropolisCookie,
+      if (simtropolisToken != null) 'simtropolisToken': simtropolisToken,
       if (refreshChannels) 'refreshChannels': null,
     }));
     return ws;

@@ -19,7 +19,7 @@ class SettingsScreen extends StatelessWidget {
           leading: Icon(Symbols.passkey),
           title: Text("Authentication (Simtropolis)"),
           children: [
-            CookieWidget(),
+            CredentialsWidget(),
           ],
         ),
         ExpansionTile(
@@ -90,49 +90,13 @@ class AboutMessage extends StatelessWidget {
   }
 }
 
-class HighlightTextEditingController extends TextEditingController {
-  final String keyword;
-  late final keywordRegex = RegExp("$keyword|\"|<|>");  // highlights some additional invalid characters
-  HighlightTextEditingController(this.keyword);
-  @override
-  TextSpan buildTextSpan({required BuildContext context, TextStyle? style, bool? withComposing}) {
-    style ??= const TextStyle();
-    final matches = keywordRegex.allMatches(text).toList();
-    if (matches.isEmpty) {
-      return TextSpan(text: text, style: style);
-    } else {
-      final highlightStyle = createHighlightStyle(context, style);
-      return TextSpan(
-        style: style,
-        children: [
-          if (matches.isNotEmpty)
-            ...Iterable.generate(matches.length, (i) => i).expand((i) {
-              final trailingTextEnd = i < matches.length - 1 ? matches[i+1].start : text.length;
-              final trailingTextStart = matches[i].end;
-              return [
-                if (i == 0 && matches[0].start > 0) TextSpan(text: text.substring(0, matches[0].start)),
-                TextSpan(text: matches[i][0], style: highlightStyle),
-                if (trailingTextStart < trailingTextEnd) TextSpan(text: text.substring(trailingTextStart, trailingTextEnd)),
-              ];
-            })
-        ],
-      );
-    }
-  }
-  static TextStyle createHighlightStyle(BuildContext context, TextStyle style) =>
-    style.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.tertiary);
+class CredentialsWidget extends StatefulWidget {
+  const CredentialsWidget({super.key});
+  @override State<CredentialsWidget> createState() => _CredentialsWidgetState();
 }
-
-class CookieWidget extends StatefulWidget {
-  const CookieWidget({super.key});
-  @override State<CookieWidget> createState() => _CookieWidgetState();
-}
-class _CookieWidgetState extends State<CookieWidget> {
-  static const _value = "value";
-  late TextEditingController controller = HighlightTextEditingController(_value);
-  DateTime? pickedDate;
+class _CredentialsWidgetState extends State<CredentialsWidget> {
+  late TextEditingController controller = TextEditingController();
   bool changed = false;
-  static const simtropolisCookiePlaceholder = "ips4_device_key=$_value; ips4_member_id=$_value; ips4_login_key=$_value";
 
   @override void initState() {
     super.initState();
@@ -140,19 +104,18 @@ class _CookieWidgetState extends State<CookieWidget> {
   }
 
   void _initFields() {
-    controller.text = World.world.settings.stAuth?.cookie ?? simtropolisCookiePlaceholder;
-    pickedDate = World.world.settings.stAuth?.expirationDate;
+    controller.text = World.world.settings.stAuth?.token ?? "";
   }
 
-  void _submit(String? simtropolisCookie, DateTime? expirationDate) {
+  void _submit(String? simtropolisToken) {
     World.world.client.getSettings()
       .then((settingsData) async {
-        if (simtropolisCookie == null) {
+        if (simtropolisToken == null) {
           return settingsData.withAuth(auth: []);
         } else {
-          final cookieBytes = await AuthItem.obfuscateCookie(simtropolisCookie);
+          final tokenBytes = await AuthItem.obfuscateToken(simtropolisToken);
           return settingsData.withAuth(
-            auth: [AuthItem(domain: AuthItem.simtropolisDomain, cookieBytes: cookieBytes, expirationDate: expirationDate)],
+            auth: [AuthItem(domain: AuthItem.simtropolisDomain, tokenBytes: tokenBytes)],
           );
         }
       })
@@ -169,10 +132,8 @@ class _CookieWidgetState extends State<CookieWidget> {
             }
           );
       })
-      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update cookie", e.toString())));
+      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", e.toString())));
   }
-
-  String _formatDate(DateTime? d) => d == null ? "unknown" : d.toString().substring(0, 'YYYY-MM-DD'.length);
 
   @override
   Widget build(BuildContext context) {
@@ -184,12 +145,10 @@ class _CookieWidgetState extends State<CookieWidget> {
             padding: EdgeInsets.only(top: 10, bottom: 20),
             child: SelectionArea(child: MarkdownText(
 """Without signing in, Simtropolis limits downloads to a maximum of 20 files per day.
-To avoid this limit, authentication to Simtropolis is provided via cookies:
-- Use your web browser to sign in to Simtropolis with the "remember me" option.
-- Inspect the cookies by opening the browser Dev Tools:
-    - in Firefox: Storage > Cookies
-    - in Chrome: Application > Storage > Cookies
-- Replace the `$_value` placeholders below by the correct cookie values.""",
+To avoid this limit:
+- Sign in to Simtropolis.
+- Generate a personal authentication token at https://community.simtropolis.com/sc4pac/my-token/
+- Paste the token here.""",
             )),
           ),
         ),
@@ -198,8 +157,10 @@ To avoid this limit, authentication to Simtropolis is provided via cookies:
           builder: (context, child) {
             return TextField(
               decoration: const InputDecoration(
-                icon: Icon(Symbols.cookie),
-                labelText: "Cookie",
+                icon: Icon(Symbols.key),
+                labelText: "Token",
+                hintText: "Paste your Simtropolis token here",
+                floatingLabelBehavior: FloatingLabelBehavior.always,
               ),
               style: const TextStyle(fontFamily: "monospace"),
               controller: controller,
@@ -212,61 +173,14 @@ To avoid this limit, authentication to Simtropolis is provided via cookies:
             );
           },
         ),
-        const SizedBox(height: 20),
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: Text("The cookies expire after a few months, so need to be refreshed occasionally. Copy the expiration date from your web browser to receive a reminder when the cookies expired."),
-        ),
         const SizedBox(height: 10),
-        Align(alignment: Alignment.centerLeft, child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 250),
-                  child: Text("Expiration date: ${_formatDate(pickedDate)}"),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  icon: const Icon(Symbols.acute),
-                  label: const Text("3 months from now"),
-                  onPressed: () => setState(() {
-                    pickedDate = DateTime.now().add(const Duration(days: 90));
-                    changed = true;
-                  }),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  icon: const Icon(Symbols.edit_calendar),
-                  label: const Text("Pick date"),
-                  onPressed: () => showDatePicker(
-                    context: context,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                    initialDate: DateTime.now().add(const Duration(days: 90)),
-                  ).then((date) {
-                    if (date != null) {
-                      setState(() {
-                        pickedDate = date;
-                        changed = true;
-                      });
-                    }
-                  }),
-                ),
-              ],
-            ),
-          ),
-        )),
-        const SizedBox(height: 5),
         OverflowBar(
           children: [
             Padding(
               padding: const EdgeInsets.all(10),
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.key_off),
-                onPressed: () => _submit(null, null),
+                onPressed: () => _submit(null),
                 label: const Text("Reset to default"),
               ),
             ),
@@ -274,7 +188,7 @@ To avoid this limit, authentication to Simtropolis is provided via cookies:
               padding: const EdgeInsets.all(10),
               child: FilledButton.icon(
                 icon: const Icon(Icons.save_outlined),
-                onPressed: !changed ? null : () => _submit(controller.text.trim(), pickedDate),
+                onPressed: !changed ? null : () => _submit(controller.text.trim()),
                 label: const Text("Save changes"),
               ),
             ),
