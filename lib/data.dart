@@ -69,6 +69,15 @@ class ChoiceUpdateVariant {
 }
 
 @JsonSerializable()
+class ConfirmationRemoveUnresolvablePackages {
+  final List<String> packages;
+  final List<String> choices;
+  final Map<String, dynamic> responses;
+  const ConfirmationRemoveUnresolvablePackages(this.packages, this.choices, this.responses);
+  factory ConfirmationRemoveUnresolvablePackages.fromJson(Map<String, dynamic> json) => _$ConfirmationRemoveUnresolvablePackagesFromJson(json);
+}
+
+@JsonSerializable()
 class ProgressDownloadStarted {
   final String url;
   ProgressDownloadStarted(this.url);

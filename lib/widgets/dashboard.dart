@@ -143,6 +143,39 @@ class DashboardScreen extends StatefulWidget {
     );
   }
 
+  static Future<String?> showRemoveUnresolvablePkgsDialog(ConfirmationRemoveUnresolvablePackages msg) {
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      barrierDismissible: true,  // allow to cancel update process without selection
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.warning_outlined),
+        title: const Text('Remove these plugins?'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const MarkdownText(
+"""The following packages could not be resolved.
+Maybe they have been renamed or deleted from the corresponding channel, so the metadata cannot be found in any of your channels.
+(If a large number of packages is affected, you might have deleted an entire channel by accident.)
+
+### Do you want to *permanently* remove these unresolvable packages from your Plugins?"""
+              ),
+              const SizedBox(height: 10),
+              ...msg.packages.map((pkg) => PkgNameFragment(BareModule.parse(pkg), asButton: false, colored: false)),
+            ],
+          ),
+        ),
+        actions: msg.choices.map((choice) => OutlinedButton(
+          child: Text(choice),
+          onPressed: () {
+            Navigator.pop(context, choice);
+          },
+        )).toList(),
+      ),
+    );
+  }
+
 }
 class _DashboardScreenState extends State<DashboardScreen> {
 

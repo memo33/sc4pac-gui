@@ -528,6 +528,21 @@ class UpdateProcess extends ChangeNotifier {
             });
           });
         }
+      } else if (type == '/prompt/confirmation/update/remove-unresolvable-packages') {
+        final msg = ConfirmationRemoveUnresolvablePackages.fromJson(data);
+        if (isBackground) {
+          cancel();  // we cannot make this selection without user interaction
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showRemoveUnresolvablePkgsDialog(msg).then((choice) {
+              if (choice == null) {
+                cancel();
+              } else {
+                _ws.sink.add(jsonEncode(msg.responses[choice]));
+              }
+            });
+          });
+        }
       } else if (type.startsWith('/progress/download/')) {
         switch (type) {
           case '/progress/download/started':
