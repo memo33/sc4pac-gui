@@ -315,10 +315,10 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<Map<String, dynamic>> variantsList({required String profileId}) async {
+  Future<VariantsList> variantsList({required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/variants.list', {'profile': profileId}));
     if (response.statusCode == 200) {
-      return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+      return VariantsList.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }

@@ -284,3 +284,10 @@ class SettingsData {
     final auth2 => auth2.isNotEmpty ? auth2.first : null,
   };
 }
+
+@JsonSerializable()
+class VariantsList {
+  final Map<String, ({String value, bool unused})> variants;
+  VariantsList(this.variants);
+  factory VariantsList.fromJson(Map<String, dynamic> json) => _$VariantsListFromJson(json);
+}

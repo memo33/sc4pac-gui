@@ -550,7 +550,7 @@ class VariantIcon extends StatelessWidget {
 }
 
 class VariantsWidget extends StatelessWidget {
-  final Future<Map<String, dynamic>> futureJson;
+  final Future<VariantsList> futureJson;
   const VariantsWidget(this.futureJson, {super.key});
 
   @override
@@ -568,7 +568,8 @@ class VariantsWidget extends StatelessWidget {
             } else if (!snapshot.hasData) {
               return const SizedBox();
             } else {
-              return VariantsTable(snapshot.data!);
+              final variants = snapshot.data!.variants;
+              return VariantsTable(variants);
             }
           },
         ),
@@ -578,7 +579,7 @@ class VariantsWidget extends StatelessWidget {
 }
 
 class VariantsTable extends StatefulWidget {
-  final Map<String, dynamic> variants;
+  final Map<String, ({String value, bool unused})> variants;
   const VariantsTable(this.variants, {super.key});
   @override State<VariantsTable> createState() => _VariantsTableState();
 }
@@ -588,7 +589,7 @@ class _VariantsTableState extends State<VariantsTable> {
     if (widget.variants.isEmpty) {
       return const Padding(padding: listViewTextPadding, child: Text("No variants installed yet."));
     } else {
-      final entries = (widget.variants.entries.map((e) => (key: e.key, value: e.value, keyParts: e.key.split(':')))).toList();
+      final entries = (widget.variants.entries.map((e) => (key: e.key, value: e.value.value, keyParts: e.key.split(':')))).toList();
       entries.sort((a, b) {  // first global, then local variants (first leafs, then nodes -> recursively)
         int i = 0;
         for (; i < a.keyParts.length - 1 && i < b.keyParts.length - 1; i++) {
@@ -600,17 +601,23 @@ class _VariantsTableState extends State<VariantsTable> {
         if (c != 0) return c;  // mixed leafs/nodes at level i
         return a.keyParts[i].toLowerCase().compareTo(b.keyParts[i].toLowerCase());  // leafs at level i
       });
-      return ConstrainedBox(constraints: const BoxConstraints(maxWidth: 800), child: Table(
+      final table = Table(
         columnWidths: const {
-          0: FlexColumnWidth(0.65),   // variant
-          1: IntrinsicColumnWidth(),  // arrow
-          2: FlexColumnWidth(0.35),   // value
-          3: IntrinsicColumnWidth(),  // remove-button
+          0: IntrinsicColumnWidth(),  // unused-error-icon
+          1: FlexColumnWidth(0.65),   // variant-id
+          2: IntrinsicColumnWidth(),  // arrow
+          3: FlexColumnWidth(0.35),   // value
+          4: IntrinsicColumnWidth(),  // remove-button
         },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: entries.map((e) {
           return TableRow(
             children: [
+              widget.variants[e.key]?.unused == true ?
+                Tooltip(
+                  message: "Not used by any installed package",
+                  child: Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
+                ) : const SizedBox(),
               e.keyParts.length >= 3 ?
                 Align(
                   alignment: Alignment.centerLeft,
@@ -629,7 +636,8 @@ class _VariantsTableState extends State<VariantsTable> {
                   onPressed: () {
                     setState(() {
                       widget.variants.remove(e.key);
-                      World.world.client.variantsReset([e.key], profileId: World.world.profile.id);  // we do not need to await result
+                      World.world.client.variantsReset([e.key], profileId: World.world.profile.id)  // we do not need to await result
+                        .catchError(ApiErrorWidget.dialog);
                     });
                   },
                 )),
@@ -637,7 +645,25 @@ class _VariantsTableState extends State<VariantsTable> {
             ],
           );
         }).toList(),
-      ));
+      );
+      final unusedVariantIds = widget.variants.entries.where((e) => e.value.unused).map((e) => e.key).toList();
+      return Column(
+        children: [
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 800), child: table),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: unusedVariantIds.isEmpty ? null : () {
+              setState(() {
+                widget.variants.removeWhere((key, value) => value.unused);
+                World.world.client.variantsReset(unusedVariantIds, profileId: World.world.profile.id)  // we do not need to await result
+                  .catchError(ApiErrorWidget.dialog);
+              });
+            },
+            child: const Text("Remove unused variants"),
+          ),
+          const SizedBox(height: 10),
+        ],
+      );
     }
   }
 }

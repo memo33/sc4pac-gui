@@ -313,7 +313,7 @@ class Dashboard extends ChangeNotifier {
   }
   final Profile profile;
   final pendingUpdates = PendingUpdates();
-  late Future<Map<String, dynamic>> variantsFuture;
+  late Future<VariantsList> variantsFuture;
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
     fetchVariants();
