@@ -112,7 +112,7 @@ class World extends ChangeNotifier {
       });
       appLinksInitialized = true;
       if (args.registerProtocol) {
-        await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme)
+        await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme, args.profilesDir)
           .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
             """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
             e.toString(),

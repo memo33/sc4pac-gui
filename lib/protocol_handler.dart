@@ -1,8 +1,8 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, Directory;
 import 'package:win32_registry/win32_registry.dart';
 
 // from https://github.com/llfbandit/app_links/blob/master/doc/README_windows.md
-Future<void> registerProtocolScheme(String scheme) async {
+Future<void> registerProtocolScheme(String scheme, String? profilesDir) async {
   if (!Platform.isWindows) {
     return;
   }
@@ -18,7 +18,11 @@ Future<void> registerProtocolScheme(String scheme) async {
   RegistryValue protocolCmdRegValue = RegistryValue(
     '',
     RegistryValueType.string,
-    '"$appPath" "%1"',  // TODO add optional arguments here if any?
+    [
+      '"$appPath" "%1"',
+      if (profilesDir != null)
+        '"--profiles-dir" "${Directory(profilesDir).absolute.path}"'
+    ].join(' '),
   );
 
   final regKey = Registry.currentUser.createKey(protocolRegKey);

@@ -1,3 +1,3 @@
 // dummy implementation for other platforms
-Future<void> registerProtocolScheme(String scheme) async {
+Future<void> registerProtocolScheme(String scheme, String? profilesDir) async {
 }
