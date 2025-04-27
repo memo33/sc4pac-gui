@@ -543,6 +543,21 @@ class UpdateProcess extends ChangeNotifier {
             });
           });
         }
+      } else if (type == '/prompt/choice/update/remove-conflicting-packages') {
+        final msg = ChoiceRemoveConflictingPackages.fromJson(data);
+        if (isBackground) {
+          cancel();  // we cannot make this selection without user interaction
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showRemoveConflictingPkgsDialog(msg).then((choice) {
+              if (choice == null) {
+                cancel();
+              } else {
+                _ws.sink.add(jsonEncode(msg.responses[choice]));
+              }
+            });
+          });
+        }
       } else if (type.startsWith('/progress/download/')) {
         switch (type) {
           case '/progress/download/started':

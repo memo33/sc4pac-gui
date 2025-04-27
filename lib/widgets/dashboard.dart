@@ -176,6 +176,14 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
     );
   }
 
+  static Future<String?> showRemoveConflictingPkgsDialog(ChoiceRemoveConflictingPackages msg) {
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      barrierDismissible: true,
+      builder: (context) => RemoveConflictingPkgsDialog(msg),
+    );
+  }
+
 }
 class _DashboardScreenState extends State<DashboardScreen> {
 
@@ -289,6 +297,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class RemoveConflictingPkgsDialog extends StatefulWidget {
+  final ChoiceRemoveConflictingPackages msg;
+  const RemoveConflictingPkgsDialog(this.msg, {super.key});
+  @override State<RemoveConflictingPkgsDialog> createState() => _RemoveConflictingPkgsDialog();
+}
+class _RemoveConflictingPkgsDialog extends State<RemoveConflictingPkgsDialog> {
+  int? _selection;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: const Icon(Icons.warning_outlined),
+      title: const Text('Remove conflicting packages?'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MarkdownText(
+"""The packages ${widget.msg.conflict.map((pkg) => "`pkg=$pkg`").join(" and ")} are _in conflict_ with each other and cannot be installed at the same time.
+
+Decide which of the following packages you want to uninstall to resolve the conflict.
+(Sometimes, choosing different package _variants_ can resolve the conflict, as well.)"""
+            ),
+            const SizedBox(height: 10),
+            ...List.generate(widget.msg.explicitPackages.length, (idx) =>
+              RadioListTile<int>(
+                title: Text("Uninstall Option ${idx + 1}"),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: widget.msg.explicitPackages[idx].map((pkg) => PkgNameFragment(BareModule.parse(pkg), asButton: false, colored: false)).toList(),
+                ),
+                value: idx,
+                groupValue: _selection,
+                onChanged: (int? value) {
+                  setState(() => _selection = idx );
+                }
+              )
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        OutlinedButton(
+          onPressed: switch(_selection) {
+            null => null,
+            int idx => () => Navigator.pop(context, idx < widget.msg.choices.length ? widget.msg.choices[idx] : widget.msg.choices.last),
+          },
+          child: const Text("OK, remove selected packages"),
+        ),
+        OutlinedButton(
+          onPressed: () { Navigator.pop(context, widget.msg.choices.last); },
+          child: const Text("Cancel"),
+        ),
+      ],
     );
   }
 }

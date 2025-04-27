@@ -78,6 +78,16 @@ class ConfirmationRemoveUnresolvablePackages {
 }
 
 @JsonSerializable()
+class ChoiceRemoveConflictingPackages {
+  final List<String> conflict;  // 2 pkgs
+  final List<List<String>> explicitPackages;  // 2 lists of pkgs
+  final List<String> choices;
+  final Map<String, dynamic> responses;
+  const ChoiceRemoveConflictingPackages(this.conflict, this.explicitPackages, this.choices, this.responses);
+  factory ChoiceRemoveConflictingPackages.fromJson(Map<String, dynamic> json) => _$ChoiceRemoveConflictingPackagesFromJson(json);
+}
+
+@JsonSerializable()
 class ProgressDownloadStarted {
   final String url;
   ProgressDownloadStarted(this.url);
