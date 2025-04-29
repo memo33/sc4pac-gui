@@ -580,7 +580,9 @@ class UpdateProcess extends ChangeNotifier {
             _downloadsCompletedOnNextNonProgressDownloadMsg = true;
             break;
           default:
-            debugPrint('Message type not implemented: $data');  // TODO
+            debugPrint('Message type not implemented: $data');
+            err = ApiError.unexpected("Unexpected error: API message type not implemented", '$data');
+            cancel();
             break;
         }
       } else if (type == '/progress/update/extraction') {  // not relevant for isBackground
@@ -595,11 +597,15 @@ class UpdateProcess extends ChangeNotifier {
         err = ApiError(data);
         status = UpdateStatus.finishedWithError;  // TODO handle error
       } else {
-        debugPrint('Message type not implemented: $data');  // TODO
+        debugPrint('Message type not implemented: $data');
+        err = ApiError.unexpected("Unexpected error: API message type not implemented", '$data');
+        cancel();
       }
       notifyListeners();
     } else {
-      debugPrint('Unexpected message format: $data');  // TODO
+      debugPrint('Unexpected message format: $data');
+      err = ApiError.unexpected("Unexpected error: unknown API message format", '$data');
+      cancel();
     }
   }
 }
