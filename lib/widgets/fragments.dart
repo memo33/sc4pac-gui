@@ -38,8 +38,8 @@ class ApiErrorWidget extends StatelessWidget {
     }
   }
 
-  static void dialog(Object error) {
-    showDialog(
+  static Future<void> dialog(Object error) {
+    return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.error),

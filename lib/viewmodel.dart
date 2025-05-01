@@ -159,8 +159,10 @@ class World extends ChangeNotifier {
     updateConnection(authority, notify: false);
   }
 
+  static const _supportedSc4pacUrlParameters = {'pkg', 'channel', 'externalIdProvider', 'externalId'};
+
   // routing
-  void _handleSc4pacUrl(Uri url) {
+  void _handleSc4pacUrl(Uri url) async {
     if (url.path == "/package") {
       List<BareModule> packages = url.queryParametersAll['pkg']?.map(BareModule.parse).toList() ?? [];
       Set<String> channelUrls = url.queryParametersAll['channel']?.toSet() ?? {};
@@ -171,9 +173,23 @@ class World extends ChangeNotifier {
         : switch (url.queryParametersAll['externalId'] ?? []) {
           final ids => ids.isEmpty ? {} : {externalIdProvider: ids}
         };
+      final unsupportedParameters = url.queryParametersAll.keys.where((key) => !_supportedSc4pacUrlParameters.contains(key));
+      if (unsupportedParameters.isNotEmpty) {
+        final detail = "Unsupported query parameters: ${unsupportedParameters.map((key) => '"$key"').join(", ")}";
+        debugPrint(detail);
+        await ApiErrorWidget.dialog(ApiError.unexpected(
+          "Unsupported URL query parameters. Make sure you have the latest version of sc4pac and that the URL is correct.",
+          detail,
+        ));
+      }
       _openPackages(packages, externalIds, channelUrls);
     } else {
-      debugPrint("Unsupported URL path: ${url.path}");
+      final detail = 'Unsupported URL path: "${url.path}"';
+      debugPrint(detail);
+      ApiErrorWidget.dialog(ApiError.unexpected(
+        "Unsupported URL path. Make sure you have the latest version of sc4pac and that the URL is correct.",
+        detail,
+      ));
     }
   }
 
