@@ -159,7 +159,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
   final void Function() onConnectionLost;
-  final void Function(List<BareModule>, Set<String> channelUrls) openPackages;
+  final void Function(List<BareModule>, Map<String, List<String>>, Set<String> channelUrls) openPackages;
 
   Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackages}) :
     wsUrl = 'ws://$authority',
@@ -193,6 +193,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         if (msg.packages.isNotEmpty) {
           openPackages(
             msg.packages.map((item) => BareModule.parse(item.package)).toList(),
+            {},  // externalIds not needed for this interface
             msg.packages.map((item) => item.channelUrl).toSet(),
           );
         }
@@ -259,9 +260,12 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<List<PackageSearchResultItem>> searchById(List<BareModule> packages, {required String profileId}) async {
+  Future<List<PackageSearchResultItem>> searchById(List<BareModule> packages, {Map<String, List<String>>? externalIds, required String profileId}) async {
     final response = await http.post(Uri.http(authority, '/packages.search.id', {'profile': profileId}),
-      body: jsonUtf8Encode({'packages': packages}),
+      body: jsonUtf8Encode({
+        'packages': packages,
+        'externalIds': externalIds?.entries.expand((e) => e.value.map((id) => [e.key, id])).toList() ?? [],
+      }),
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {

@@ -164,22 +164,30 @@ class World extends ChangeNotifier {
     if (url.path == "/package") {
       List<BareModule> packages = url.queryParametersAll['pkg']?.map(BareModule.parse).toList() ?? [];
       Set<String> channelUrls = url.queryParametersAll['channel']?.toSet() ?? {};
-      _openPackages(packages, channelUrls);
+      String? externalIdProvider = url.queryParameters['externalIdProvider'];
+      Map<String, List<String>> externalIds =
+        externalIdProvider == null
+        ? {}
+        : switch (url.queryParametersAll['externalId'] ?? []) {
+          final ids => ids.isEmpty ? {} : {externalIdProvider: ids}
+        };
+      _openPackages(packages, externalIds, channelUrls);
     } else {
       debugPrint("Unsupported URL path: ${url.path}");
     }
   }
 
-  void _openPackages(List<BareModule> packages, Set<String> channelUrls) async {
-    if (packages.isNotEmpty) {
-      if (packages case [final module]) {  // single package is opened directly
+  void _openPackages(List<BareModule> packages, Map<String, List<String>> externalIds, Set<String> channelUrls) async {
+    if (packages.isNotEmpty || externalIds.isNotEmpty) {
+      if (packages.length == 1 && externalIds.isEmpty) {  // single package is opened directly
+        final module = packages.first;
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
           PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
         }
       } else {  // multiple packages are opened in FindPackages screen
-        assert(packages.isNotEmpty);
-        profile.findPackages.updateCustomFilter((packages: packages, debugChannelUrls: channelUrls));
+        // TODO ensure channel is known before searching for externalIds
+        profile.findPackages.updateCustomFilter((packages: packages, externalIds: externalIds, debugChannelUrls: channelUrls));
         navRailIndex = 1;  // switch to FindPackages
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
@@ -205,6 +213,8 @@ class Profile {
 
 enum FindPkgToggleFilter { includeInstalled, includeResources }
 
+typedef CustomFilter = ({List<BareModule> packages, Map<String, List<String>> externalIds, Set<String> debugChannelUrls});
+
 class FindPackages extends ChangeNotifier {
   String? _searchTerm;
   String? get searchTerm => _searchTerm;
@@ -214,13 +224,17 @@ class FindPackages extends ChangeNotifier {
   String? get selectedChannelUrl => _selectedChannelUrl;
   final Set<FindPkgToggleFilter> _selectedToggleFilters = {FindPkgToggleFilter.includeInstalled, FindPkgToggleFilter.includeResources};
   Set<FindPkgToggleFilter> get selectedToggleFilters => _selectedToggleFilters;
-  ({List<BareModule> packages, Set<String> debugChannelUrls})? _customFilter;
-  ({List<BareModule> packages, Set<String> debugChannelUrls})? get customFilter => _customFilter;
+  CustomFilter? _customFilter;
+  CustomFilter? get customFilter => _customFilter;
   Future<List<PackageSearchResultItem>> searchResult = Future.value([]);
 
   void _search() {
     if (customFilter != null) {
-      searchResult = World.world.client.searchById(customFilter?.packages ?? [], profileId: World.world.profile.id);
+      searchResult = World.world.client.searchById(
+        customFilter?.packages ?? [],
+        externalIds: customFilter?.externalIds,
+        profileId: World.world.profile.id,
+      );
     } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
       final Future<List<String>> notCategoriesFuture =
         !includeResourcesFilterEnabled() || selectedToggleFilters.contains(FindPkgToggleFilter.includeResources)
@@ -283,7 +297,7 @@ class FindPackages extends ChangeNotifier {
 
   bool noCategoryOrSearchActive() => _selectedCategory == null && _searchTerm?.isNotEmpty != true;
 
-  void updateCustomFilter(({List<BareModule> packages, Set<String> debugChannelUrls})? customFilter) {
+  void updateCustomFilter(CustomFilter? customFilter) {
     if (customFilter != _customFilter) {
       _customFilter = customFilter;
       _search();
