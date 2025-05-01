@@ -65,16 +65,19 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 ),
                 const SizedBox(),
                 FutureBuilder(
-                  future: World.world.profile.channelStatsFuture,
+                  future: World.world.profile.channelStatsFuture
+                    .then((allStats) => widget.findPackages.searchResult.then((r) => (searchResult: r, allStats: allStats))),
                   builder: (context, snapshot) {
                     // if snapshot.hasError, this usually means /error/channels-not-available which can be ignored here
                     return CategoryMenu(
                       stats: switch (snapshot.data) {
                         null => null,  // data not yet available
-                        final allStats => switch (allStats.channels.indexWhere((item) => item.url == widget.findPackages.selectedChannelUrl)) {
-                          -1 => allStats.combined,  // all channels selected
-                          final i => allStats.channels[i].stats,
-                        },
+                        final data =>
+                          data.searchResult.stats ??
+                            switch (data.allStats.channels.indexWhere((item) => item.url == widget.findPackages.selectedChannelUrl)) {
+                              -1 => data.allStats.combined,  // all channels selected
+                              final i => data.allStats.channels[i].stats,
+                            },
                       },
                       initialCategory: widget.findPackages.selectedCategory,
                       menuHeight: max(300,

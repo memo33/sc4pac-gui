@@ -204,7 +204,8 @@ class PackageSearchResultItem {
 class PackageSearchResult {
   final List<PackageSearchResultItem> packages;
   final int notFoundExternalIdCount;
-  const PackageSearchResult(this.packages, {this.notFoundExternalIdCount = 0});
+  final ChannelStats? stats;
+  const PackageSearchResult(this.packages, {this.notFoundExternalIdCount = 0, this.stats});
   factory PackageSearchResult.fromJson(Map<String, dynamic> json) => _$PackageSearchResultFromJson(json);
   static const empty = PackageSearchResult([]);
 }

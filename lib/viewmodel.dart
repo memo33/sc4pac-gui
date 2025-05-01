@@ -267,7 +267,7 @@ class FindPackages extends ChangeNotifier {
         }
         return data;
       });
-    } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
+    } else if (searchTerm?.isNotEmpty == true || selectedCategory != null) {
       final Future<List<String>> notCategoriesFuture =
         !includeResourcesFilterEnabled() || selectedToggleFilters.contains(FindPkgToggleFilter.includeResources)
           ? Future.value(const [])
