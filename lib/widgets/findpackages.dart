@@ -93,7 +93,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   hintText: "search term or URL…",
                   onSubmitted: (String query) => widget.findPackages.updateSearchTerm(query),
                   onCanceled: () => widget.findPackages.updateSearchTerm(''),
-                  resultsCount: widget.findPackages.searchResult.then((data) => data.length),
+                  resultsCount: widget.findPackages.searchResult.then((data) => data.packages.length),
                 ),
               ],
             )],
@@ -130,26 +130,26 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
             ),
           ),
         ),
-        FutureBuilder<List<PackageSearchResultItem>>(
+        FutureBuilder<PackageSearchResult>(
           future: widget.findPackages.searchResult,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return SliverToBoxAdapter(child: Center(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
             } else if (!snapshot.hasData) {
               return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
-            } else if (snapshot.data!.isEmpty) {
+            } else if (snapshot.data!.packages.isEmpty) {
               return SliverToBoxAdapter(child: ListTile(leading: const Icon(Icons.search_off), title: Text(
                     widget.findPackages.searchWithAnyFilterActive() ? "No search results. Check the filtering options." :
                     widget.findPackages.noCategoryOrSearchActive() ? "No search results. Select a Category or use the Search." :
                     "No search results."
               )));
             } else {
-              // Next, create a SliverList
+              final searchResult = snapshot.data!;
               return SliverList(
                 // Use a delegate to build items as they're scrolled on screen.
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final item = snapshot.data![index];
+                    final item = searchResult.packages[index];
                     final module = BareModule.parse(item.package);
                     return PackageTile(module, index,
                       summary: item.summary,
@@ -159,7 +159,7 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: widget.findPackages.refreshSearchResult),
                     );
                   },
-                  childCount: snapshot.data!.length,
+                  childCount: searchResult.packages.length,
                 ),
               );
             }

@@ -30,6 +30,39 @@ class PackagePage extends StatefulWidget {
   }
 
   static const tableLabelPadding = EdgeInsets.fromLTRB(10, 5, 20, 5);
+
+
+  static Future<bool?> showUnknownChannelsDialog(List<String> unknownChannelUrls) {
+    return showDialog<bool>(
+      context: NavigationService.navigatorKey.currentContext!,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Symbols.stacks),
+        title: Text(unknownChannelUrls.length > 1 ? "Add ${unknownChannelUrls.length} new channels?" : "Add a new channel?"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "One or more packages come from another channel."
+              " Do you want to add ${unknownChannelUrls.length > 1 ? "these channels" : "this channel"} to your profile?"
+            ),
+            const SizedBox(height: 10),
+            ...unknownChannelUrls.map((url) => Text(url, style: TextStyle(color: Theme.of(context).colorScheme.tertiary))),
+          ]
+        ),
+        actions: [
+          OutlinedButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          OutlinedButton(
+            child: const Text("OK"),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+  }
+
 }
 class _PackagePageState extends State<PackagePage> {
   late Future<PackageInfoResult> futureJson;
@@ -58,46 +91,17 @@ class _PackagePageState extends State<PackagePage> {
   void _fetchInfo() {
     futureJson = World.world.client.info(widget.module, profileId: World.world.profile.id)
       .then((PackageInfoResult data) async {
-        if (data == PackageInfoResult.notFound && widget.debugChannelUrls?.isNotEmpty == true) {
-          final myChannelUrls = await World.world.client.channelsList(profileId: World.world.profile.id);
-          final unknownChannelUrls = (widget.debugChannelUrls ?? {}).difference(myChannelUrls.toSet()).toList();
-          if (unknownChannelUrls.isNotEmpty) {
-            bool? confirmed = await showDialog<bool>(
-              context: NavigationService.navigatorKey.currentContext!,
-              builder: (context) => AlertDialog(
-                icon: const Icon(Symbols.stacks),
-                title: Text(unknownChannelUrls.length > 1 ? "Add ${unknownChannelUrls.length} new channels?" : "Add a new channel?"),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      "The package comes from another channel."
-                      " Do you want to add ${unknownChannelUrls.length > 1 ? "these channels" : "this channel"} to your profile?"
-                    ),
-                    const SizedBox(height: 10),
-                    ...unknownChannelUrls.map((url) => Text(url, style: TextStyle(color: Theme.of(context).colorScheme.tertiary))),
-                  ]
-                ),
-                actions: [
-                  OutlinedButton(
-                    child: const Text("Cancel"),
-                    onPressed: () => Navigator.pop(context, false),
-                  ),
-                  OutlinedButton(
-                    child: const Text("OK"),
-                    onPressed: () => Navigator.pop(context, true),
-                  ),
-                ],
-              ),
+        final debugChannelUrls = widget.debugChannelUrls;
+        if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
+          return World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls)
+            .then((channelsAdded) =>
+              !channelsAdded ? data :
+                // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
+                World.world.client.info(widget.module, profileId: World.world.profile.id)
             );
-            if (confirmed == true) {
-              await World.world.profile.dashboard.updateChannelUrls(myChannelUrls + unknownChannelUrls);
-              // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
-              return World.world.client.info(widget.module, profileId: World.world.profile.id);
-            }
-          }
+        } else {
+          return data;
         }
-        return data;
       });
   }
 

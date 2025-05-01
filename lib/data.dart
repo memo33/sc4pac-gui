@@ -201,6 +201,15 @@ class PackageSearchResultItem {
 }
 
 @JsonSerializable()
+class PackageSearchResult {
+  final List<PackageSearchResultItem> packages;
+  final int notFoundExternalIdCount;
+  const PackageSearchResult(this.packages, {this.notFoundExternalIdCount = 0});
+  factory PackageSearchResult.fromJson(Map<String, dynamic> json) => _$PackageSearchResultFromJson(json);
+  static const empty = PackageSearchResult([]);
+}
+
+@JsonSerializable()
 class PluginsSearchResultItem {
   final String package;
   final int relevance;

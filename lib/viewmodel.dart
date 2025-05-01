@@ -226,7 +226,8 @@ class FindPackages extends ChangeNotifier {
   Set<FindPkgToggleFilter> get selectedToggleFilters => _selectedToggleFilters;
   CustomFilter? _customFilter;
   CustomFilter? get customFilter => _customFilter;
-  Future<List<PackageSearchResultItem>> searchResult = Future.value([]);
+  bool _alreadyAskedAddingChannelsFromFilter = false;
+  Future<PackageSearchResult> searchResult = Future.value(PackageSearchResult.empty);
 
   void _search() {
     if (customFilter != null) {
@@ -234,7 +235,22 @@ class FindPackages extends ChangeNotifier {
         customFilter?.packages ?? [],
         externalIds: customFilter?.externalIds,
         profileId: World.world.profile.id,
-      );
+      ).then((PackageSearchResult data) {
+        final debugChannelUrls = customFilter?.debugChannelUrls;
+        if (data.notFoundExternalIdCount > 0
+          && !_alreadyAskedAddingChannelsFromFilter
+          && debugChannelUrls != null && debugChannelUrls.isNotEmpty
+        ) {
+          _alreadyAskedAddingChannelsFromFilter = true;
+          World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls)  // async
+            .then((channelsAdded) {
+              if (channelsAdded) {
+                refreshSearchResult();
+              }
+            });
+        }
+        return data;
+      });
     } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
       final Future<List<String>> notCategoriesFuture =
         !includeResourcesFilterEnabled() || selectedToggleFilters.contains(FindPkgToggleFilter.includeResources)
@@ -253,7 +269,7 @@ class FindPackages extends ChangeNotifier {
         profileId: World.world.profile.id,
       ));
     } else {
-      searchResult = Future.value([]);
+      searchResult = Future.value(PackageSearchResult.empty);
     }
     notifyListeners();
   }
@@ -300,6 +316,7 @@ class FindPackages extends ChangeNotifier {
   void updateCustomFilter(CustomFilter? customFilter) {
     if (customFilter != _customFilter) {
       _customFilter = customFilter;
+      _alreadyAskedAddingChannelsFromFilter = false;
       _search();
     }
   }
@@ -358,6 +375,19 @@ class Dashboard extends ChangeNotifier {
       },
       onError: (e) => throw ApiError.unexpected("Malformed channel URLs", "Something does not look like a proper URL."),
     );
+  }
+
+  Future<bool> addUnknownChannelUrls(Set<String> debugChannelUrls) async {
+    final myChannelUrls = await World.world.client.channelsList(profileId: World.world.profile.id);
+    final unknownChannelUrls = debugChannelUrls.difference(myChannelUrls.toSet()).toList();
+    if (unknownChannelUrls.isNotEmpty) {
+      bool? confirmed = await PackagePage.showUnknownChannelsDialog(unknownChannelUrls);
+      if (confirmed == true) {
+        await updateChannelUrls(myChannelUrls + unknownChannelUrls);
+        return true;
+      }
+    }
+    return false;
   }
 
 }
