@@ -57,7 +57,6 @@ dependencies:
   markdown: ^7.2.2
   app_links: ^6.3.3
   win32_registry: ^1.1.5
-  flutter_svg: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -88,7 +87,6 @@ flutter:
     # - images/a_dot_burr.jpeg
     # - images/a_dot_ham.jpeg
     - assets/sc4pac-gui.png
-    - assets/nam-logo-2021_Black_tr.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
@@ -115,3 +113,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+  fonts:
+    - family: icomoon
+      fonts:
+        - asset: fonts/icomoon.ttf

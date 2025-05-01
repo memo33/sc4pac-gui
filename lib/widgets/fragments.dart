@@ -10,7 +10,7 @@ import 'package:badges/badges.dart' as badges;
 import 'package:markdown/markdown.dart' as md;
 import 'package:flutter_markdown/flutter_markdown.dart' as fmd;
 import 'package:open_file/open_file.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../icomoon_icons.dart' show Icomoon;
 import '../model.dart';
 import '../viewmodel.dart' show PendingUpdateStatus;
 import 'packagepage.dart';
@@ -526,10 +526,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
           widget.onSelected!(s);
         }
       },
-      leadingIcon: Padding(
-        padding: const EdgeInsets.all(10),  // padding is important here for SvgPicture icon
-        child: CategoryIcon(selectedCategory, fallback: Symbols.category_search),
-      ),
+      leadingIcon: CategoryIcon(selectedCategory, fallback: Symbols.category_search),
       initialSelection: selectedCategory,
       label: const Text('Category'),
       // enableFilter: true,
@@ -559,26 +556,7 @@ class CategoryIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (category?.startsWith('770-') == true) {  // 770-nam, 770-network-addon-mod
-      // TODO consider using a custom icomoon font instead of an SVG
-      final tentativeSize = IconTheme.of(context).size ?? kDefaultFontSize;
-      // coloring copied from vendor/flutter/packages/flutter/lib/src/widgets/icon.dart
-      final iconTheme = IconTheme.of(context);
-      final iconOpacity = iconTheme.opacity ?? 1.0;
-      Color iconColor = color ?? iconTheme.color ?? Colors.black;
-      if (iconOpacity != 1.0) {
-        iconColor = iconColor.withOpacity(iconColor.opacity * iconOpacity);
-      }
-      return SvgPicture.asset(
-        'assets/nam-logo-2021_Black_tr.svg',
-        semanticsLabel: 'NAM logo',
-        height: tentativeSize,
-        width: tentativeSize,  // setting the width improves layouting during parsing of the SVG
-        colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-      );
-    } else {
-      return Icon(_symbols[category] ?? fallback, color: color);
-    }
+    return Icon(_symbols[category] ?? fallback, color: color);
   }
 
   static final _symbols = {
@@ -605,7 +583,7 @@ class CategoryIcon extends StatelessWidget {
     '660-parks': Symbols.nature_people,
     '700-transit': Symbols.commute,
     '710-automata': Symbols.traffic_jam,
-    '770-network-addon-mod': Symbols.flyover,
+    '770-network-addon-mod': Icomoon.namLogo2021BlackPad10,
     '900-overrides': Symbols.event_repeat,
   };
 }
