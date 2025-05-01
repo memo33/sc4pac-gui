@@ -548,7 +548,10 @@ class _CategoryMenuState extends State<CategoryMenu> {
 
   static final symbols = {
     '050-load-first': Symbols.event_upcoming,
+    '060-config': Symbols.settings_applications,
     '100-props-textures': Symbols.grid_view,
+    '110-resources': Symbols.schema,  // or Symbols.pallet
+    '140-ordinances': Symbols.rule,
     '150-mods': Symbols.tune,  // or Symbols.build
     '170-terrain': Symbols.landscape,
     '180-flora': Symbols.forest,
@@ -567,6 +570,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
     '660-parks': Symbols.nature_people,
     '700-transit': Symbols.commute,
     '710-automata': Symbols.traffic_jam,
+    '770-network-addon-mod': Symbols.flyover,
     '900-overrides': Symbols.event_repeat,
   };
 }
