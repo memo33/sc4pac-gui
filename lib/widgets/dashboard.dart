@@ -120,38 +120,7 @@ class DashboardScreen extends StatefulWidget {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: true,  // allow to cancel update process without selecting a variant
-      builder: (context) {
-        final hintStyle = TextStyle(color: Theme.of(context).hintColor);
-        return SimpleDialog(
-          title: Column(
-            children: [
-              Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
-              MarkdownText('## Choose a variant of type `${msg.variantId}` for `pkg=${msg.package}`:\n\n${msg.info.description ?? ""}'),
-              const Divider(),
-            ],
-          ),
-          children: msg.choices.map((choice) => SimpleDialogOption(
-            child: ListTile(
-              title: Wrap(
-                spacing: 10,
-                children: [
-                  Text(choice),
-                  if (msg.info.defaultValue.contains(choice))
-                    const Chip(
-                      label: Text("default"),
-                      visualDensity: PackageTileChip.visualDensity,
-                      padding: PackageTileChip.padding,
-                    ),
-                ],
-              ),
-              subtitle: msg.info.valueDescriptions.containsKey(choice) ? Text('${msg.info.valueDescriptions[choice]}', style: hintStyle) : null,
-            ),
-            onPressed: () {
-              Navigator.pop(context, choice);
-            },
-          )).toList(),
-        );
-      }
+      builder: (context) => VariantChoiceDialog(msg),
     );
   }
 
@@ -310,6 +279,96 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+}
+
+class VariantChoiceDialog extends StatefulWidget {
+  final ChoiceUpdateVariant msg;
+  const VariantChoiceDialog(this.msg, {super.key});
+  @override State<VariantChoiceDialog> createState() => _VariantChoiceDialogState();
+}
+class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
+  late int? _selection = switch (widget.msg.info.defaultValue.firstOrNull) {
+    null => null,
+    final defaultValue => switch (widget.msg.choices.indexOf(defaultValue)) {
+      -1 => null,
+      final idx => idx,
+    },
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final hintStyle = TextStyle(color: Theme.of(context).hintColor);
+    final title = Column(
+      children: [
+        Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
+        MarkdownText('## Choose a variant of type `${widget.msg.variantId}` for `pkg=${widget.msg.package}`:\n\n${widget.msg.info.description ?? ""}'),
+        const Divider(),
+      ],
+    );
+    final choices =
+      widget.msg.choices.map((String value) => (
+        value: value,
+        title: Wrap(
+          spacing: 10,
+          children: [
+            Text(value),
+            if (widget.msg.info.defaultValue.contains(value))
+              const Chip(
+                label: Text("default"),
+                visualDensity: PackageTileChip.visualDensity,
+                padding: PackageTileChip.padding,
+              ),
+          ],
+        ),
+        subtitle: widget.msg.info.valueDescriptions.containsKey(value) ? Text('${widget.msg.info.valueDescriptions[value]}', style: hintStyle) : null,
+      )).toList();
+
+    bool useRadio = widget.msg.info.defaultValue.isNotEmpty;
+    if (!useRadio) {
+      return SimpleDialog(
+        title: title,
+        children: choices.map((choice) => SimpleDialogOption(
+          child: ListTile(title: choice.title, subtitle: choice.subtitle),
+          onPressed: () {
+            Navigator.pop(context, choice.value);
+          },
+        )).toList(),
+      );
+    } else {
+      return AlertDialog(
+        title: title,
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(choices.length, (int idx) =>
+              RadioListTile<int>(
+                title: choices[idx].title,
+                subtitle: choices[idx].subtitle,
+                value: idx,
+                groupValue: _selection,
+                onChanged: (int? value) {
+                  setState(() => _selection = idx );
+                }
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: switch(_selection) {
+              null => null,
+              int idx => () => Navigator.pop(context, widget.msg.choices[idx]),
+            },
+            child: const Text("OK"),
+          ),
+          OutlinedButton(
+            onPressed: () { Navigator.pop(context, null); },
+            child: const Text("Cancel"),
+          ),
+        ],
+      );
+    }
   }
 }
 
