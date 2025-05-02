@@ -159,27 +159,51 @@ class World extends ChangeNotifier {
     updateConnection(authority, notify: false);
   }
 
+  static const _supportedSc4pacUrlParameters = {'pkg', 'channel', 'externalIdProvider', 'externalId'};
+
   // routing
-  void _handleSc4pacUrl(Uri url) {
+  void _handleSc4pacUrl(Uri url) async {
     if (url.path == "/package") {
       List<BareModule> packages = url.queryParametersAll['pkg']?.map(BareModule.parse).toList() ?? [];
       Set<String> channelUrls = url.queryParametersAll['channel']?.toSet() ?? {};
-      _openPackages(packages, channelUrls);
+      String? externalIdProvider = url.queryParameters['externalIdProvider'];
+      Map<String, List<String>> externalIds =
+        externalIdProvider == null
+        ? {}
+        : switch (url.queryParametersAll['externalId'] ?? []) {
+          final ids => ids.isEmpty ? {} : {externalIdProvider: ids}
+        };
+      final unsupportedParameters = url.queryParametersAll.keys.where((key) => !_supportedSc4pacUrlParameters.contains(key));
+      if (unsupportedParameters.isNotEmpty) {
+        final detail = "Unsupported query parameters: ${unsupportedParameters.map((key) => '"$key"').join(", ")}";
+        debugPrint(detail);
+        await ApiErrorWidget.dialog(ApiError.unexpected(
+          "Unsupported URL query parameters. Make sure you have the latest version of sc4pac and that the URL is correct.",
+          detail,
+        ));
+      }
+      _openPackages(packages, externalIds, channelUrls);
     } else {
-      debugPrint("Unsupported URL path: ${url.path}");
+      final detail = 'Unsupported URL path: "${url.path}"';
+      debugPrint(detail);
+      ApiErrorWidget.dialog(ApiError.unexpected(
+        "Unsupported URL path. Make sure you have the latest version of sc4pac and that the URL is correct.",
+        detail,
+      ));
     }
   }
 
-  void _openPackages(List<BareModule> packages, Set<String> channelUrls) async {
-    if (packages.isNotEmpty) {
-      if (packages case [final module]) {  // single package is opened directly
+  void _openPackages(List<BareModule> packages, Map<String, List<String>> externalIds, Set<String> channelUrls) async {
+    if (packages.isNotEmpty || externalIds.isNotEmpty) {
+      if (packages.length == 1 && externalIds.isEmpty) {  // single package is opened directly
+        final module = packages.first;
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
           PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
         }
       } else {  // multiple packages are opened in FindPackages screen
-        assert(packages.isNotEmpty);
-        profile.findPackages.updateCustomFilter((packages: packages, debugChannelUrls: channelUrls));
+        // TODO ensure channel is known before searching for externalIds
+        profile.findPackages.updateCustomFilter((packages: packages, externalIds: externalIds, debugChannelUrls: channelUrls));
         navRailIndex = 1;  // switch to FindPackages
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
@@ -205,6 +229,8 @@ class Profile {
 
 enum FindPkgToggleFilter { includeInstalled, includeResources }
 
+typedef CustomFilter = ({List<BareModule> packages, Map<String, List<String>> externalIds, Set<String> debugChannelUrls});
+
 class FindPackages extends ChangeNotifier {
   String? _searchTerm;
   String? get searchTerm => _searchTerm;
@@ -214,13 +240,33 @@ class FindPackages extends ChangeNotifier {
   String? get selectedChannelUrl => _selectedChannelUrl;
   final Set<FindPkgToggleFilter> _selectedToggleFilters = {FindPkgToggleFilter.includeInstalled, FindPkgToggleFilter.includeResources};
   Set<FindPkgToggleFilter> get selectedToggleFilters => _selectedToggleFilters;
-  ({List<BareModule> packages, Set<String> debugChannelUrls})? _customFilter;
-  ({List<BareModule> packages, Set<String> debugChannelUrls})? get customFilter => _customFilter;
-  Future<List<PackageSearchResultItem>> searchResult = Future.value([]);
+  CustomFilter? _customFilter;
+  CustomFilter? get customFilter => _customFilter;
+  bool _alreadyAskedAddingChannelsFromFilter = false;
+  Future<PackageSearchResult> searchResult = Future.value(PackageSearchResult.empty);
 
   void _search() {
     if (customFilter != null) {
-      searchResult = World.world.client.searchById(customFilter?.packages ?? [], profileId: World.world.profile.id);
+      searchResult = World.world.client.searchById(
+        customFilter?.packages ?? [],
+        externalIds: customFilter?.externalIds,
+        profileId: World.world.profile.id,
+      ).then((PackageSearchResult data) {
+        final debugChannelUrls = customFilter?.debugChannelUrls;
+        if (data.notFoundExternalIdCount > 0
+          && !_alreadyAskedAddingChannelsFromFilter
+          && debugChannelUrls != null && debugChannelUrls.isNotEmpty
+        ) {
+          _alreadyAskedAddingChannelsFromFilter = true;
+          World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls)  // async
+            .then((channelsAdded) {
+              if (channelsAdded) {
+                refreshSearchResult();
+              }
+            });
+        }
+        return data;
+      });
     } else if ((searchTerm?.isNotEmpty ?? false) || selectedCategory != null) {
       final Future<List<String>> notCategoriesFuture =
         !includeResourcesFilterEnabled() || selectedToggleFilters.contains(FindPkgToggleFilter.includeResources)
@@ -239,7 +285,7 @@ class FindPackages extends ChangeNotifier {
         profileId: World.world.profile.id,
       ));
     } else {
-      searchResult = Future.value([]);
+      searchResult = Future.value(PackageSearchResult.empty);
     }
     notifyListeners();
   }
@@ -283,9 +329,10 @@ class FindPackages extends ChangeNotifier {
 
   bool noCategoryOrSearchActive() => _selectedCategory == null && _searchTerm?.isNotEmpty != true;
 
-  void updateCustomFilter(({List<BareModule> packages, Set<String> debugChannelUrls})? customFilter) {
+  void updateCustomFilter(CustomFilter? customFilter) {
     if (customFilter != _customFilter) {
       _customFilter = customFilter;
+      _alreadyAskedAddingChannelsFromFilter = false;
       _search();
     }
   }
@@ -344,6 +391,19 @@ class Dashboard extends ChangeNotifier {
       },
       onError: (e) => throw ApiError.unexpected("Malformed channel URLs", "Something does not look like a proper URL."),
     );
+  }
+
+  Future<bool> addUnknownChannelUrls(Set<String> debugChannelUrls) async {
+    final myChannelUrls = await World.world.client.channelsList(profileId: World.world.profile.id);
+    final unknownChannelUrls = debugChannelUrls.difference(myChannelUrls.toSet()).toList();
+    if (unknownChannelUrls.isNotEmpty) {
+      bool? confirmed = await PackagePage.showUnknownChannelsDialog(unknownChannelUrls);
+      if (confirmed == true) {
+        await updateChannelUrls(myChannelUrls + unknownChannelUrls);
+        return true;
+      }
+    }
+    return false;
   }
 
 }

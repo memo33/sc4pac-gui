@@ -159,7 +159,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
   final void Function() onConnectionLost;
-  final void Function(List<BareModule>, Set<String> channelUrls) openPackages;
+  final void Function(List<BareModule>, Map<String, List<String>>, Set<String> channelUrls) openPackages;
 
   Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackages}) :
     wsUrl = 'ws://$authority',
@@ -193,6 +193,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         if (msg.packages.isNotEmpty) {
           openPackages(
             msg.packages.map((item) => BareModule.parse(item.package)).toList(),
+            {},  // externalIds not needed for this interface
             msg.packages.map((item) => item.channelUrl).toSet(),
           );
         }
@@ -241,7 +242,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<List<PackageSearchResultItem>> search(String query, {String? category, List<String> notCategories = const [], String? channel, bool ignoreInstalled = false, required String profileId}) async {
+  Future<PackageSearchResult> search(String query, {String? category, List<String> notCategories = const [], String? channel, bool ignoreInstalled = false, required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/packages.search', {
       'q': query,
       'profile': profileId,
@@ -251,23 +252,22 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       if (ignoreInstalled) 'ignoreInstalled': null,
     }));
     if (response.statusCode == 200) {
-      return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
-          .map((item) => PackageSearchResultItem.fromJson(item as Map<String, dynamic>))
-          .toList();
+      return PackageSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }
   }
 
-  Future<List<PackageSearchResultItem>> searchById(List<BareModule> packages, {required String profileId}) async {
+  Future<PackageSearchResult> searchById(List<BareModule> packages, {Map<String, List<String>>? externalIds, required String profileId}) async {
     final response = await http.post(Uri.http(authority, '/packages.search.id', {'profile': profileId}),
-      body: jsonUtf8Encode({'packages': packages}),
+      body: jsonUtf8Encode({
+        'packages': packages,
+        'externalIds': externalIds?.entries.expand((e) => e.value.map((id) => [e.key, id])).toList() ?? [],
+      }),
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
-      return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>)
-          .map((item) => PackageSearchResultItem.fromJson(item as Map<String, dynamic>))
-          .toList();
+      return PackageSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }
