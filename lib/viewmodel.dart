@@ -244,6 +244,14 @@ class FindPackages extends ChangeNotifier {
   CustomFilter? get customFilter => _customFilter;
   bool _alreadyAskedAddingChannelsFromFilter = false;
   late Future<PackageSearchResult> _customFilterOrigState = Future.value(PackageSearchResult.empty);
+  bool _enableResetCustomFilter = false;
+  bool get enableResetCustomFilter => _enableResetCustomFilter;
+  set enableResetCustomFilter(bool enable) {
+    if (enable != _enableResetCustomFilter) {
+      _enableResetCustomFilter = enable;
+      notifyListeners();
+    }
+  }
   Future<PackageSearchResult> searchResult = Future.value(PackageSearchResult.empty);
 
   void _search() {
@@ -334,12 +342,14 @@ class FindPackages extends ChangeNotifier {
     if (customFilter != _customFilter) {
       _customFilter = customFilter;
       _alreadyAskedAddingChannelsFromFilter = false;
+      _enableResetCustomFilter = false;
       _search();
       _customFilterOrigState = searchResult;
     }
   }
 
-  void onResetCustomFilter() {
+  void onCustomFilterResetButton() {
+    enableResetCustomFilter = false;
     searchResult.then<void>((result) =>
       _customFilterOrigState.then((origResult) {
         final Map<String, InstalledStatus?> currentStates = {for (final item in result.packages) item.package: item.status};
@@ -472,6 +482,7 @@ class PendingUpdates extends ChangeNotifier {
         World.world.client.add([module], profileId: World.world.profile.id) :
         World.world.client.remove([module], profileId: World.world.profile.id);
     task.then((_) {
+      World.world.profile.findPackages.enableResetCustomFilter = true;
       setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
       refreshParent();
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
