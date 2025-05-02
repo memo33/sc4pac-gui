@@ -252,6 +252,14 @@ class FindPackages extends ChangeNotifier {
       notifyListeners();
     }
   }
+  bool _addedAllInCustomFilter = false;
+  bool get addedAllInCustomFilter => _addedAllInCustomFilter;
+  set addedAllInCustomFilter(bool addedAll) {
+    if (addedAll != _addedAllInCustomFilter) {
+      _addedAllInCustomFilter = addedAll;
+      notifyListeners();
+    }
+  }
   Future<PackageSearchResult> searchResult = Future.value(PackageSearchResult.empty);
 
   void _search() {
@@ -343,6 +351,7 @@ class FindPackages extends ChangeNotifier {
       _customFilter = customFilter;
       _alreadyAskedAddingChannelsFromFilter = false;
       _enableResetCustomFilter = false;
+      _addedAllInCustomFilter = false;
       _search();
       _customFilterOrigState = searchResult;
     }
@@ -350,6 +359,7 @@ class FindPackages extends ChangeNotifier {
 
   void onCustomFilterResetButton() {
     enableResetCustomFilter = false;
+    addedAllInCustomFilter = false;
     searchResult.then<void>((result) =>
       _customFilterOrigState.then((origResult) {
         final Map<String, InstalledStatus?> currentStates = {for (final item in result.packages) item.package: item.status};
@@ -376,6 +386,28 @@ class FindPackages extends ChangeNotifier {
           });
       })
     )
+    .catchError(ApiErrorWidget.dialog);
+    // async, but we do not need to await result
+  }
+
+  void onCustomFilterAddAllButton() {
+    addedAllInCustomFilter = true;
+    searchResult.then<void>((result) {
+      final modulesToAdd =
+        result.packages.where((item) => item.status?.explicit != true).toList();
+      if (modulesToAdd.isNotEmpty) {
+        enableResetCustomFilter = true;
+        return World.world.client.add(modulesToAdd.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id)
+          .then((_) {
+            for (final item in modulesToAdd) {
+              if (item.status?.installed != null && item.status?.explicit != true || item.status == null) {
+                World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.add);
+              }  // otherwise package was already installed (add is performed directly, so no pending update)
+            }
+            refreshSearchResult();
+          });
+      }
+    })
     .catchError(ApiErrorWidget.dialog);
     // async, but we do not need to await result
   }
@@ -483,6 +515,7 @@ class PendingUpdates extends ChangeNotifier {
         World.world.client.remove([module], profileId: World.world.profile.id);
     task.then((_) {
       World.world.profile.findPackages.enableResetCustomFilter = true;
+      World.world.profile.findPackages.addedAllInCustomFilter = false;
       setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
       refreshParent();
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result

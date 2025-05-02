@@ -34,7 +34,10 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
           title: widget.findPackages.customFilter != null
-            ? CustomFilterBar(enableReset: widget.findPackages.enableResetCustomFilter)
+            ? CustomFilterBar(
+                addedAll: widget.findPackages.addedAllInCustomFilter,
+                enableReset: widget.findPackages.enableResetCustomFilter,
+              )
             : Table(
             columnWidths: const {
               0: IntrinsicColumnWidth(),
@@ -167,8 +170,9 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
 }
 
 class CustomFilterBar extends StatelessWidget {
+  final bool addedAll;
   final bool enableReset;
-  const CustomFilterBar({required this.enableReset, super.key});
+  const CustomFilterBar({required this.addedAll, required this.enableReset, super.key});
 
   @override Widget build(BuildContext context) {
     return Wrap(
@@ -184,9 +188,9 @@ class CustomFilterBar extends StatelessWidget {
           },
         ),
         OutlinedButton.icon(
-          icon: const Icon(Symbols.hotel_class, fill: 0),
-          label: const Text("Add All"),
-          onPressed: () {},  // TODO
+          icon: Icon(Symbols.hotel_class, fill: addedAll ? 1 : 0),
+          label: const Text("Add all"),
+          onPressed: () => World.world.profile.findPackages.onCustomFilterAddAllButton(),
         ),
         Tooltip(
           message: enableReset ? "Restore previous state" : "",
