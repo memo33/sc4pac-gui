@@ -286,23 +286,27 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<void> add(BareModule module, {required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/plugins.add', {'profile': profileId}),
-      body: jsonUtf8Encode([module.toString()]),
-      headers: {'Content-Type': 'application/json'},
-    );
-    if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+  Future<void> add(List<BareModule> modules, {required String profileId}) async {
+    if (modules.isNotEmpty) {
+      final response = await http.post(Uri.http(authority, '/plugins.add', {'profile': profileId}),
+        body: jsonUtf8Encode(modules.map((m) => m.toString()).toList()),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode != 200) {
+        throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      }
     }
   }
 
-  Future<void> remove(BareModule module, {required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/plugins.remove', {'profile': profileId}),
-      body: jsonUtf8Encode([module.toString()]),
-      headers: {'Content-Type': 'application/json'},
-    );
-    if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+  Future<void> remove(List<BareModule> modules, {required String profileId}) async {
+    if (modules.isNotEmpty) {
+      final response = await http.post(Uri.http(authority, '/plugins.remove', {'profile': profileId}),
+        body: jsonUtf8Encode(modules.map((m) => m.toString()).toList()),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode != 200) {
+        throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      }
     }
   }
 

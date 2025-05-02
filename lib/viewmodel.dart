@@ -243,6 +243,7 @@ class FindPackages extends ChangeNotifier {
   CustomFilter? _customFilter;
   CustomFilter? get customFilter => _customFilter;
   bool _alreadyAskedAddingChannelsFromFilter = false;
+  late Future<PackageSearchResult> _customFilterOrigState = Future.value(PackageSearchResult.empty);
   Future<PackageSearchResult> searchResult = Future.value(PackageSearchResult.empty);
 
   void _search() {
@@ -334,7 +335,39 @@ class FindPackages extends ChangeNotifier {
       _customFilter = customFilter;
       _alreadyAskedAddingChannelsFromFilter = false;
       _search();
+      _customFilterOrigState = searchResult;
     }
+  }
+
+  void onResetCustomFilter() {
+    searchResult.then<void>((result) =>
+      _customFilterOrigState.then((origResult) {
+        final Map<String, InstalledStatus?> currentStates = {for (final item in result.packages) item.package: item.status};
+
+        final modulesToRemove =
+            origResult.packages.where((item) => item.status?.explicit != true && currentStates[item.package]?.explicit == true).toList();
+        final modulesToAdd =
+            origResult.packages.where((item) => item.status?.explicit == true && currentStates[item.package]?.explicit != true).toList();
+
+        return World.world.client.remove(modulesToRemove.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id)
+          .then((_) => World.world.client.add(modulesToAdd.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id))
+          .then((_) {
+            for (final item in modulesToRemove) {
+              if (item.status?.installed != null && item.status?.explicit != true || item.status == null) {
+                World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.remove);
+              }
+            }
+            for (final item in modulesToAdd) {
+              if (!(item.status?.installed != null && item.status?.explicit != true)) {
+                World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.add);
+              }
+            }
+            refreshSearchResult();
+          });
+      })
+    )
+    .catchError(ApiErrorWidget.dialog);
+    // async, but we do not need to await result
   }
 }
 
@@ -434,10 +467,10 @@ class PendingUpdates extends ChangeNotifier {
     notifyListeners();
   }
 
-  onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
+  void onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
     final task = checked ?
-        World.world.client.add(module, profileId: World.world.profile.id) :
-        World.world.client.remove(module, profileId: World.world.profile.id);
+        World.world.client.add([module], profileId: World.world.profile.id) :
+        World.world.client.remove([module], profileId: World.world.profile.id);
     task.then((_) {
       setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
       refreshParent();

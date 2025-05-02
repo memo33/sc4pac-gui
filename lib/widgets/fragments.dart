@@ -280,17 +280,19 @@ class InstalledStatusIconExplicit extends StatelessWidget {
   final Color? color;
   final Color? badgeColor;
   final double badgeScale;
-  const InstalledStatusIconExplicit({this.color, this.badgeColor, this.badgeScale = 1.0, super.key});
+  final Widget? child;
+  final double fill;
+  const InstalledStatusIconExplicit({this.color, this.badgeColor, this.badgeScale = 1.0, this.child, this.fill = 1.0, super.key});
   @override Widget build(BuildContext context) {
     return badges.Badge(
-      badgeContent: Icon(Icons.star, size: 13 * badgeScale, color: color),
+      badgeContent: Icon(Symbols.star, size: 13 * badgeScale, color: color, fill: fill),
       position: badges.BadgePosition.bottomEnd(bottom: -3 * badgeScale, end: -2 * badgeScale),
       badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
       badgeStyle: badges.BadgeStyle(
         padding: EdgeInsets.all(1.2 * badgeScale),
         badgeColor: badgeColor ?? Theme.of(context).colorScheme.surface,
       ),
-      child: Icon(Symbols.deployed_code, color: color),
+      child: child ?? Icon(Symbols.deployed_code, color: color),
     );
   }
 }
