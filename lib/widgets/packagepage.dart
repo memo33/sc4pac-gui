@@ -146,6 +146,20 @@ class _PackagePageState extends State<PackagePage> {
                 mods.map((s) => BareModule.parse(s as String)).whereType<BareModule>(),
               _ => <BareModule>[]
             };
+            final conflicting = LinkedHashSet<BareModule>.from(switch (remote) {
+              {'variants': List<dynamic> variants} =>
+                variants.expand((variant) => switch (variant) {
+                  {'conflictingPackages': List<dynamic> mods} =>
+                    mods.map((s) => BareModule.parse(s as String)).whereType<BareModule>(),
+                  _ => <BareModule>[],
+                }),
+              _ => <BareModule>[],
+            });
+            conflicting.addAll(switch (remote) {
+              {'info': {'reverseConflictingPackages': List<dynamic> mods }} =>
+                mods.map((s) => BareModule.parse(s as String)).whereType<BareModule>(),
+              _ => <BareModule>[],
+            });
             final List<String> images = switch (remote) {
               {'info': {'images': List<dynamic> images }} =>
                 images.map((url) => ImageDialog.redirectImages
@@ -190,8 +204,6 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(const Text("Description"), MarkdownText(text, refreshParent: _refresh)),
                 if (remote case {'info': {'warning': String text}})
                   packageTableRow(const Text("Warning"), MarkdownText(text, refreshParent: _refresh)),
-                if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Conflicts"), switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') }),
                 if (remote case {'info': {'author': String text}})
                   packageTableRow(const Text("Author"), Text(text)),
                 if (remote case {'info': {'websites': List<dynamic> urls}})
@@ -209,6 +221,8 @@ class _PackagePageState extends State<PackagePage> {
                     ).toList())).toList()
                   )
                 ),
+                if (remote case {'info': dynamic info})
+                  packageTableRow(const Text("Incompatibilities"), switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') }),
               ],
             );
 
@@ -228,24 +242,38 @@ class _PackagePageState extends State<PackagePage> {
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 20, left: 15, right: 15),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: DependenciesCard(dependencies,
-                            title: "Dependencies",
+                      child: switch ([
+                        if (conflicting.isNotEmpty)
+                          DependenciesCard(
+                            conflicting,
+                            title: "Conflicts With",
                             statuses: statuses,
                             refreshParent: _refresh,
-                            icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
-                          )),
-                          const SizedBox(width: 15),
-                          Expanded(child: DependenciesCard(requiredBy,
-                            title: "Required By",
-                            statuses: statuses,
-                            refreshParent: _refresh,
-                            icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
-                          )),
-                        ],
-                      ),
+                            icon: Icon(Symbols.multiple_stop, color: Theme.of(context).hintColor)
+                          ),
+                        DependenciesCard(dependencies,
+                          title: "Dependencies",
+                          statuses: statuses,
+                          refreshParent: _refresh,
+                          icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
+                        ),
+                        DependenciesCard(requiredBy,
+                          title: "Required By",
+                          statuses: statuses,
+                          refreshParent: _refresh,
+                          icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
+                        ),
+                      ]) {
+                        final pkgLists => switch (290 * pkgLists.length > constraint.maxWidth) {
+                          bool vertical =>
+                            Flex(
+                              direction: vertical ? Axis.vertical : Axis.horizontal,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              // spacing: 15,  // TODO requires Flutter 3.27+
+                              children: vertical ? pkgLists : pkgLists.map((c) => Expanded(child: c)).toList(),
+                            ),
+                        },
+                      },
                     ),
                     Wrap(
                       spacing: 50,
@@ -361,10 +389,7 @@ class DependenciesCard extends StatelessWidget {
   static const double _left = 10;
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Card(
+    return Card(
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
@@ -393,9 +418,7 @@ class DependenciesCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ],
-    );
+        );
   }
 }
 
