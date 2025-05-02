@@ -132,7 +132,18 @@ class DashboardScreen extends StatefulWidget {
           ),
           children: msg.choices.map((choice) => SimpleDialogOption(
             child: ListTile(
-              title: Text(choice),
+              title: Wrap(
+                spacing: 10,
+                children: [
+                  Text(choice),
+                  if (msg.info.defaultValue.contains(choice))
+                    const Chip(
+                      label: Text("default"),
+                      visualDensity: PackageTileChip.visualDensity,
+                      padding: PackageTileChip.padding,
+                    ),
+                ],
+              ),
               subtitle: msg.info.valueDescriptions.containsKey(choice) ? Text('${msg.info.valueDescriptions[choice]}', style: hintStyle) : null,
             ),
             onPressed: () {
