@@ -243,6 +243,23 @@ class FindPackages extends ChangeNotifier {
   CustomFilter? _customFilter;
   CustomFilter? get customFilter => _customFilter;
   bool _alreadyAskedAddingChannelsFromFilter = false;
+  late Future<PackageSearchResult> _customFilterOrigState = Future.value(PackageSearchResult.empty);
+  bool _enableResetCustomFilter = false;
+  bool get enableResetCustomFilter => _enableResetCustomFilter;
+  set enableResetCustomFilter(bool enable) {
+    if (enable != _enableResetCustomFilter) {
+      _enableResetCustomFilter = enable;
+      notifyListeners();
+    }
+  }
+  bool _addedAllInCustomFilter = false;
+  bool get addedAllInCustomFilter => _addedAllInCustomFilter;
+  set addedAllInCustomFilter(bool addedAll) {
+    if (addedAll != _addedAllInCustomFilter) {
+      _addedAllInCustomFilter = addedAll;
+      notifyListeners();
+    }
+  }
   Future<PackageSearchResult> searchResult = Future.value(PackageSearchResult.empty);
 
   void _search() {
@@ -333,8 +350,49 @@ class FindPackages extends ChangeNotifier {
     if (customFilter != _customFilter) {
       _customFilter = customFilter;
       _alreadyAskedAddingChannelsFromFilter = false;
+      _enableResetCustomFilter = false;
+      _addedAllInCustomFilter = false;
       _search();
+      _customFilterOrigState = searchResult;
     }
+  }
+
+  void onCustomFilterResetButton() {
+    enableResetCustomFilter = false;
+    addedAllInCustomFilter = false;
+    searchResult.then<void>((result) async {
+      final origResult = await _customFilterOrigState;
+      final Map<String, InstalledStatus?> currentStates = {for (final item in result.packages) item.package: item.status};
+      await World.world.profile.dashboard.pendingUpdates.toggleMany(
+        toAdd:    origResult.packages.where((item) => item.status?.explicit == true && currentStates[item.package]?.explicit != true).toList(),
+        toRemove: origResult.packages.where((item) => item.status?.explicit != true && currentStates[item.package]?.explicit == true).toList(),
+        reset: true,
+      );
+      refreshSearchResult();
+    })
+    .catchError(ApiErrorWidget.dialog);
+    // async, but we do not need to await result
+  }
+
+  // removes all on second click
+  void onCustomFilterAddAllButton() {
+    final bool addAll = !addedAllInCustomFilter;
+    addedAllInCustomFilter = addAll;
+    searchResult.then<void>((result) async {
+      final modulesToToggle =
+        result.packages.where((item) => item.status?.explicit != addAll).toList();
+      if (modulesToToggle.isNotEmpty) {
+        enableResetCustomFilter = true;
+        if (addAll) {
+          await World.world.profile.dashboard.pendingUpdates.toggleMany(toAdd: modulesToToggle, reset: false);
+        } else {
+          await World.world.profile.dashboard.pendingUpdates.toggleMany(toRemove: modulesToToggle, reset: false);
+        }
+        refreshSearchResult();
+      }
+    })
+    .catchError(ApiErrorWidget.dialog);
+    // async, but we do not need to await result
   }
 }
 
@@ -434,14 +492,39 @@ class PendingUpdates extends ChangeNotifier {
     notifyListeners();
   }
 
-  onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
+  Future<void> onToggledStarButton(BareModule module, bool checked) {
     final task = checked ?
-        World.world.client.add(module, profileId: World.world.profile.id) :
-        World.world.client.remove(module, profileId: World.world.profile.id);
-    task.then((_) {
+        World.world.client.add([module], profileId: World.world.profile.id) :
+        World.world.client.remove([module], profileId: World.world.profile.id);
+    return task.then((_) {
+      World.world.profile.findPackages.enableResetCustomFilter = true;
+      World.world.profile.findPackages.addedAllInCustomFilter = false;
       setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
-      refreshParent();
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+  }
+
+  // on toggling multiple star buttons simultaneously (e.g. Add All or Reset)
+  Future<void> toggleMany({List<PackageSearchResultItem> toAdd = const [], List<PackageSearchResultItem> toRemove = const [], required bool reset}) async {
+    await World.world.client.remove(toRemove.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id);
+    await World.world.client.add(toAdd.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id);
+    for (final item in toRemove) {
+      if (_shouldSetPendingUpdate(item, removed: reset ? true : false)) {
+        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.remove);
+      }
+    }
+    for (final item in toAdd) {
+      if (_shouldSetPendingUpdate(item, removed: reset ? false : true)) {
+        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.add);
+      }
+    }
+  }
+
+  bool _shouldSetPendingUpdate(PackageSearchResultItem item, {required bool removed}) {
+    if (removed) {
+      return item.status?.installed != null && item.status?.explicit != true || item.status == null;
+    } else {
+      return !(item.status?.installed != null && item.status?.explicit != true);
+    }
   }
 
   int getCount() {

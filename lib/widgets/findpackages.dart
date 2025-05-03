@@ -34,14 +34,10 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
           title: widget.findPackages.customFilter != null
-            ? InputChip(
-              label: const Text("Custom package filter"),
-              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
-              onDeleted: () {
-                widget.findPackages.updateCustomFilter(null);
-              },
-            )
+            ? CustomFilterBar(
+                addedAll: widget.findPackages.addedAllInCustomFilter,
+                enableReset: widget.findPackages.enableResetCustomFilter,
+              )
             : Table(
             columnWidths: const {
               0: IntrinsicColumnWidth(),
@@ -159,7 +155,9 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       status: item.status,
                       debugChannelUrls: widget.findPackages.customFilter?.debugChannelUrls,
                       refreshParent: widget.findPackages.refreshSearchResult,
-                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: widget.findPackages.refreshSearchResult),
+                      onToggled: (checked) =>
+                        World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked)
+                          .then((_) => widget.findPackages.refreshSearchResult()),
                     );
                   },
                   childCount: searchResult.packages.length,
@@ -169,6 +167,45 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
           },
         ),
       ]),
+    );
+  }
+}
+
+class CustomFilterBar extends StatelessWidget {
+  final bool addedAll;
+  final bool enableReset;
+  const CustomFilterBar({required this.addedAll, required this.enableReset, super.key});
+
+  @override Widget build(BuildContext context) {
+    return Wrap(
+      direction: Axis.horizontal,
+      spacing: 15,
+      children: [
+        InputChip(
+          label: const Text("Custom package filter"),
+          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+          labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
+          onDeleted: () {
+            World.world.profile.findPackages.updateCustomFilter(null);
+          },
+        ),
+        OutlinedButton.icon(
+          icon: Icon(Symbols.hotel_class, fill: addedAll ? 1 : 0),
+          label: const Text("Add all"),
+          onPressed: () => World.world.profile.findPackages.onCustomFilterAddAllButton(),
+        ),
+        switch (OutlinedButton.icon(
+          icon: InstalledStatusIconExplicit(  // TODO try using Icon.blendMode with Flutter 3.27+ for correct background coloring on hover
+            badgeScale: 1.1,
+            fill: 0,
+            child: Transform.rotate(angle: -2.3, child: const Icon(Symbols.replay)),
+          ),
+          label: const Text("Reset"),
+          onPressed: enableReset ? () => World.world.profile.findPackages.onCustomFilterResetButton() : null,
+        )) {
+          final button => enableReset ? Tooltip(message: "Restore previous state", child: button) : button
+        },
+      ],
     );
   }
 }
