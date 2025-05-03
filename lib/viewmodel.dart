@@ -610,6 +610,122 @@ class UpdateProcess extends ChangeNotifier {
     status = UpdateStatus.canceled;
   }
 
+  static final messageHandlers =
+    Map.unmodifiable(<String, void Function(UpdateProcess self, Map<String, dynamic> data)>{
+      '/prompt/confirmation/update/plan': (self, data) {
+        final plan = UpdatePlan.fromJson(data);
+        self.plan = plan;
+        for (final entry in plan.changes.entries) {
+          final change = entry.value;
+          self.pendingUpdates.setPendingUpdate(BareModule.parse(entry.key),
+            change.versionTo == null ? PendingUpdateStatus.remove :
+            change.versionFrom == null ? PendingUpdateStatus.add :
+            PendingUpdateStatus.reinstall,
+          );
+        }
+        if (self.isBackground) {
+          self.cancel();  // for background process we are done, as we do not want to install anything
+        } else if (plan.nothingToDo){
+          self._ws.sink.add(jsonEncode(plan.responses['Yes']));  // everything up-to-date
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showUpdatePlan(plan)
+              .then((choice) => self._ws.sink.add(jsonEncode(plan.responses[choice])));
+          });
+        }
+      },
+      '/prompt/confirmation/update/warnings': (self, data) {  // not relevant for isBackground, as these warnings are triggered during installation
+        final msg = ConfirmationUpdateWarnings.fromJson(data);
+        if (msg.warnings.isEmpty) {
+          self._ws.sink.add(jsonEncode(msg.responses['Yes']));  // no warnings
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showWarningsDialog(msg)
+              .then((choice) => self._ws.sink.add(jsonEncode(msg.responses[choice])));
+          });
+        }
+      },
+      '/prompt/choice/update/variant': (self, data) {
+        final msg = ChoiceUpdateVariant.fromJson(data);
+        if (self.isBackground) {
+          // we cannot make this selection without user interaction
+          self.pendingUpdates.setPendingUpdate(BareModule.parse(msg.package), PendingUpdateStatus.reinstall);
+          self.cancel();
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showVariantDialog(msg).then((choice) {
+              if (choice == null) {
+                self.cancel();
+              } else {
+                self._ws.sink.add(jsonEncode(msg.responses[choice]));
+              }
+            });
+          });
+        }
+      },
+      '/prompt/confirmation/update/remove-unresolvable-packages': (self, data) {
+        final msg = ConfirmationRemoveUnresolvablePackages.fromJson(data);
+        if (self.isBackground) {
+          self.cancel();  // we cannot make this selection without user interaction
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showRemoveUnresolvablePkgsDialog(msg).then((choice) {
+              if (choice == null) {
+                self.cancel();
+              } else {
+                self._ws.sink.add(jsonEncode(msg.responses[choice]));
+              }
+            });
+          });
+        }
+      },
+      '/prompt/choice/update/remove-conflicting-packages': (self, data) {
+        final msg = ChoiceRemoveConflictingPackages.fromJson(data);
+        if (self.isBackground) {
+          self.cancel();  // we cannot make this selection without user interaction
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showRemoveConflictingPkgsDialog(msg).then((choice) {
+              if (choice == null) {
+                self.cancel();
+              } else {
+                self._ws.sink.add(jsonEncode(msg.responses[choice]));
+              }
+            });
+          });
+        }
+      },
+      '/progress/download/started': (self, data) {
+        final msg = ProgressDownloadStarted.fromJson(data);
+        self.downloads.add(msg.url);
+        self.downloadsCompleted = false;
+      },
+      '/progress/download/length': (self, data) {
+        final msg = ProgressDownloadLength.fromJson(data);
+        self.downloadLength[msg.url] = msg.length;
+      },
+      '/progress/download/intermediate': (self, data) {
+        final msg = ProgressDownloadIntermediate.fromJson(data);
+        self.downloadDownloaded[msg.url] = msg.downloaded;
+      },
+      '/progress/download/finished': (self, data) {
+        final msg = ProgressDownloadFinished.fromJson(data);
+        self.downloadSuccess[msg.url] = msg.success;
+        self.downloadsFailed |= !msg.success;
+        self._downloadsCompletedOnNextNonProgressDownloadMsg = true;
+      },
+      '/progress/update/extraction': (self, data) {  // not relevant for isBackground
+        final msg = ProgressUpdateExtraction.fromJson(data);
+        self.extractionProgress = msg;
+        if (msg.progress.numerator == msg.progress.denominator) {
+          self._extractionFinishedOnNextMsg = true;
+        }
+      },
+      '/result': (self, data) {
+        self.status = UpdateStatus.finished;
+      },
+    });
+
   void handleMessage(Map<String, dynamic> data) {
     if (data case {'\$type': String type}) {
       if (_extractionFinishedOnNextMsg) {
@@ -623,122 +739,12 @@ class UpdateProcess extends ChangeNotifier {
         _downloadsCompletedOnNextNonProgressDownloadMsg = false;
       }
 
-      if (type == '/prompt/confirmation/update/plan') {
-        final plan = UpdatePlan.fromJson(data);
-        this.plan = plan;
-        for (final entry in plan.changes.entries) {
-          final change = entry.value;
-          pendingUpdates.setPendingUpdate(BareModule.parse(entry.key),
-            change.versionTo == null ? PendingUpdateStatus.remove :
-            change.versionFrom == null ? PendingUpdateStatus.add :
-            PendingUpdateStatus.reinstall,
-          );
-        }
-        if (isBackground) {
-          cancel();  // for background process we are done, as we do not want to install anything
-        } else if (plan.nothingToDo){
-          _ws.sink.add(jsonEncode(plan.responses['Yes']));  // everything up-to-date
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showUpdatePlan(plan)
-              .then((choice) => _ws.sink.add(jsonEncode(plan.responses[choice])));
-          });
-        }
-      } else if (type == '/prompt/confirmation/update/warnings') {  // not relevant for isBackground, as these warnings are triggered during installation
-        final msg = ConfirmationUpdateWarnings.fromJson(data);
-        if (msg.warnings.isEmpty) {
-          _ws.sink.add(jsonEncode(msg.responses['Yes']));  // no warnings
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showWarningsDialog(msg)
-              .then((choice) => _ws.sink.add(jsonEncode(msg.responses[choice])));
-          });
-        }
-      } else if (type == '/prompt/choice/update/variant') {
-        final msg = ChoiceUpdateVariant.fromJson(data);
-        if (isBackground) {
-          // we cannot make this selection without user interaction
-          pendingUpdates.setPendingUpdate(BareModule.parse(msg.package), PendingUpdateStatus.reinstall);
-          cancel();
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showVariantDialog(msg).then((choice) {
-              if (choice == null) {
-                cancel();
-              } else {
-                _ws.sink.add(jsonEncode(msg.responses[choice]));
-              }
-            });
-          });
-        }
-      } else if (type == '/prompt/confirmation/update/remove-unresolvable-packages') {
-        final msg = ConfirmationRemoveUnresolvablePackages.fromJson(data);
-        if (isBackground) {
-          cancel();  // we cannot make this selection without user interaction
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showRemoveUnresolvablePkgsDialog(msg).then((choice) {
-              if (choice == null) {
-                cancel();
-              } else {
-                _ws.sink.add(jsonEncode(msg.responses[choice]));
-              }
-            });
-          });
-        }
-      } else if (type == '/prompt/choice/update/remove-conflicting-packages') {
-        final msg = ChoiceRemoveConflictingPackages.fromJson(data);
-        if (isBackground) {
-          cancel();  // we cannot make this selection without user interaction
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showRemoveConflictingPkgsDialog(msg).then((choice) {
-              if (choice == null) {
-                cancel();
-              } else {
-                _ws.sink.add(jsonEncode(msg.responses[choice]));
-              }
-            });
-          });
-        }
-      } else if (type.startsWith('/progress/download/')) {
-        switch (type) {
-          case '/progress/download/started':
-            final msg = ProgressDownloadStarted.fromJson(data);
-            downloads.add(msg.url);
-            downloadsCompleted = false;
-            break;
-          case '/progress/download/length':
-            final msg = ProgressDownloadLength.fromJson(data);
-            downloadLength[msg.url] = msg.length;
-            break;
-          case '/progress/download/intermediate':
-            final msg = ProgressDownloadIntermediate.fromJson(data);
-            downloadDownloaded[msg.url] = msg.downloaded;
-            break;
-          case '/progress/download/finished':
-            final msg = ProgressDownloadFinished.fromJson(data);
-            downloadSuccess[msg.url] = msg.success;
-            downloadsFailed |= !msg.success;
-            _downloadsCompletedOnNextNonProgressDownloadMsg = true;
-            break;
-          default:
-            debugPrint('Message type not implemented: $data');
-            err = ApiError.unexpected("Unexpected error: API message type not implemented", '$data');
-            cancel();
-            break;
-        }
-      } else if (type == '/progress/update/extraction') {  // not relevant for isBackground
-        final msg = ProgressUpdateExtraction.fromJson(data);
-        extractionProgress = msg;
-        if (msg.progress.numerator == msg.progress.denominator) {
-          _extractionFinishedOnNextMsg = true;
-        }
-      } else if (type == '/result') {
-        status = UpdateStatus.finished;
+      final handler = messageHandlers[type];
+      if (handler != null) {
+        handler(this, data);
       } else if (type.startsWith('/error/')) {
         err = ApiError(data);
-        status = UpdateStatus.finishedWithError;  // TODO handle error
+        status = UpdateStatus.finishedWithError;
       } else {
         debugPrint('Message type not implemented: $data');
         err = ApiError.unexpected("Unexpected error: API message type not implemented", '$data');
