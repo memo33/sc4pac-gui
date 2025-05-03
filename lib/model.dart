@@ -9,8 +9,10 @@ export 'data.dart' show BareModule;
 
 final Converter<List<int>, Object?> _jsonUtf8Decoder = const Utf8Decoder().fuse(const JsonDecoder());
 final Converter<Object?, List<int>> _jsonUtf8Encoder = JsonUtf8Encoder();
+final Converter<Object?, String> _jsonUtf8EncoderIndented = JsonUtf8Encoder('  ').fuse(const Utf8Decoder());
 final Object? Function(List<int> bytes) jsonUtf8Decode = _jsonUtf8Decoder.convert;
 final List<int> Function(Object? o) jsonUtf8Encode = _jsonUtf8Encoder.convert;
+final String Function(Object? o) jsonUtf8EncodeIndented = _jsonUtf8EncoderIndented.convert;
 
 class ApiError {
   final String type, title, detail;

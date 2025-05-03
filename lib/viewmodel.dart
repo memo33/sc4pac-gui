@@ -405,6 +405,16 @@ class MyPlugins {
   Set<InstallStateType> installStateSelection =
     {/*InstallStateType.markedForInstall,*/ InstallStateType.explicitlyInstalled, InstallStateType.installedAsDependency};
   SortOrder sortOrder = SortOrder.relevance;  // default order as returned by Api
+
+  void import(ExportData data) {
+    if (data.variants?.isNotEmpty == true) {
+      World.world.profile.dashboard.importedVariantSelections.add(data.variants!);
+    }
+    World.world.openPackages(
+      data.explicit?.map(BareModule.parse).toList() ?? [],
+      channelUrls: data.channels?.toSet() ?? {},
+    );
+  }
 }
 
 enum PendingUpdateStatus { add, remove, reinstall }
@@ -418,6 +428,7 @@ class Dashboard extends ChangeNotifier {
   }
   final Profile profile;
   final pendingUpdates = PendingUpdates();
+  final List<Map<String, String>> importedVariantSelections = [];  // FIFO, newest at the back
   late Future<VariantsList> variantsFuture;
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
@@ -432,6 +443,7 @@ class Dashboard extends ChangeNotifier {
   void onUpdateFinished(UpdateStatus status) {
     if (status == UpdateStatus.finished) {  // no error/no canceled
       pendingUpdates.clear();
+      importedVariantSelections.clear();
     }
     fetchVariants();
     profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id)
@@ -569,8 +581,9 @@ class UpdateProcess extends ChangeNotifier {
   final PendingUpdates pendingUpdates;
   final void Function(UpdateStatus) onFinished;
   final bool isBackground;
+  final List<Map<String, String>> importedVariantSelections;
 
-  UpdateProcess({required this.pendingUpdates, required this.onFinished, this.isBackground = false}) {
+  UpdateProcess({required this.pendingUpdates, required this.onFinished, required this.isBackground, required this.importedVariantSelections}) {
     final stAuth = World.world.settings.stAuth;
     {
       _ws = World.world.client.update(
@@ -614,7 +627,13 @@ class UpdateProcess extends ChangeNotifier {
     Map.unmodifiable(<String, void Function(UpdateProcess self, Map<String, dynamic> data)>{
       '/prompt/json/update/initial-arguments': (self, data) {
         final msg = UpdateInitialArguments.fromJson(data);
-        self._ws.sink.add(jsonEncode(msg.responses[msg.choices.first]));  // TODO pass importedSelections here
+        self._ws.sink.add(jsonEncode({
+          '\$type': '/prompt/response',
+          'token': msg.token,
+          'body': {
+            'importedSelections': self.importedVariantSelections.reversed.toList(),  // switching to LIFO
+          },
+        }));
       },
       '/prompt/confirmation/update/plan': (self, data) {
         final plan = UpdatePlan.fromJson(data);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'dart:math';
+import 'dart:ui' show PointerDeviceKind;
+import 'dart:convert' show jsonDecode;
 import 'package:collection/collection.dart' show mergeSort;
 import 'package:badges/badges.dart' as badges;
 import '../data.dart';
@@ -130,10 +132,8 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(_toolbarBottomHeight),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 5,
-              children: <Widget>[
+            child:
+              switch(<Widget>[
                 Padding(padding: const EdgeInsets.only(bottom: 5), child: SegmentedButton<InstallStateType>(
                   segments: [
                     // ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
@@ -165,6 +165,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     });
                   },
                 )),
+                const SizedBox(width: 15),
                 SortMenu(
                   selected: widget.myPlugins.sortOrder,
                   onSelectionChanged: (newOrder) {
@@ -173,8 +174,51 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     _filter();
                   });
                 }),
-              ],
-            ),
+                const SizedBox(width: 15),
+                ...switch (TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant)) {
+                  final textButtonStyle => [
+                    TextButton.icon(
+                      icon: const Icon(Symbols.download),
+                      label: const Text("Import"),
+                      style: textButtonStyle,
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: true,
+                          builder: (context) => const ImportDialog(),
+                        );
+                      },
+                    ),
+                    // TextButton.icon(
+                    //   icon: const Icon(Symbols.upload),
+                    //   label: const Text("Export"),
+                    //   style: textButtonStyle,
+                    //   onPressed: () {
+                    //     // showDialog(
+                    //     //   context: context,
+                    //     //   barrierDismissible: true,
+                    //     //   builder: (context) => const ImportDialog(),
+                    //     // );
+                    //   },
+                    // ),
+                  ],
+                },
+              ]) {
+                final toolbarBottomWidgets =>
+                  ScrollConfiguration(
+                    behavior: switch (ScrollConfiguration.of(context)) {
+                      final behavior => behavior.copyWith(dragDevices: {PointerDeviceKind.mouse, ...behavior.dragDevices}),  // enable click-drag for horizontal scrolling
+                    },
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: toolbarBottomWidgets,
+                      ),
+                    ),
+                  )
+              },
           ),
         ),
         FutureBuilder<List<PluginsSearchResultItem>>(
@@ -210,6 +254,93 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
               );
             }
           },
+        ),
+      ],
+    );
+  }
+}
+
+class ImportDialog extends StatefulWidget {
+  const ImportDialog({super.key});
+  @override State<ImportDialog> createState() => _ImportDialogState();
+}
+class _ImportDialogState extends State<ImportDialog> {
+  late final _controller = TextEditingController();
+  static final _hintText = jsonUtf8EncodeIndented(const ExportData(explicit: ["memo:submenus-dll", "memo:3d-camera-dll"]).toJson());
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  ExportData? _validate(String text) {
+    ExportData? data;
+    String? errMsg;
+    try {
+      if (text.trim().isNotEmpty) {
+        data = ExportData.fromJson(jsonDecode(text) as Map<String, dynamic>);
+      }
+    } catch (e) {
+      errMsg = e.toString();
+    }
+    setState(() {
+      _errorText = errMsg;
+    });
+    return data;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: const Icon(Symbols.download),
+      title: const Text('Import a Mod Set'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 720),
+        child:
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("A Mod Set is a selection of packages, encoded in JSON format. Paste the JSON contents here to import the packages."),
+            const SizedBox(height: 10),
+            Expanded(
+              child: SizedBox(
+                width: 960,  // maxWidth
+                child: TextField(
+                  controller: _controller,
+                  minLines: 100,
+                  keyboardType: TextInputType.multiline,
+                  maxLines: null,
+                  decoration: InputDecoration(
+                    hintText: _hintText,
+                    errorText: _errorText,
+                    errorStyle: const TextStyle(fontFamily: 'monospace'),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        ListenableBuilder(
+          listenable: _controller,
+          builder: (context, child) => FilledButton(
+            onPressed: _controller.text.trim().isEmpty ? null : () {
+              final data = _validate(_controller.text);
+              if (data != null) {
+                Navigator.pop(context, null);
+                World.world.profile.myPlugins.import(data);
+              }
+            },
+            child: child,
+          ),
+          child: const Text("OK"),
+        ),
+        OutlinedButton(
+          onPressed: () { Navigator.pop(context, null); },
+          child: const Text("Cancel"),
         ),
       ],
     );

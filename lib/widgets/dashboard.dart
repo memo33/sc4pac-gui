@@ -174,6 +174,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       pendingUpdates: widget.dashboard.pendingUpdates,
       isBackground: true,
       onFinished: widget.dashboard.onUpdateFinished,
+      importedVariantSelections: [],  // variant selections are not useful for background process
     );
     super.initState();
   }
@@ -259,6 +260,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
                     pendingUpdates: widget.dashboard.pendingUpdates,
                     onFinished: widget.dashboard.onUpdateFinished,
+                    isBackground: false,
+                    importedVariantSelections: widget.dashboard.importedVariantSelections,
                   );
                 });
               },
@@ -282,19 +285,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+class VariantChoiceChip extends StatelessWidget {
+  final Widget label;
+  const VariantChoiceChip({required this.label, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: label,
+      visualDensity: PackageTileChip.visualDensity,
+      padding: PackageTileChip.padding,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      labelStyle: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+      side: BorderSide.none,
+    );
+  }
+}
+
 class VariantChoiceDialog extends StatefulWidget {
   final ChoiceUpdateVariant msg;
   const VariantChoiceDialog(this.msg, {super.key});
   @override State<VariantChoiceDialog> createState() => _VariantChoiceDialogState();
 }
 class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
-  late int? _selection = switch (widget.msg.info.defaultValue.firstOrNull) {
-    null => null,
-    final defaultValue => switch (widget.msg.choices.indexOf(defaultValue)) {
-      -1 => null,
-      final idx => idx,
-    },
-  };
+
+  late final String? _preselectedValue =
+      widget.msg.previouslySelectedValue.firstOrNull
+      ?? widget.msg.importedValues.firstOrNull
+      ?? widget.msg.info.defaultValue.firstOrNull;
+
+  late int? _selection =
+      _preselectedValue == null ? null :
+      switch (widget.msg.choices.indexOf(_preselectedValue)) {
+        -1 => null,
+        final idx => idx,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -314,18 +338,23 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
           children: [
             Text(value),
             if (widget.msg.info.defaultValue.contains(value))
-              const Chip(
-                label: Text("default"),
-                visualDensity: PackageTileChip.visualDensity,
-                padding: PackageTileChip.padding,
+              const VariantChoiceChip(label: Text("default")),
+            if (widget.msg.previouslySelectedValue.contains(value))
+              const Tooltip(
+                message: "Your previously selected choice",
+                child: VariantChoiceChip(label: Text("currently installed")),
+              ),
+            if (widget.msg.importedValues.contains(value))
+              const Tooltip(
+                message: "Selected choice of imported Mod Set",
+                child: VariantChoiceChip(label: Text("imported from Mod Set")),
               ),
           ],
         ),
         subtitle: widget.msg.info.valueDescriptions.containsKey(value) ? Text('${widget.msg.info.valueDescriptions[value]}', style: hintStyle) : null,
       )).toList();
 
-    bool useRadio = widget.msg.info.defaultValue.isNotEmpty;
-    if (!useRadio) {
+    if (_preselectedValue == null) {
       return SimpleDialog(
         title: title,
         children: choices.map((choice) => SimpleDialogOption(

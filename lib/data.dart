@@ -38,8 +38,9 @@ class ProgressUpdateExtraction {
 @JsonSerializable()
 class UpdateInitialArguments {
   final List<String> choices;
+  final String token;
   final Map<String, dynamic> responses;
-  const UpdateInitialArguments(this.choices, this.responses);
+  const UpdateInitialArguments(this.choices, this.token, this.responses);
   factory UpdateInitialArguments.fromJson(Map<String, dynamic> json) => _$UpdateInitialArgumentsFromJson(json);
 }
 
@@ -90,8 +91,10 @@ class ChoiceUpdateVariant {
   final String variantId;
   final List<String> choices;
   final ChoiceUpdateVariantInfoValue info;
+  final List<String> previouslySelectedValue;
+  final List<String> importedValues;
   final Map<String, dynamic> responses;
-  const ChoiceUpdateVariant(this.package, this.variantId, this.choices, this.info, this.responses);
+  const ChoiceUpdateVariant(this.package, this.variantId, this.choices, this.info, this.responses, {this.previouslySelectedValue = const [], this.importedValues = const []});
   factory ChoiceUpdateVariant.fromJson(Map<String, dynamic> json) => _$ChoiceUpdateVariantFromJson(json);
 }
 
@@ -340,4 +343,14 @@ class VariantsList {
   final Map<String, ({String value, bool unused})> variants;
   VariantsList(this.variants);
   factory VariantsList.fromJson(Map<String, dynamic> json) => _$VariantsListFromJson(json);
+}
+
+@JsonSerializable(includeIfNull: false)
+class ExportData {
+  final List<String>? explicit;
+  final Map<String, String>? variants;
+  final List<String>? channels;
+  const ExportData({this.explicit, this.variants, this.channels});
+  factory ExportData.fromJson(Map<String, dynamic> json) => _$ExportDataFromJson(json);
+  Map<String, dynamic> toJson() => _$ExportDataToJson(this);
 }
