@@ -57,7 +57,7 @@ class World extends ChangeNotifier {
         client = Sc4pacClient(
           authority,
           onConnectionLost: () => updateConnection(authority, notify: true),
-          openPackages: _openPackages,
+          openPackages: openPackages,
         );
         _switchToLoadingProfiles();
       },
@@ -182,7 +182,7 @@ class World extends ChangeNotifier {
           detail,
         ));
       }
-      _openPackages(packages, externalIds, channelUrls);
+      openPackages(packages, externalIds: externalIds, channelUrls: channelUrls);
     } else {
       final detail = 'Unsupported URL path: "${url.path}"';
       debugPrint(detail);
@@ -193,7 +193,7 @@ class World extends ChangeNotifier {
     }
   }
 
-  void _openPackages(List<BareModule> packages, Map<String, List<String>> externalIds, Set<String> channelUrls) async {
+  void openPackages(List<BareModule> packages, {Map<String, List<String>> externalIds = const {}, required Set<String> channelUrls}) async {
     if (packages.isNotEmpty || externalIds.isNotEmpty) {
       if (packages.length == 1 && externalIds.isEmpty) {  // single package is opened directly
         final module = packages.first;

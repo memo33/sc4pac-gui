@@ -159,7 +159,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
   final void Function() onConnectionLost;
-  final void Function(List<BareModule>, Map<String, List<String>>, Set<String> channelUrls) openPackages;
+  final void Function(List<BareModule> packages, {Map<String, List<String>> externalIds, required Set<String> channelUrls}) openPackages;
 
   Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackages}) :
     wsUrl = 'ws://$authority',
@@ -193,8 +193,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         if (msg.packages.isNotEmpty) {
           openPackages(
             msg.packages.map((item) => BareModule.parse(item.package)).toList(),
-            {},  // externalIds not needed for this interface
-            msg.packages.map((item) => item.channelUrl).toSet(),
+            channelUrls: msg.packages.map((item) => item.channelUrl).toSet(),
           );
         }
       } else {
