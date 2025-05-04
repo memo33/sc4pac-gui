@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'dart:math';
 import 'dart:ui' show PointerDeviceKind;
 import 'dart:convert' show jsonDecode;
@@ -189,18 +190,28 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                         );
                       },
                     ),
-                    // TextButton.icon(
-                    //   icon: const Icon(Symbols.upload),
-                    //   label: const Text("Export"),
-                    //   style: textButtonStyle,
-                    //   onPressed: () {
-                    //     // showDialog(
-                    //     //   context: context,
-                    //     //   barrierDismissible: true,
-                    //     //   builder: (context) => const ImportDialog(),
-                    //     // );
-                    //   },
-                    // ),
+                    TextButton.icon(
+                      icon: const Icon(Symbols.upload),
+                      label: const Text("Export"),
+                      style: textButtonStyle,
+                      onPressed: () async {
+                        final searchedItems = await filteredList;
+                        final variants = (await World.world.profile.dashboard.variantsFuture).variants;
+                        final channels = await World.world.profile.dashboard.channelUrls;
+                        final data = ExportData(
+                          explicit: [for (final item in searchedItems) if (item.status.explicit == true) item.package],
+                          variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},  // TODO pass only variants relevant for selected packages and their dependencies
+                          channels: channels,  // TODO pass only channels relevant for selected packages and their dependencies
+                        );
+                        if (context.mounted) {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: true,
+                            builder: (context) => ExportDialog(data),
+                          );
+                        }
+                      },
+                    ),
                   ],
                 },
               ]) {
@@ -260,6 +271,59 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   }
 }
 
+class ExportDialog extends StatefulWidget {
+  final ExportData data;
+  const ExportDialog(this.data, {super.key});
+  @override State<ExportDialog> createState() => _ExportDialogState();
+}
+class _ExportDialogState extends State<ExportDialog> {
+  late final _controller = TextEditingController(text: jsonUtf8EncodeIndented(widget.data));
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: const Icon(Symbols.download),
+      title: const Text('Export a Mod Set'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 720),
+        child:
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("A Mod Set is a selection of packages, encoded in JSON format. Copy the JSON contents below to share the Mod Set."),
+            const SizedBox(height: 10),
+            ExportDialogTextField(
+              controller: _controller,
+              autovalidate: true,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        Tooltip(
+          message: "Copy to clipboard",
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.copy),
+            label: const Text("Copy"),
+            onPressed: () => Clipboard.setData(ClipboardData(text: _controller.text))
+          ),
+        ),
+        const SizedBox(width: 80),
+        OutlinedButton(
+          onPressed: () { Navigator.pop(context, null); },
+          child: const Text("Dismiss"),
+        ),
+      ],
+    );
+  }
+}
+
 class ImportDialog extends StatefulWidget {
   const ImportDialog({super.key});
   @override State<ImportDialog> createState() => _ImportDialogState();
@@ -275,22 +339,6 @@ class _ImportDialogState extends State<ImportDialog> {
     super.dispose();
   }
 
-  ExportData? _validate(String text) {
-    ExportData? data;
-    String? errMsg;
-    try {
-      if (text.trim().isNotEmpty) {
-        data = ExportData.fromJson(jsonDecode(text) as Map<String, dynamic>);
-      }
-    } catch (e) {
-      errMsg = e.toString();
-    }
-    setState(() {
-      _errorText = errMsg;
-    });
-    return data;
-  }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -304,21 +352,10 @@ class _ImportDialogState extends State<ImportDialog> {
           children: [
             const Text("A Mod Set is a selection of packages, encoded in JSON format. Paste the JSON contents here to import the packages."),
             const SizedBox(height: 10),
-            Expanded(
-              child: SizedBox(
-                width: 960,  // maxWidth
-                child: TextField(
-                  controller: _controller,
-                  minLines: 100,
-                  keyboardType: TextInputType.multiline,
-                  maxLines: null,
-                  decoration: InputDecoration(
-                    hintText: _hintText,
-                    errorText: _errorText,
-                    errorStyle: const TextStyle(fontFamily: 'monospace'),
-                  ),
-                ),
-              ),
+            ExportDialogTextField(
+              controller: _controller,
+              hintText: _hintText,
+              errorText: _errorText,
             ),
           ],
         ),
@@ -328,7 +365,10 @@ class _ImportDialogState extends State<ImportDialog> {
           listenable: _controller,
           builder: (context, child) => FilledButton(
             onPressed: _controller.text.trim().isEmpty ? null : () {
-              final data = _validate(_controller.text);
+              final data = ExportDialogTextField.validate(
+                _controller.text,
+                handleError: (errMsg) => setState(() { _errorText = errMsg; }),
+              );
               if (data != null) {
                 Navigator.pop(context, null);
                 World.world.profile.myPlugins.import(data);
@@ -344,6 +384,56 @@ class _ImportDialogState extends State<ImportDialog> {
         ),
       ],
     );
+  }
+}
+
+class ExportDialogTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String? hintText;
+  final String? errorText;
+  final bool autovalidate;
+  const ExportDialogTextField({required this.controller, this.hintText, this.errorText, this.autovalidate = false, super.key})
+      : assert(errorText == null || !autovalidate);  // don't use errorText and autovalidate simultaneously
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: SizedBox(
+        width: 960,  // maxWidth
+        child: TextFormField(
+          controller: controller,
+          minLines: 100,
+          keyboardType: TextInputType.multiline,
+          maxLines: null,
+          decoration: InputDecoration(
+            hintText: hintText,
+            errorText: !autovalidate ? errorText : null,
+            errorStyle: const TextStyle(fontFamily: 'monospace'),
+          ),
+          autovalidateMode: !autovalidate ? null : AutovalidateMode.onUserInteraction,
+          validator: !autovalidate ? null : (text) {
+            String? errMsg;
+            if (text != null) {
+              validate(text, handleError: (e) { errMsg = e; });
+            }
+            return errMsg;
+          },
+        ),
+      ),
+    );
+  }
+
+  static ExportData? validate(String text, {required void Function(String? error) handleError}) {
+    ExportData? data;
+    String? errMsg;
+    try {
+      if (text.trim().isNotEmpty) {
+        data = ExportData.fromJson(jsonDecode(text) as Map<String, dynamic>);
+      }
+    } catch (e) {
+      errMsg = e.toString();
+    }
+    handleError(errMsg);
+    return data;
   }
 }
 
