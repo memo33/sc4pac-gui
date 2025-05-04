@@ -270,7 +270,7 @@ class FindPackages extends ChangeNotifier {
         profileId: World.world.profile.id,
       ).then((PackageSearchResult data) {
         final debugChannelUrls = customFilter?.debugChannelUrls;
-        if (data.notFoundExternalIdCount > 0
+        if ((data.notFoundExternalIdCount > 0 || data.notFoundPackageCount > 0)
           && !_alreadyAskedAddingChannelsFromFilter
           && debugChannelUrls != null && debugChannelUrls.isNotEmpty
         ) {

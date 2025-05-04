@@ -203,9 +203,10 @@ class PackageSearchResultItem {
 @JsonSerializable()
 class PackageSearchResult {
   final List<PackageSearchResultItem> packages;
+  final int notFoundPackageCount;
   final int notFoundExternalIdCount;
   final ChannelStats? stats;
-  const PackageSearchResult(this.packages, {this.notFoundExternalIdCount = 0, this.stats});
+  const PackageSearchResult(this.packages, {this.notFoundPackageCount = 0, this.notFoundExternalIdCount = 0, this.stats});
   factory PackageSearchResult.fromJson(Map<String, dynamic> json) => _$PackageSearchResultFromJson(json);
   static const empty = PackageSearchResult([]);
 }
