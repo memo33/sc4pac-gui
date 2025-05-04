@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:file_picker/file_picker.dart' show FilePicker, FileType, FilePickerResult, PlatformFile;
+import 'dart:typed_data' show Uint8List;
 import 'dart:math';
 import 'dart:ui' show PointerDeviceKind;
-import 'dart:convert' show jsonDecode;
+import 'dart:convert';
 import 'package:collection/collection.dart' show mergeSort;
 import 'package:badges/badges.dart' as badges;
 import '../data.dart';
@@ -308,11 +310,27 @@ class _ExportDialogState extends State<ExportDialog> {
       actions: [
         Tooltip(
           message: "Copy to clipboard",
-          child: OutlinedButton.icon(
+          child: TextButton.icon(
             icon: const Icon(Icons.copy),
             label: const Text("Copy"),
             onPressed: () => Clipboard.setData(ClipboardData(text: _controller.text))
           ),
+        ),
+        TextButton.icon(
+          icon: const Icon(Symbols.file_export),
+          label: const Text("Save as JSON file"),
+          onPressed: () async {
+            final Uint8List fileBytes = const Utf8Encoder().convert(_controller.text);
+            debugPrint("file size: ${fileBytes.length}");
+            final String? file = await FilePicker.platform.saveFile(
+              dialogTitle: 'Please select an output file:',
+              fileName: 'my-modset.sc4pac.json',
+              type: FileType.custom,
+              allowedExtensions: ['json'],
+              bytes: fileBytes,
+            );
+            debugPrint(file == null ? "Save-File dialog canceled" : "File saved: $file");
+          },
         ),
         const SizedBox(width: 80),
         OutlinedButton(
@@ -339,6 +357,12 @@ class _ImportDialogState extends State<ImportDialog> {
     super.dispose();
   }
 
+  ExportData? _validate() =>
+    ExportDialogTextField.validate(
+      _controller.text,
+      handleError: (errMsg) => setState(() { _errorText = errMsg; }),
+    );
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -350,7 +374,29 @@ class _ImportDialogState extends State<ImportDialog> {
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("A Mod Set is a selection of packages, encoded in JSON format. Paste the JSON contents here to import the packages."),
+            const Text("A Mod Set is a selection of packages, encoded in JSON format. Paste the JSON contents here or load a file to import the packages."),
+            const SizedBox(height: 10),
+            TextButton.icon(
+              icon: const Icon(Symbols.file_open),
+              label: const Text('Open JSON file'),
+              onPressed: () async {
+                FilePickerResult? result = await FilePicker.platform.pickFiles(
+                  allowMultiple: false,
+                  type: FileType.custom,
+                  allowedExtensions: ['json'],
+                  withData: true,  // initializes fileBytes
+                );
+                if (result != null) {
+                  final fileBytes = result.files.first.bytes;
+                  if (fileBytes != null) {
+                    _controller.text = const Utf8Decoder(allowMalformed: true).convert(fileBytes);
+                    _validate();
+                  } else {
+                    ApiErrorWidget.dialog(ApiError.unexpected("Loading files is not supported on this platform.", ""));
+                  }
+                }
+              },
+            ),
             const SizedBox(height: 10),
             ExportDialogTextField(
               controller: _controller,
@@ -365,10 +411,7 @@ class _ImportDialogState extends State<ImportDialog> {
           listenable: _controller,
           builder: (context, child) => FilledButton(
             onPressed: _controller.text.trim().isEmpty ? null : () {
-              final data = ExportDialogTextField.validate(
-                _controller.text,
-                handleError: (errMsg) => setState(() { _errorText = errMsg; }),
-              );
+              final data = _validate();
               if (data != null) {
                 Navigator.pop(context, null);
                 World.world.profile.myPlugins.import(data);
