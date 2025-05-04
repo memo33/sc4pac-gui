@@ -194,18 +194,17 @@ class CustomFilterBar extends StatelessWidget {
           label: const Text("Add all"),
           onPressed: () => World.world.profile.findPackages.onCustomFilterAddAllButton(),
         ),
-        Tooltip(
-          message: enableReset ? "Restore previous state" : "",
-          child: OutlinedButton.icon(
-            icon: InstalledStatusIconExplicit(  // TODO try using Icon.blendMode with Flutter 3.27+ for correct background coloring on hover
-              badgeScale: 1.1,
-              fill: 0,
-              child: Transform.rotate(angle: -2.3, child: const Icon(Symbols.replay)),
-            ),
-            label: const Text("Reset"),
-            onPressed: enableReset ? () => World.world.profile.findPackages.onCustomFilterResetButton() : null,
+        switch (OutlinedButton.icon(
+          icon: InstalledStatusIconExplicit(  // TODO try using Icon.blendMode with Flutter 3.27+ for correct background coloring on hover
+            badgeScale: 1.1,
+            fill: 0,
+            child: Transform.rotate(angle: -2.3, child: const Icon(Symbols.replay)),
           ),
-        ),
+          label: const Text("Reset"),
+          onPressed: enableReset ? () => World.world.profile.findPackages.onCustomFilterResetButton() : null,
+        )) {
+          final button => enableReset ? Tooltip(message: "Restore previous state", child: button) : button
+        },
       ],
     );
   }
