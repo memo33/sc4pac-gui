@@ -36,6 +36,14 @@ class ProgressUpdateExtraction {
 }
 
 @JsonSerializable()
+class UpdateInitialArguments {
+  final List<String> choices;
+  final Map<String, dynamic> responses;
+  const UpdateInitialArguments(this.choices, this.responses);
+  factory UpdateInitialArguments.fromJson(Map<String, dynamic> json) => _$UpdateInitialArgumentsFromJson(json);
+}
+
+@JsonSerializable()
 class UpdatePlan {
   final List<({String package, String version, Map<String, String> variant})> toRemove;
   final List<({String package, String version, Map<String, String> variant})> toInstall;

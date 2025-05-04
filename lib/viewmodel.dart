@@ -612,6 +612,10 @@ class UpdateProcess extends ChangeNotifier {
 
   static final messageHandlers =
     Map.unmodifiable(<String, void Function(UpdateProcess self, Map<String, dynamic> data)>{
+      '/prompt/json/update/initial-arguments': (self, data) {
+        final msg = UpdateInitialArguments.fromJson(data);
+        self._ws.sink.add(jsonEncode(msg.responses[msg.choices.first]));  // TODO pass importedSelections here
+      },
       '/prompt/confirmation/update/plan': (self, data) {
         final plan = UpdatePlan.fromJson(data);
         self.plan = plan;
