@@ -360,52 +360,35 @@ class FindPackages extends ChangeNotifier {
   void onCustomFilterResetButton() {
     enableResetCustomFilter = false;
     addedAllInCustomFilter = false;
-    searchResult.then<void>((result) =>
-      _customFilterOrigState.then((origResult) {
-        final Map<String, InstalledStatus?> currentStates = {for (final item in result.packages) item.package: item.status};
-
-        final modulesToRemove =
-            origResult.packages.where((item) => item.status?.explicit != true && currentStates[item.package]?.explicit == true).toList();
-        final modulesToAdd =
-            origResult.packages.where((item) => item.status?.explicit == true && currentStates[item.package]?.explicit != true).toList();
-
-        return World.world.client.remove(modulesToRemove.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id)
-          .then((_) => World.world.client.add(modulesToAdd.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id))
-          .then((_) {
-            for (final item in modulesToRemove) {
-              if (item.status?.installed != null && item.status?.explicit != true || item.status == null) {
-                World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.remove);
-              }
-            }
-            for (final item in modulesToAdd) {
-              if (!(item.status?.installed != null && item.status?.explicit != true)) {
-                World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.add);
-              }
-            }
-            refreshSearchResult();
-          });
-      })
-    )
+    searchResult.then<void>((result) async {
+      final origResult = await _customFilterOrigState;
+      final Map<String, InstalledStatus?> currentStates = {for (final item in result.packages) item.package: item.status};
+      await World.world.profile.dashboard.pendingUpdates.toggleMany(
+        toAdd:    origResult.packages.where((item) => item.status?.explicit == true && currentStates[item.package]?.explicit != true).toList(),
+        toRemove: origResult.packages.where((item) => item.status?.explicit != true && currentStates[item.package]?.explicit == true).toList(),
+        reset: true,
+      );
+      refreshSearchResult();
+    })
     .catchError(ApiErrorWidget.dialog);
     // async, but we do not need to await result
   }
 
+  // removes all on second click
   void onCustomFilterAddAllButton() {
-    addedAllInCustomFilter = true;
-    searchResult.then<void>((result) {
-      final modulesToAdd =
-        result.packages.where((item) => item.status?.explicit != true).toList();
-      if (modulesToAdd.isNotEmpty) {
+    final bool addAll = !addedAllInCustomFilter;
+    addedAllInCustomFilter = addAll;
+    searchResult.then<void>((result) async {
+      final modulesToToggle =
+        result.packages.where((item) => item.status?.explicit != addAll).toList();
+      if (modulesToToggle.isNotEmpty) {
         enableResetCustomFilter = true;
-        return World.world.client.add(modulesToAdd.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id)
-          .then((_) {
-            for (final item in modulesToAdd) {
-              if (item.status?.installed != null && item.status?.explicit != true || item.status == null) {
-                World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.add);
-              }  // otherwise package was already installed (add is performed directly, so no pending update)
-            }
-            refreshSearchResult();
-          });
+        if (addAll) {
+          await World.world.profile.dashboard.pendingUpdates.toggleMany(toAdd: modulesToToggle, reset: false);
+        } else {
+          await World.world.profile.dashboard.pendingUpdates.toggleMany(toRemove: modulesToToggle, reset: false);
+        }
+        refreshSearchResult();
       }
     })
     .catchError(ApiErrorWidget.dialog);
@@ -518,6 +501,30 @@ class PendingUpdates extends ChangeNotifier {
       World.world.profile.findPackages.addedAllInCustomFilter = false;
       setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+  }
+
+  // on toggling multiple star buttons simultaneously (e.g. Add All or Reset)
+  Future<void> toggleMany({List<PackageSearchResultItem> toAdd = const [], List<PackageSearchResultItem> toRemove = const [], required bool reset}) async {
+    await World.world.client.remove(toRemove.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id);
+    await World.world.client.add(toAdd.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id);
+    for (final item in toRemove) {
+      if (_shouldSetPendingUpdate(item, removed: reset ? true : false)) {
+        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.remove);
+      }
+    }
+    for (final item in toAdd) {
+      if (_shouldSetPendingUpdate(item, removed: reset ? false : true)) {
+        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.add);
+      }
+    }
+  }
+
+  bool _shouldSetPendingUpdate(PackageSearchResultItem item, {required bool removed}) {
+    if (removed) {
+      return item.status?.installed != null && item.status?.explicit != true || item.status == null;
+    } else {
+      return !(item.status?.installed != null && item.status?.explicit != true);
+    }
   }
 
   int getCount() {
