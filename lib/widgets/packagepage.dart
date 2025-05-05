@@ -211,7 +211,8 @@ class _PackagePageState extends State<PackagePage> {
                 if (remote case {'info': {'author': String text}})
                   packageTableRow(const Text("Author"), Text(text)),
                 if (remote case {'info': {'websites': List<dynamic> urls}})
-                  ...urls.cast<String>().map((url) => packageTableRow(const Text("Website"), CopyButton(copyableText: url, child: Hyperlink(url: url)))),
+                  if (urls.isNotEmpty)
+                    packageTableRow(Text(urls.length > 1 ? "Websites" : "Website"), Column(children: urls.cast<String>().map((url) => CopyButton(copyableText: url, child: Hyperlink(url: url))).toList())),
                 if (remote case {'channelLabel': [String label]})
                   packageTableRow(const Text("Channel"), Text(label)),
                 packageTableRow(const Text("Subfolder"), Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' })),
