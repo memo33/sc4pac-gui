@@ -10,6 +10,7 @@ import 'package:badges/badges.dart' as badges;
 import 'package:markdown/markdown.dart' as md;
 import 'package:flutter_markdown/flutter_markdown.dart' as fmd;
 import 'package:open_file/open_file.dart';
+import '../icomoon_icons.dart' show Icomoon;
 import '../model.dart';
 import '../viewmodel.dart' show PendingUpdateStatus;
 import 'packagepage.dart';
@@ -525,7 +526,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
           widget.onSelected!(s);
         }
       },
-      leadingIcon: Icon(symbols[selectedCategory] ?? Symbols.category_search),
+      leadingIcon: CategoryIcon(selectedCategory, fallback: Symbols.category_search),
       initialSelection: selectedCategory,
       label: const Text('Category'),
       // enableFilter: true,
@@ -539,16 +540,31 @@ class _CategoryMenuState extends State<CategoryMenu> {
         DropdownMenuEntry<String?>(
           value: c.category,
           label: c.category ?? "All",
-          leadingIcon: Icon(symbols[c.category], color: Theme.of(context).hintColor),
+          leadingIcon: CategoryIcon(c.category, color: Theme.of(context).hintColor),
           trailingIcon: Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(c.count?.toString() ?? '')),
         ),
       ).toList(),
     );
   }
+}
 
-  static final symbols = {
+class CategoryIcon extends StatelessWidget {
+  final String? category;
+  final Color? color;
+  final IconData? fallback;
+  const CategoryIcon(this.category, {this.fallback, this.color, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(_symbols[category] ?? fallback, color: color);
+  }
+
+  static final _symbols = {
     '050-load-first': Symbols.event_upcoming,
+    '060-config': Symbols.settings_applications,
     '100-props-textures': Symbols.grid_view,
+    '110-resources': Symbols.schema,  // or Symbols.pallet
+    '140-ordinances': Symbols.rule,
     '150-mods': Symbols.tune,  // or Symbols.build
     '170-terrain': Symbols.landscape,
     '180-flora': Symbols.forest,
@@ -567,6 +583,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
     '660-parks': Symbols.nature_people,
     '700-transit': Symbols.commute,
     '710-automata': Symbols.traffic_jam,
+    '770-network-addon-mod': Icomoon.namLogo2021BlackPad10,
     '900-overrides': Symbols.event_repeat,
   };
 }
