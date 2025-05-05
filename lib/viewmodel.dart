@@ -407,12 +407,13 @@ class MyPlugins {
   SortOrder sortOrder = SortOrder.relevance;  // default order as returned by Api
 
   void import(ExportData data) {
-    if (data.variants?.isNotEmpty == true) {
-      World.world.profile.dashboard.importedVariantSelections.add(data.variants!);
+    final variants = data.variants ?? data.config?.variant;
+    if (variants?.isNotEmpty == true) {
+      World.world.profile.dashboard.importedVariantSelections.add(variants!);
     }
     World.world.openPackages(
       data.explicit?.map(BareModule.parse).toList() ?? [],
-      channelUrls: data.channels?.toSet() ?? {},
+      channelUrls: (data.channels ?? data.config?.channels)?.toSet() ?? {},
     );
   }
 }
