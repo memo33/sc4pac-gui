@@ -155,7 +155,9 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       status: item.status,
                       debugChannelUrls: widget.findPackages.customFilter?.debugChannelUrls,
                       refreshParent: widget.findPackages.refreshSearchResult,
-                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: widget.findPackages.refreshSearchResult),
+                      onToggled: (checked) =>
+                        World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked)
+                          .then((_) => widget.findPackages.refreshSearchResult()),
                     );
                   },
                   childCount: searchResult.packages.length,

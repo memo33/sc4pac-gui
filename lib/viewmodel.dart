@@ -509,15 +509,14 @@ class PendingUpdates extends ChangeNotifier {
     notifyListeners();
   }
 
-  void onToggledStarButton(BareModule module, bool checked, {required void Function() refreshParent}) {
+  Future<void> onToggledStarButton(BareModule module, bool checked) {
     final task = checked ?
         World.world.client.add([module], profileId: World.world.profile.id) :
         World.world.client.remove([module], profileId: World.world.profile.id);
-    task.then((_) {
+    return task.then((_) {
       World.world.profile.findPackages.enableResetCustomFilter = true;
       World.world.profile.findPackages.addedAllInCustomFilter = false;
       setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
-      refreshParent();
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
   }
 

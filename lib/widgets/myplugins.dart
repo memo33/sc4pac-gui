@@ -200,7 +200,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       summary: pkg.summary,
                       status: pkg.status,
                       refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked, refreshParent: _refresh),
+                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked).then((_) => _refresh()),
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!)),
                       ],
