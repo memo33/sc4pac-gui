@@ -198,13 +198,19 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       style: textButtonStyle,
                       onPressed: () async {
                         final searchedItems = await filteredList;
-                        final variants = (await World.world.profile.dashboard.variantsFuture).variants;
-                        final channels = await World.world.profile.dashboard.channelUrls;
-                        final data = ExportData(
-                          explicit: [for (final item in searchedItems) if (item.status.explicit == true) item.package],
-                          variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},  // TODO pass only variants relevant for selected packages and their dependencies
-                          channels: channels,  // TODO pass only channels relevant for selected packages and their dependencies
-                        );
+                        final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
+                        final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)
+                          .catchError((Object e) async {
+                            await ApiErrorWidget.dialog(e);
+                            // as fallback, use all variants and channels
+                            final variants = (await World.world.profile.dashboard.variantsFuture).variants;
+                            final channels = await World.world.profile.dashboard.channelUrls;
+                            return ExportData(
+                              explicit: modules,
+                              variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},
+                              channels: channels,
+                            );
+                          });
                         if (context.mounted) {
                           showDialog(
                             context: context,

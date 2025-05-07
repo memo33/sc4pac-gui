@@ -302,6 +302,19 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
+  // TODO use BareModule instead of String
+  Future<ExportData> export(List<String> modules, {required String profileId}) async {
+    final response = await http.post(Uri.http(authority, '/plugins.export', {'profile': profileId}),
+      body: jsonUtf8Encode(modules),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      return ExportData.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   Future<VariantsList> variantsList({required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/variants.list', {'profile': profileId}));
     if (response.statusCode == 200) {
