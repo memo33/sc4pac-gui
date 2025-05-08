@@ -71,9 +71,10 @@ class PkgNameFragment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final style = DefaultTextStyle.of(context).style; //.apply(fontFamily: GoogleFonts.notoSansMono().fontFamily);
-    final style1 = colored ? style : style.copyWith(color: Theme.of(context).hintColor);
-    final style2 = colored ? style.copyWith(color: Theme.of(context).primaryColor) : style;
+    final style1 = colored ? style.copyWith(color: theme.primaryColorLight) : style.copyWith(color: theme.hintColor);
+    final style2 = colored ? style.copyWith(color: theme.primaryColor) : style;
     final text = RichText(
       text: TextSpan(
         style: style,
@@ -81,7 +82,7 @@ class PkgNameFragment extends StatelessWidget {
           if (prefix?.isNotEmpty == true) TextSpan(text: prefix),
           TextSpan(text: '${module.group} : ', style: style1),
           TextSpan(text: module.name, style: style2),
-          if (localVariant != null) TextSpan(text: ' : $localVariant', style: style1),
+          if (localVariant != null) TextSpan(text: ' : $localVariant', style: style),
           if (suffix?.isNotEmpty == true) TextSpan(text: suffix),
         ],
       ),
