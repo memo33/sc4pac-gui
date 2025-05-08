@@ -307,10 +307,14 @@ class RemoveConflictingPkgsDialog extends StatefulWidget {
   @override State<RemoveConflictingPkgsDialog> createState() => _RemoveConflictingPkgsDialog();
 }
 class _RemoveConflictingPkgsDialog extends State<RemoveConflictingPkgsDialog> {
-  int? _selection;
+  late final bool singleChoice = widget.msg.explicitPackages.length == 1 || widget.msg.explicitPackages.length == 2 && const UnorderedIterableEquality().equals(widget.msg.explicitPackages[0], widget.msg.explicitPackages[1]);
+  late int? _selection = singleChoice ? 0 : null;
 
   @override
   Widget build(BuildContext context) {
+    final hint = singleChoice
+        ? "To avoid the conflict, the following packages must be uninstalled. (Alternatively, choosing different package _variants_ may resolve the conflict, as well.)"
+        : "Decide which of the following packages you want to uninstall to resolve the conflict. (Sometimes, choosing different package _variants_ can resolve the conflict, as well.)";
     return AlertDialog(
       icon: const Icon(Icons.warning_outlined),
       title: const Text('Remove conflicting packages?'),
@@ -321,11 +325,10 @@ class _RemoveConflictingPkgsDialog extends State<RemoveConflictingPkgsDialog> {
             MarkdownText(
 """The packages ${widget.msg.conflict.map((pkg) => "`pkg=$pkg`").join(" and ")} are _in conflict_ with each other and cannot be installed at the same time.
 
-Decide which of the following packages you want to uninstall to resolve the conflict.
-(Sometimes, choosing different package _variants_ can resolve the conflict, as well.)"""
+$hint"""
             ),
             const SizedBox(height: 10),
-            ...List.generate(widget.msg.explicitPackages.length, (idx) =>
+            ...List.generate(singleChoice ? 1 : widget.msg.explicitPackages.length, (idx) =>
               RadioListTile<int>(
                 title: Text("Uninstall Option ${idx + 1}"),
                 subtitle: Column(
