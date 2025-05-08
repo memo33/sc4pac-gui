@@ -391,18 +391,43 @@ class PackageTile extends StatelessWidget {
     final explicit = status?.explicit ?? false;
     final hintStyle = DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).hintColor);
     final timeLabel = status?.timeLabel();
+    final tags = [
+      if (status?.installed != null) Tooltip(message: "Version", child: TextWithIcon(status!.installed!.version, symbol: Symbols.sell, style: hintStyle)),
+      if (timeLabel != null) TextWithIcon(timeLabel, symbol: Symbols.schedule, style: hintStyle),
+    ];
+    final tagsWidget = tags.isEmpty ? null : Wrap(
+      direction: Axis.horizontal,
+      alignment: WrapAlignment.end,
+      spacing: 20,
+      children: tags,
+    );
     return ListTile(
       leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
-      subtitle: summary == null && status == null ? null : Row(
-        children: [
-          summary != null ? Expanded(child: MarkdownText(summary!, refreshParent: refreshParent)) : const Spacer(),
-          if (status?.installed != null) const SizedBox(width: 10), // DividerIcon(),
-          if (status?.installed != null) Tooltip(message: "Version", child: TextWithIcon(status!.installed!.version, symbol: Symbols.sell, style: hintStyle)),
-          if (timeLabel != null) const SizedBox(width: 20), // DividerIcon(),
-          if (timeLabel != null) TextWithIcon(timeLabel, symbol: Symbols.schedule, style: hintStyle),
-        ],
-      ),
+      subtitle: summary?.isEmpty == true && tagsWidget == null ? null : LayoutBuilder(builder: (context, constraints) {
+        final summaryWidget = summary != null ? MarkdownText(summary!, refreshParent: refreshParent) : null;
+        if (constraints.maxWidth < 400) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (summaryWidget != null) Align(alignment: Alignment.topLeft, child: summaryWidget),
+              if (tagsWidget != null) tagsWidget,
+            ],
+          );
+        } else {
+          return Row(
+            children: [
+              if (summaryWidget != null) Expanded(child: summaryWidget),
+              if (summaryWidget != null && tagsWidget != null) const SizedBox(width: 10),
+              if (tagsWidget != null)
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth - 200),
+                  child: tagsWidget,
+                ),
+            ],
+          );
+        }
+      }),
       visualDensity: visualDensity,
       trailing: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
