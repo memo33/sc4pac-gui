@@ -226,7 +226,7 @@ class _PackagePageState extends State<PackagePage> {
                     spacing: 12,
                     crossAxisAlignment: WrapCrossAlignment.start,
                     children: variants.map((vs) => Wrap(spacing: 5, children: vs.map((v) =>
-                      PackageTileChip.variant(v.label, v.value, description: v.desc),
+                      PackageTileChip.variant(v.label, v.value, widget.module, description: v.desc),
                     ).toList())).toList()
                   )
                 ),

@@ -231,10 +231,16 @@ class PackageTileChip extends StatelessWidget {
   final bool filled;
   final String? description;
   const PackageTileChip({required this.label, super.key, this.onDeleted, this.filled = false, this.description});
-  PackageTileChip.variant(String label, String value, {Key? key, String? description}) :
-      this(label: Text('$label: $value'), key: key, description: description);
-  // const PackageTileChip.explicit({Key? key, void Function()? onDeleted}) :
-  //     this(label: const Text('explicitly installed'), key: key, onDeleted: onDeleted, filled: true);
+  PackageTileChip.variant(String label, String value, BareModule module, {Key? key, String? description}) :
+    this(
+      label: switch (module.toString()) {
+        final pkg => label.startsWith(pkg) && label.startsWith(':', pkg.length)
+          ? Text('${label.substring(pkg.length + 1)} = $value')
+          : Text('$label = $value')
+      },
+      key: key,
+      description: description,
+    );
 
   @override
   Widget build(BuildContext context) {

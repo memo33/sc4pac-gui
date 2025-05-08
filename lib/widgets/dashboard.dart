@@ -46,13 +46,14 @@ class DashboardScreen extends StatefulWidget {
               }),
               ...plan.toInstall.map((pkg) {
                 final change = plan.changes[pkg.package]!;
+                final module = BareModule.parse(pkg.package);
                 return Wrap(
                   direction: Axis.horizontal,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     PendingUpdateStatusIcon(change.versionFrom == null ? PendingUpdateStatus.add : PendingUpdateStatus.reinstall),
                     const SizedBox(width: 10),
-                    PkgNameFragment(BareModule.parse(pkg.package), asButton: false, colored: false),
+                    PkgNameFragment(module, asButton: false, colored: false),
                     ...change.versionFrom == change.versionTo
                       ? []
                       : [const SizedBox(width: 12), VersionChangeFragment(change.versionFrom, change.versionTo)],
@@ -63,7 +64,7 @@ class DashboardScreen extends StatefulWidget {
                         Wrap(
                           direction: Axis.horizontal,
                           spacing: 5,
-                          children: change.variantTo!.entries.map((e) => PackageTileChip.variant(e.key, e.value)).toList(),
+                          children: change.variantTo!.entries.map((e) => PackageTileChip.variant(e.key, e.value, module)).toList(),
                         ),
                       ],
                   ],
