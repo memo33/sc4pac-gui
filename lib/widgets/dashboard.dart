@@ -759,17 +759,7 @@ class _VariantsTableState extends State<VariantsTable> {
       return const Padding(padding: listViewTextPadding, child: Text("No variants installed yet."));
     } else {
       final entries = (widget.variants.entries.map((e) => (key: e.key, value: e.value.value, keyParts: e.key.split(':')))).toList();
-      entries.sort((a, b) {  // first global, then local variants (first leafs, then nodes -> recursively)
-        int i = 0;
-        for (; i < a.keyParts.length - 1 && i < b.keyParts.length - 1; i++) {
-          final c = a.keyParts[i].toLowerCase().compareTo(b.keyParts[i].toLowerCase());
-          if (c != 0) return c;  // different parent nodes
-        }
-        // same parent nodes at level i-1
-        final c = a.keyParts.length.compareTo(b.keyParts.length);
-        if (c != 0) return c;  // mixed leafs/nodes at level i
-        return a.keyParts[i].toLowerCase().compareTo(b.keyParts[i].toLowerCase());  // leafs at level i
-      });
+      Dashboard.sortVariants(entries, keyParts: (e) => e.keyParts);
       final table = Table(
         columnWidths: const {
           0: IntrinsicColumnWidth(),  // unused-error-icon

@@ -348,10 +348,10 @@ class VariantsList {
 @JsonSerializable(includeIfNull: false)
 class ExportData {
   final List<String>? explicit;
-  final Map<String, String>? variants;
+  Map<String, String>? variants;
   final List<String>? channels;
   final ({Map<String, String>? variant, List<String>? channels})? config;  // `config` is not intended for ordinary use, only as fallback for compatibility with sc4pac-plugins.json file
-  const ExportData({this.explicit, this.variants, this.channels, this.config});
+  ExportData({this.explicit, this.variants, this.channels, this.config});
   factory ExportData.fromJson(Map<String, dynamic> json) => _$ExportDataFromJson(json);
   Map<String, dynamic> toJson() => _$ExportDataToJson(this);
 }

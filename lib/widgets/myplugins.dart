@@ -6,6 +6,7 @@ import 'dart:typed_data' show Uint8List;
 import 'dart:math';
 import 'dart:ui' show PointerDeviceKind;
 import 'dart:convert';
+import 'dart:collection' show LinkedHashMap;
 import 'package:collection/collection.dart' show mergeSort;
 import 'package:badges/badges.dart' as badges;
 import '../data.dart';
@@ -199,7 +200,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       onPressed: () async {
                         final searchedItems = await filteredList;
                         final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
-                        final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)
+                        final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)  // somewhat expensive due to resolving (which requires parsing package files)
                           .catchError((Object e) async {
                             await ApiErrorWidget.dialog(e);
                             // as fallback, use all variants and channels
@@ -211,6 +212,11 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                               channels: channels,
                             );
                           });
+                        final variantEntries = data.variants?.entries.toList();
+                        if (variantEntries != null) {
+                          Dashboard.sortVariants(variantEntries, keyParts: (e) => e.key.split(':'));
+                          data.variants = LinkedHashMap.fromEntries(variantEntries);  // preserves insertion order
+                        }
                         if (context.mounted) {
                           showDialog(
                             context: context,
@@ -354,7 +360,7 @@ class ImportDialog extends StatefulWidget {
 }
 class _ImportDialogState extends State<ImportDialog> {
   late final _controller = TextEditingController();
-  static final _hintText = jsonUtf8EncodeIndented(const ExportData(explicit: ["memo:submenus-dll", "memo:3d-camera-dll"]).toJson());
+  static final _hintText = jsonUtf8EncodeIndented(ExportData(explicit: ["memo:submenus-dll", "memo:3d-camera-dll"]).toJson());
   String? _errorText;
 
   @override
