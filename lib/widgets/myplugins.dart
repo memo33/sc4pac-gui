@@ -197,33 +197,34 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       icon: const Icon(Symbols.upload),
                       label: const Text("Export"),
                       style: textButtonStyle,
-                      onPressed: () async {
-                        final searchedItems = await filteredList;
-                        final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
-                        final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)  // somewhat expensive due to resolving (which requires parsing package files)
-                          .catchError((Object e) async {
-                            await ApiErrorWidget.dialog(e);
-                            // as fallback, use all variants and channels
-                            final variants = (await World.world.profile.dashboard.variantsFuture).variants;
-                            final channels = await World.world.profile.dashboard.channelUrls;
-                            return ExportData(
-                              explicit: modules,
-                              variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},
-                              channels: channels,
-                            );
+                      onPressed: () {
+                        final dataFuture = filteredList
+                          .then((searchedItems) async {
+                            final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
+                            final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)  // somewhat expensive due to resolving (which requires parsing package files)
+                              .catchError((Object e) async {
+                                await ApiErrorWidget.dialog(e);
+                                // as fallback, use all variants and channels
+                                final variants = (await World.world.profile.dashboard.variantsFuture).variants;
+                                final channels = await World.world.profile.dashboard.channelUrls;
+                                return ExportData(
+                                  explicit: modules,
+                                  variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},
+                                  channels: channels,
+                                );
+                              });
+                            final variantEntries = data.variants?.entries.toList();
+                            if (variantEntries != null) {
+                              Dashboard.sortVariants(variantEntries, keyParts: (e) => e.key.split(':'));
+                              data.variants = LinkedHashMap.fromEntries(variantEntries);  // preserves insertion order
+                            }
+                            return data;
                           });
-                        final variantEntries = data.variants?.entries.toList();
-                        if (variantEntries != null) {
-                          Dashboard.sortVariants(variantEntries, keyParts: (e) => e.key.split(':'));
-                          data.variants = LinkedHashMap.fromEntries(variantEntries);  // preserves insertion order
-                        }
-                        if (context.mounted) {
-                          showDialog(
-                            context: context,
-                            barrierDismissible: true,
-                            builder: (context) => ExportDialog(data),
-                          );
-                        }
+                        showDialog(
+                          context: context,
+                          barrierDismissible: true,
+                          builder: (context) => ExportDialog(dataFuture),
+                        );
                       },
                     ),
                   ],
@@ -286,12 +287,12 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
 }
 
 class ExportDialog extends StatefulWidget {
-  final ExportData data;
-  const ExportDialog(this.data, {super.key});
+  final Future<ExportData> dataFuture;
+  const ExportDialog(this.dataFuture, {super.key});
   @override State<ExportDialog> createState() => _ExportDialogState();
 }
 class _ExportDialogState extends State<ExportDialog> {
-  late final _controller = TextEditingController(text: jsonUtf8EncodeIndented(widget.data));
+  late final _controller = TextEditingController();
 
   @override
   void dispose() {
@@ -308,41 +309,64 @@ class _ExportDialogState extends State<ExportDialog> {
         constraints: const BoxConstraints(maxHeight: 720),
         child:
         Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,  // so that height stays fixed when progress indicator is displayed
           children: [
             const Text("A Mod Set is a selection of packages, encoded in JSON format. Copy the JSON contents below to share the Mod Set."),
             const SizedBox(height: 10),
-            ExportDialogTextField(
-              controller: _controller,
-              autovalidate: true,
+            FutureBuilder(
+              future: widget.dataFuture,
+              builder: (context, snapshot) {
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return SizedBox(
+                    width: ExportDialogTextField.maxWidth,
+                    child: snapshot.hasError
+                      ? Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))))
+                      : const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 60), child: CircularProgressIndicator())),
+                  );
+                } else {
+                  _controller.text = jsonUtf8EncodeIndented(snapshot.data);
+                  return ExportDialogTextField(
+                    controller: _controller,
+                    autovalidate: true,
+                  );
+                }
+              },
             ),
           ],
         ),
       ),
       actions: [
-        Tooltip(
-          message: "Copy to clipboard",
-          child: TextButton.icon(
-            icon: const Icon(Icons.copy),
-            label: const Text("Copy"),
-            onPressed: () => Clipboard.setData(ClipboardData(text: _controller.text))
-          ),
+        FutureBuilder(
+          future: widget.dataFuture,
+          builder: (context, snapshot) =>
+            Tooltip(
+              message: "Copy to clipboard",
+              child: TextButton.icon(
+                icon: const Icon(Icons.copy),
+                label: const Text("Copy"),
+                onPressed: !snapshot.hasData ? null : () => Clipboard.setData(ClipboardData(text: _controller.text))
+              ),
+            ),
         ),
-        TextButton.icon(
-          icon: const Icon(Symbols.file_export),
-          label: const Text("Save as JSON file"),
-          onPressed: () async {
-            final Uint8List fileBytes = const Utf8Encoder().convert(_controller.text);
-            debugPrint("file size: ${fileBytes.length}");
-            final String? file = await FilePicker.platform.saveFile(
-              dialogTitle: 'Please select an output file:',
-              fileName: 'my-modset.sc4pac.json',
-              type: FileType.custom,
-              allowedExtensions: ['json'],
-              bytes: fileBytes,
-            );
-            debugPrint(file == null ? "Save-File dialog canceled" : "File saved: $file");
-          },
+        FutureBuilder(
+          future: widget.dataFuture,
+          builder: (context, snapshot) =>
+            TextButton.icon(
+              icon: const Icon(Symbols.file_export),
+              label: const Text("Save as JSON file"),
+              onPressed: !snapshot.hasData ? null : () async {
+                final Uint8List fileBytes = const Utf8Encoder().convert(_controller.text);
+                debugPrint("file size: ${fileBytes.length}");
+                final String? file = await FilePicker.platform.saveFile(
+                  dialogTitle: 'Please select an output file:',
+                  fileName: 'my-modset.sc4pac.json',
+                  type: FileType.custom,
+                  allowedExtensions: ['json'],
+                  bytes: fileBytes,
+                );
+                debugPrint(file == null ? "Save-File dialog canceled" : "File saved: $file");
+              },
+            ),
         ),
         const SizedBox(width: 80),
         OutlinedButton(
@@ -449,11 +473,14 @@ class ExportDialogTextField extends StatelessWidget {
   final bool autovalidate;
   const ExportDialogTextField({required this.controller, this.hintText, this.errorText, this.autovalidate = false, super.key})
       : assert(errorText == null || !autovalidate);  // don't use errorText and autovalidate simultaneously
+
+  static const double maxWidth = 960;
+
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: SizedBox(
-        width: 960,  // maxWidth
+        width: ExportDialogTextField.maxWidth,
         child: TextFormField(
           controller: controller,
           minLines: 100,
