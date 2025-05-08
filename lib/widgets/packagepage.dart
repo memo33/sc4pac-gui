@@ -173,8 +173,12 @@ class _PackagePageState extends State<PackagePage> {
               _ => <String>[],
             };
             final Map<String, Map<String, String>> descriptions = switch (remote) {
-              {'variantDescriptions': Map<String, dynamic> descs} =>
-                descs.map((label, values) => MapEntry(label, (values as Map<String, dynamic>).cast<String, String>())),
+              {'variantInfo': Map<String, dynamic> infos} =>
+                infos.map((variantId, info) => MapEntry(variantId, switch (info) {
+                  {'valueDescriptions': Map<String, dynamic> descs} =>
+                    descs.cast<String, String>(),
+                  _ => {},
+                })),
               _ => {},
             };
             final List<Iterable<({String label, String value, String? desc})>> variants = switch (remote) {
