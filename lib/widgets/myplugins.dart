@@ -191,18 +191,17 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final pkg = snapshot.data![index];
-                    final module = BareModule.parse(pkg.package);
                     final sortedVariantKeys = pkg.status.installed?.variant.keys.toList() ?? [];
                     sortedVariantKeys.sort();
                     return PackageTile(
-                      module,
+                      pkg.module,
                       index,
                       summary: pkg.summary,
                       status: pkg.status,
                       refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked).then((_) => _refresh()),
+                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(pkg.module, checked).then((_) => _refresh()),
                       chips: [
-                        ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!, module)),
+                        ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!, pkg.module)),
                       ],
                     );
                   },

@@ -4,9 +4,28 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:cryptography/cryptography.dart';
+import 'package:equatable/equatable.dart';
 import 'dart:convert';
 
 part 'data.g.dart';  // access private members in generated code
+
+class BareModule extends Equatable {
+  final String group, name;
+  const BareModule(this.group, this.name);
+  @override toString() => '$group:$name';
+  String toJson() => toString();
+  @override List<Object> get props => [group, name];
+
+  factory BareModule.parse(String s) {
+    final idx = s.indexOf(':');
+    return idx == -1 ? BareModule('unknown', s) : BareModule(s.substring(0, idx), s.substring(idx + 1));
+  }
+
+  static int compareAlphabetically(BareModule a, BareModule b) {
+    final result = a.group.compareTo(b.group);
+    return result == 0 ? a.name.compareTo(b.name) : result;
+  }
+}
 
 @JsonSerializable()
 class ProgressUpdateExtraction {
@@ -193,6 +212,7 @@ class InstalledStatus {
 @JsonSerializable()
 class PackageSearchResultItem {
   final String package;
+  late final BareModule module = BareModule.parse(package);
   final int relevance;
   final String summary;
   final InstalledStatus? status;
@@ -214,6 +234,7 @@ class PackageSearchResult {
 @JsonSerializable()
 class PluginsSearchResultItem {
   final String package;
+  late final BareModule module = BareModule.parse(package);
   final int relevance;
   final String summary;
   final InstalledStatus status;  // TODO status.installed should not be null

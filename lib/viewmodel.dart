@@ -505,16 +505,16 @@ class PendingUpdates extends ChangeNotifier {
 
   // on toggling multiple star buttons simultaneously (e.g. Add All or Reset)
   Future<void> toggleMany({List<PackageSearchResultItem> toAdd = const [], List<PackageSearchResultItem> toRemove = const [], required bool reset}) async {
-    await World.world.client.remove(toRemove.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id);
-    await World.world.client.add(toAdd.map((item) => BareModule.parse(item.package)).toList(), profileId: World.world.profile.id);
+    await World.world.client.remove(toRemove.map((item) => item.module).toList(), profileId: World.world.profile.id);
+    await World.world.client.add(toAdd.map((item) => item.module).toList(), profileId: World.world.profile.id);
     for (final item in toRemove) {
       if (_shouldSetPendingUpdate(item, removed: reset ? true : false)) {
-        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.remove);
+        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(item.module, PendingUpdateStatus.remove);
       }
     }
     for (final item in toAdd) {
       if (_shouldSetPendingUpdate(item, removed: reset ? false : true)) {
-        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(BareModule.parse(item.package), PendingUpdateStatus.add);
+        World.world.profile.dashboard.pendingUpdates.setPendingUpdate(item.module, PendingUpdateStatus.add);
       }
     }
   }

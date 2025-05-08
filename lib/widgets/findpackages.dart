@@ -149,14 +149,13 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final item = searchResult.packages[index];
-                    final module = BareModule.parse(item.package);
-                    return PackageTile(module, index,
+                    return PackageTile(item.module, index,
                       summary: item.summary,
                       status: item.status,
                       debugChannelUrls: widget.findPackages.customFilter?.debugChannelUrls,
                       refreshParent: widget.findPackages.refreshSearchResult,
                       onToggled: (checked) =>
-                        World.world.profile.dashboard.pendingUpdates.onToggledStarButton(module, checked)
+                        World.world.profile.dashboard.pendingUpdates.onToggledStarButton(item.module, checked)
                           .then((_) => widget.findPackages.refreshSearchResult()),
                     );
                   },

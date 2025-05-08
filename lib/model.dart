@@ -1,34 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:equatable/equatable.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:io';
 import 'dart:async';
 import 'data.dart';
+export 'data.dart' show BareModule;
 
 final Converter<List<int>, Object?> _jsonUtf8Decoder = const Utf8Decoder().fuse(const JsonDecoder());
 final Converter<Object?, List<int>> _jsonUtf8Encoder = JsonUtf8Encoder();
 final Object? Function(List<int> bytes) jsonUtf8Decode = _jsonUtf8Decoder.convert;
 final List<int> Function(Object? o) jsonUtf8Encode = _jsonUtf8Encoder.convert;
-
-class BareModule extends Equatable {
-  final String group, name;
-  const BareModule(this.group, this.name);
-  @override toString() => '$group:$name';
-  String toJson() => toString();
-  @override List<Object> get props => [group, name];
-
-  factory BareModule.parse(String s) {
-    final idx = s.indexOf(':');
-    return idx == -1 ? BareModule('unknown', s) : BareModule(s.substring(0, idx), s.substring(idx + 1));
-  }
-
-  static int compareAlphabetically(BareModule a, BareModule b) {
-    final result = a.group.compareTo(b.group);
-    return result == 0 ? a.name.compareTo(b.name) : result;
-  }
-}
 
 class ApiError {
   final String type, title, detail;
