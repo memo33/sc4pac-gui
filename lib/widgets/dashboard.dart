@@ -95,10 +95,10 @@ class DashboardScreen extends StatefulWidget {
           child: SingleChildScrollView(
             child: Column(
               children: msg.warnings.entries.expand((e) =>
-                (e.value as List<dynamic>).map((w) =>
+                (e.value).map((w) =>
                   ListTile(
                     title: PkgNameFragment(BareModule.parse(e.key), asButton: false, colored: false),
-                    subtitle: Text('$w'),
+                    subtitle: MarkdownText(w),
                     leading: const Icon(Icons.warning_outlined),
                   ),
                 )
