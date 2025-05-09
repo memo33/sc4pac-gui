@@ -735,6 +735,26 @@ class UpdateProcess extends ChangeNotifier {
           });
         }
       },
+      '/prompt/json/update/download-failed-select-mirror': (self, data) {
+        final msg = DownloadFailedSelectMirror.fromJson(data);
+        if (self.isBackground) {
+          self.cancel();  // we cannot make this selection without user interaction
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showSelectMirrorDialog(msg).then((respData) {
+              if (respData == null) {
+                self.cancel();
+              } else {
+                self._ws.sink.add(jsonEncode({
+                  '\$type': '/prompt/response',
+                  'token': msg.token,
+                  'body': {'retry': respData.retry, 'localMirror': respData.localMirror},
+                }));
+              }
+            });
+          });
+        }
+      },
       '/progress/download/started': (self, data) {
         final msg = ProgressDownloadStarted.fromJson(data);
         self.downloads.add(msg.url);

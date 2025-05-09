@@ -165,6 +165,17 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
     );
   }
 
+  static Future<({bool retry, List<String> localMirror})?> showSelectMirrorDialog(DownloadFailedSelectMirror msg) {
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      barrierDismissible: true,
+      builder: (context) => SelectMirrorDialog(
+        msg,
+        onSubmit: (respData) => Navigator.pop(context, respData),
+      ),
+    );
+  }
+
 }
 class _DashboardScreenState extends State<DashboardScreen> {
 
@@ -398,6 +409,102 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
         ],
       );
     }
+  }
+}
+
+class SelectMirrorDialog extends StatefulWidget {
+  final DownloadFailedSelectMirror msg;
+  final void Function(({bool retry, List<String> localMirror})) onSubmit;
+  const SelectMirrorDialog(this.msg, {super.key, required this.onSubmit});
+  @override
+  State<SelectMirrorDialog> createState() => _SelectMirrorDialogState();
+}
+class _SelectMirrorDialogState extends State<SelectMirrorDialog> {
+  int _selection = 0;
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(int? value) {
+    if (value != null) setState(() => _selection = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: const Icon(Icons.warning_outlined),
+      title: const Text('Download failed'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("This file could not be downloaded. Choose what to do."),
+            CopyButton(copyableText: widget.msg.url, child: Hyperlink(url: widget.msg.url)),
+            ApiErrorWidget(ApiError(widget.msg.reason)),
+            RadioListTile<int>(
+              title: const Text("Retry the download"),
+              subtitle: Text(
+                "This may resolve the problem in case the issue is not persistent.",
+                style: TextStyle(color: Theme.of(context).hintColor),
+              ),
+              value: 0,
+              groupValue: _selection,
+              onChanged: _onChanged,
+            ),
+            RadioListTile<int>(
+              title: const Text("Select a file from disk"),
+              subtitle: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "If you have obtained a local copy of the file, use it instead of downloading the file."
+                    " This is useful if you can still download the file normally in your web browser, possibly from a different URL if the file has been rehosted elsewhere."
+                    " Though, this is only practical if just a small number of files is affected.",
+                    style: TextStyle(color: Theme.of(context).hintColor),
+                  ),
+                  const SizedBox(height: 10),
+                  FolderPathEdit(
+                    _controller,
+                    labelText: "File",
+                    pickFile: true,
+                    enabled: _selection == 1,
+                    beforeSelected: () => setState(() => _selection = 1),
+                    onSelected: () => setState(() => {}),
+                  ),
+                ],
+              ),
+              value: 1,
+              groupValue: _selection,
+              onChanged: _onChanged,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        ListenableBuilder(
+          listenable: _controller,
+          builder: (context, child) =>
+            OutlinedButton(
+              onPressed:
+                _selection == 0
+                ? () => widget.onSubmit((retry: true, localMirror: <String>[]))
+                : _selection == 1 && _controller.text.isNotEmpty
+                ? () => widget.onSubmit((retry: true, localMirror: [_controller.text]))
+                : null,
+              child: child,
+            ),
+          child: const Text("OK"),
+        ),
+        OutlinedButton(
+          onPressed: () => widget.onSubmit((retry: false, localMirror: <String>[])),
+          child: const Text("Cancel"),
+        ),
+      ],
+    );
   }
 }
 

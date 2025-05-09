@@ -462,8 +462,11 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
 class FolderPathEdit extends StatelessWidget {
   final TextEditingController controller;
   final String? labelText;
+  final void Function()? beforeSelected;
   final void Function() onSelected;
-  const FolderPathEdit(this.controller, {this.labelText, required this.onSelected, super.key});
+  final bool pickFile;
+  final bool enabled;
+  const FolderPathEdit(this.controller, {this.labelText, this.beforeSelected, required this.onSelected, this.pickFile = false, this.enabled = true, super.key});
   static const supportsDirectoryPicker = !kIsWeb;
 
   @override
@@ -477,15 +480,18 @@ class FolderPathEdit extends StatelessWidget {
               labelText: labelText,
               helperMaxLines: 10,
               helperText: supportsDirectoryPicker ? null :
-                "To change this, open your file explorer and copy the full path of a directory to paste it in here.",
+                "To change this, open your file explorer and copy the full path of ${pickFile ? "the file" : "a directory"} to paste it in here.",
             ),
             readOnly: supportsDirectoryPicker,
+            enabled: enabled,
           ),
         ),
         const SizedBox(width: 10),
-        if (supportsDirectoryPicker) OutlinedButton.icon(
+        if (supportsDirectoryPicker && !pickFile) OutlinedButton.icon(
           icon: const Icon(Symbols.bookmark_manager),
+          label: const Text("Edit"),
           onPressed: () async {
+            if (beforeSelected != null) beforeSelected!();
             // we attempt to open the directory picker in an existing directory (might otherwise cause problems on Windows)
             String? initialDirectory = controller.text.trim();
             if (!io.Directory(initialDirectory).existsSync() && !io.Link(initialDirectory).existsSync()) {
@@ -500,8 +506,21 @@ class FolderPathEdit extends StatelessWidget {
               onSelected();
             }
           },
-          label: const Text("Edit"),
         ),
+        if (supportsDirectoryPicker && pickFile)
+          TextButton.icon(
+            icon: const Icon(Symbols.file_open),
+            label: const Text("Select"),
+            onPressed: () async {
+              if (beforeSelected != null) beforeSelected!();
+              final result = await FilePicker.platform.pickFiles(allowMultiple: false, withData: false);
+              final path = result?.files.single.path;
+              if (path != null) {
+                controller.text = path;
+                onSelected();
+              }
+            },
+          ),
       ],
     );
   }

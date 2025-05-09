@@ -118,6 +118,17 @@ class ChoiceRemoveConflictingPackages {
 }
 
 @JsonSerializable()
+class DownloadFailedSelectMirror {
+  final String url;
+  final Map<String, dynamic> reason;  // ApiError
+  final List<String> choices;
+  final String token;
+  final Map<String, dynamic> responses;
+  const DownloadFailedSelectMirror(this.url, this.reason, this.choices, this.token, this.responses);
+  factory DownloadFailedSelectMirror.fromJson(Map<String, dynamic> json) => _$DownloadFailedSelectMirrorFromJson(json);
+}
+
+@JsonSerializable()
 class ProgressDownloadStarted {
   final String url;
   ProgressDownloadStarted(this.url);

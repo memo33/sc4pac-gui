@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-import 'package:file_picker/file_picker.dart' show FilePicker, FileType, FilePickerResult, PlatformFile;
+import 'package:file_picker/file_picker.dart' show FilePicker, FileType, FilePickerResult;
 import 'dart:typed_data' show Uint8List;
 import 'dart:math';
 import 'dart:ui' show PointerDeviceKind;
