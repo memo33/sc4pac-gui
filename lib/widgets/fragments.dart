@@ -135,12 +135,43 @@ class Hyperlink extends StatelessWidget {
       text: WidgetSpan(
         child: Link(
           uri: url,
-          builder: (context, followLink) => InkWell(
-            // opens new tab in web (in contrast to `followLink`) and external browser on other platforms
-            onTap: url == null ? null : () => launchUrl(url!, mode: LaunchMode.externalApplication),
-            child: Text(url.toString(), style: DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).primaryColor)),
+          builder: (context, followLink) => CopyLinkAddress(
+            url: url.toString(),
+            child: InkWell(
+              onTap: url == null ? null : () {
+                ContextMenuController.removeAny();
+                // opens new tab in web (in contrast to `followLink`) and external browser on other platforms
+                launchUrl(url!, mode: LaunchMode.externalApplication);
+              },
+              child: Text(url.toString(), style: DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).primaryColor)),
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// NOTE: Remember to use `ContextMenuController.removeAny()` in the child button press handler.
+class CopyLinkAddress extends StatelessWidget {
+  final String url;
+  final Widget child;
+  const CopyLinkAddress({required this.url, required this.child, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return SelectionArea(
+      child: child,
+      contextMenuBuilder: (context, editableTextState) => AdaptiveTextSelectionToolbar.buttonItems(
+        anchors: editableTextState.contextMenuAnchors,
+        buttonItems: [
+          ContextMenuButtonItem(
+            label: "Copy link address",
+            onPressed: () async {
+              ContextMenuController.removeAny();
+              await Clipboard.setData(ClipboardData(text: url.toString()));
+            },
+          ),
+        ],
       ),
     );
   }

@@ -202,24 +202,24 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(null, ImageCarousel(images)),
                 packageTableRow(null, AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),  // TODO positioning
                 packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
-                packageTableRow(const Text("Version"), Text(switch (remote) {
+                packageTableRow(const Text("Version"), SelectionArea(child: Text(switch (remote) {
                   {'version': String v} => installedVersion != null && installedVersion != v ? "$v (currently installed: $installedVersion)" : v,
                   _ => 'Unknown'
-                })),
+                }))),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('-') }),
+                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => SelectionArea(child: MarkdownText(text, refreshParent: _refresh)), _ => const Text('-') }),
                 if (remote case {'info': {'description': String text}})
-                  packageTableRow(const Text("Description"), MarkdownText(text, refreshParent: _refresh)),
+                  packageTableRow(const Text("Description"), SelectionArea(child: MarkdownText(text, refreshParent: _refresh))),
                 if (remote case {'info': {'warning': String text}})
-                  packageTableRow(const Text("Warning"), MarkdownText(text, refreshParent: _refresh)),
+                  packageTableRow(const Text("Warning"), SelectionArea(child: MarkdownText(text, refreshParent: _refresh))),
                 if (remote case {'info': {'author': String text}})
-                  packageTableRow(const Text("Author"), Text(text)),
+                  packageTableRow(const Text("Author"), SelectionArea(child: Text(text))),
                 if (remote case {'info': {'websites': List<dynamic> urls}})
                   if (urls.isNotEmpty)
                     packageTableRow(Text(urls.length > 1 ? "Websites" : "Website"), Column(children: urls.cast<String>().map((url) => CopyButton(copyableText: url, child: Hyperlink(url: url))).toList())),
                 if (remote case {'channelLabel': [String label]})
-                  packageTableRow(const Text("Channel"), Text(label)),
-                packageTableRow(const Text("Subfolder"), Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' })),
+                  packageTableRow(const Text("Channel"), SelectionArea(child: Text(label))),
+                packageTableRow(const Text("Subfolder"), SelectionArea(child: Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' }))),
                 packageTableRow(const Text("Variants"),
                   variants.isEmpty || variants.length == 1 && variants[0].isEmpty ? const Text('None') : Wrap(
                     direction: Axis.vertical,
@@ -231,7 +231,7 @@ class _PackagePageState extends State<PackagePage> {
                   )
                 ),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Incompatibilities"), switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') }),
+                  packageTableRow(const Text("Incompatibilities"), SelectionArea(child: switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') })),
               ],
             );
 
@@ -244,9 +244,7 @@ class _PackagePageState extends State<PackagePage> {
                       alignment: const Alignment(-0.75, 0),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(/*minHeight: constraint.maxHeight,*/ maxWidth: 600),
-                        child: SelectionArea(
-                          child: table,
-                        )
+                        child: table,
                       ),
                     ),
                     Padding(
