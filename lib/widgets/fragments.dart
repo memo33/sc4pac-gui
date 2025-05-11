@@ -143,7 +143,7 @@ class Hyperlink extends StatelessWidget {
                 // opens new tab in web (in contrast to `followLink`) and external browser on other platforms
                 launchUrl(url!, mode: LaunchMode.externalApplication);
               },
-              child: Text(url.toString(), style: DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).primaryColor)),
+              child: Text(url.toString(), style: DefaultTextStyle.of(context).style.copyWith(color: const Color(0xff2196f3))),  // steel blue
             ),
           ),
         ),
