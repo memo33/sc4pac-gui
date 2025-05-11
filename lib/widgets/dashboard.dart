@@ -176,6 +176,117 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
     );
   }
 
+  static Future<String?> showInstallingDllsDialog(ConfirmationInstallingDlls msg) {
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      barrierDismissible: true,
+      builder: (context) {
+        final color2 = Theme.of(context).colorScheme.secondary;
+        final channelStyle = TextStyle(/*fontWeight: FontWeight.bold,*/ color: Theme.of(context).hintColor);
+        const linkPad = EdgeInsets.symmetric(vertical: 20, horizontal: 10);
+        return AlertDialog(
+          icon: const Icon(Symbols.security),
+          title: const Text('Installation of DLL files'),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Column(
+                children: [
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: MarkdownText(msg.description)),
+                  const SizedBox(height: 10),
+                  ...msg.dllsInstalled.map((dll) =>
+                    ExpansionTile(
+                      title:
+                    ListTile(
+                      leading: const Tooltip(message: "DLL file", child: Icon(Symbols.api)),
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text.rich(TextSpan(
+                            children: <InlineSpan>[
+                              TextSpan(text: "${dll.dll} ", style: TextStyle(color: color2)),
+                              if (dll.checksum.sha256.isNotEmpty)
+                                WidgetSpan(
+                                  child: Tooltip(
+                                    message: "Checksum is valid",
+                                    child: Icon(Symbols.verified_user, color: color2),
+                                  ),
+                                ),
+                            ],
+                          )),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text.rich(TextSpan(
+                            children: <InlineSpan>[
+                              const TextSpan(text: 'This DLL is part of '),
+                              WidgetSpan(
+                                child: PkgNameFragment(
+                                  BareModule.parse(dll.package),
+                                  asInlineButton: true,
+                                  refreshParent: null,
+                                ),
+                              ),
+                              const TextSpan(text: ' and has been downloaded from'),
+                            ],
+                          )),
+                          Hyperlink(url: dll.url),
+                        ],
+                      ),
+                    ),
+                    childrenPadding: const EdgeInsets.only(left: 72, right: 20),
+                    children: [
+                      FutureBuilder(
+                        future: World.world.profile.channelStatsFuture,
+                        builder: (context, snapshot) {
+                          final channel1 = snapshot.data?.channels.firstWhereOrNull((c) => dll.packageMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
+                          final channel2 = snapshot.data?.channels.firstWhereOrNull((c) => dll.assetMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 10),
+                              MarkdownText("The DLL file has a valid checksum:\n```\nSHA-256 = ${dll.checksum.sha256}\n```"),
+                              const SizedBox(height: 10),
+                              Text.rich(TextSpan(
+                                children: [
+                                  const TextSpan(text: "The checksum is defined in the following metadata file of the channel "),
+                                  TextSpan(text: channel1, style: channelStyle),
+                                  const TextSpan(text: ":"),
+                                ],
+                              )),
+                              Padding(padding: linkPad, child: Hyperlink(url: dll.packageMetadataUrl)),
+                              Text.rich(TextSpan(
+                                children: [
+                                  const TextSpan(text: "The download URL of the DLL is defined in the following metadata file of the channel "),
+                                  TextSpan(text: channel2, style: channelStyle),
+                                  const TextSpan(text: ":"),
+                                ],
+                              )),
+                              Padding(padding: linkPad, child: Hyperlink(url: dll.assetMetadataUrl)),
+                            ],
+                          );
+                        }
+                      ),
+                    ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: msg.choices.map((choice) => OutlinedButton(
+            child: Text(choice == "Yes" ? "OK" : choice == "No" ? "Cancel" : choice),
+            onPressed: () {
+              Navigator.pop(context, choice);
+            },
+          )).toList(),
+        );
+      }
+    );
+  }
+
 }
 class _DashboardScreenState extends State<DashboardScreen> {
 
