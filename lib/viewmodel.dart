@@ -755,6 +755,22 @@ class UpdateProcess extends ChangeNotifier {
           });
         }
       },
+      '/prompt/confirmation/update/installing-dlls': (self, data) {
+        final msg = ConfirmationInstallingDlls.fromJson(data);
+        if (self.isBackground) {
+          self.cancel();  // we cannot make this selection without user interaction
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DashboardScreen.showInstallingDllsDialog(msg).then((choice) {
+              if (choice == null) {
+                self.cancel();
+              } else {
+                self._ws.sink.add(jsonEncode(msg.responses[choice]));
+              }
+            });
+          });
+        }
+      },
       '/progress/download/started': (self, data) {
         final msg = ProgressDownloadStarted.fromJson(data);
         self.downloads.add(msg.url);

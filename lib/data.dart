@@ -159,6 +159,26 @@ class ProgressDownloadFinished {
   factory ProgressDownloadFinished.fromJson(Map<String, dynamic> json) => _$ProgressDownloadFinishedFromJson(json);
 }
 
+typedef ConfirmationInstallingDllsItem = ({
+  String dll,
+  ({String sha256}) checksum,
+  String url,
+  String package,
+  String packageVersion,
+  String assetMetadataUrl,
+  String packageMetadataUrl,
+});
+
+@JsonSerializable()
+class ConfirmationInstallingDlls {
+  final String description;
+  final List<ConfirmationInstallingDllsItem> dllsInstalled;
+  final List<String> choices;
+  final Map<String, dynamic> responses;
+  const ConfirmationInstallingDlls(this.description, this.dllsInstalled, this.choices, this.responses);
+  factory ConfirmationInstallingDlls.fromJson(Map<String, dynamic> json) => _$ConfirmationInstallingDllsFromJson(json);
+}
+
 @JsonSerializable()
 class PromptOpenPackage {
   final List<({String package, String channelUrl})> packages;
