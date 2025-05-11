@@ -216,7 +216,7 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(const Text("Author"), SelectionArea(child: Text(text))),
                 if (remote case {'info': {'websites': List<dynamic> urls}})
                   if (urls.isNotEmpty)
-                    packageTableRow(Text(urls.length > 1 ? "Websites" : "Website"), Column(children: urls.cast<String>().map((url) => CopyButton(copyableText: url, child: Hyperlink(url: url))).toList())),
+                    packageTableRow(Text(urls.length > 1 ? "Websites" : "Website"), Column(children: urls.cast<String>().map((url) => Hyperlink(url: url)).toList())),
                 if (remote case {'channelLabel': [String label]})
                   packageTableRow(const Text("Channel"), SelectionArea(child: Text(label))),
                 packageTableRow(const Text("Subfolder"), SelectionArea(child: Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' }))),
@@ -369,16 +369,19 @@ class MetadataUrlButton extends StatelessWidget {
   const MetadataUrlButton({required this.url, required this.icon, required this.text, super.key});
   @override
   Widget build(BuildContext context) {
-    return CopyButton(
-      copyableText: url,
+    return CopyLinkAddress(
+      url: url,
       child: Tooltip(
-        message: switch (url.indexOf('?')) { final i => i < 0 ? url : url.substring(0, i) },
+        message: switch (url.indexOf('?')) { final i => i < 0 ? url : "${url.substring(0, i)}?..." },
         child: TextButton.icon(
           icon: icon,
           label: Text(text),
           onPressed: switch (Uri.tryParse(url)) {
             null => null,
-            (Uri uri) => (() => launchUrl(uri, mode: LaunchMode.externalApplication)),
+            (Uri uri) => () {
+              ContextMenuController.removeAny();
+              launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
           }
         ),
       ),
