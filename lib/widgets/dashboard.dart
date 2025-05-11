@@ -120,27 +120,7 @@ class DashboardScreen extends StatefulWidget {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: true,  // allow to cancel update process without selecting a variant
-      builder: (context) {
-        final hintStyle = TextStyle(color: Theme.of(context).hintColor);
-        return SimpleDialog(
-          title: Column(
-            children: [
-              Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
-              MarkdownText('## Choose a variant of type `${msg.variantId}` for `pkg=${msg.package}`:\n\n${msg.info.description ?? ""}'),
-              const Divider(),
-            ],
-          ),
-          children: msg.choices.map((choice) => SimpleDialogOption(
-            child: ListTile(
-              title: Text(choice),
-              subtitle: msg.info.valueDescriptions.containsKey(choice) ? Text('${msg.info.valueDescriptions[choice]}', style: hintStyle) : null,
-            ),
-            onPressed: () {
-              Navigator.pop(context, choice);
-            },
-          )).toList(),
-        );
-      }
+      builder: (context) => VariantChoiceDialog(msg),
     );
   }
 
@@ -194,6 +174,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       pendingUpdates: widget.dashboard.pendingUpdates,
       isBackground: true,
       onFinished: widget.dashboard.onUpdateFinished,
+      importedVariantSelections: [],  // variant selections are not useful for background process
     );
     super.initState();
   }
@@ -279,6 +260,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
                     pendingUpdates: widget.dashboard.pendingUpdates,
                     onFinished: widget.dashboard.onUpdateFinished,
+                    isBackground: false,
+                    importedVariantSelections: widget.dashboard.importedVariantSelections,
                   );
                 });
               },
@@ -299,6 +282,122 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+}
+
+class VariantChoiceChip extends StatelessWidget {
+  final Widget label;
+  const VariantChoiceChip({required this.label, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: label,
+      visualDensity: PackageTileChip.visualDensity,
+      padding: PackageTileChip.padding,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      labelStyle: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+      side: BorderSide.none,
+    );
+  }
+}
+
+class VariantChoiceDialog extends StatefulWidget {
+  final ChoiceUpdateVariant msg;
+  const VariantChoiceDialog(this.msg, {super.key});
+  @override State<VariantChoiceDialog> createState() => _VariantChoiceDialogState();
+}
+class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
+
+  late final String? _preselectedValue =
+      widget.msg.previouslySelectedValue.firstOrNull
+      ?? widget.msg.importedValues.firstOrNull
+      ?? widget.msg.info.defaultValue.firstOrNull;
+
+  late int? _selection =
+      _preselectedValue == null ? null :
+      switch (widget.msg.choices.indexOf(_preselectedValue)) {
+        -1 => null,
+        final idx => idx,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final hintStyle = TextStyle(color: Theme.of(context).hintColor);
+    final title = Column(
+      children: [
+        Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
+        MarkdownText('## Choose a variant of type `${widget.msg.variantId}` for `pkg=${widget.msg.package}`:\n\n${widget.msg.info.description ?? ""}'),
+        const Divider(),
+      ],
+    );
+    final choices =
+      widget.msg.choices.map((String value) => (
+        value: value,
+        title: Wrap(
+          spacing: 10,
+          children: [
+            Text(value),
+            if (widget.msg.info.defaultValue.contains(value))
+              const VariantChoiceChip(label: Text("default")),
+            if (widget.msg.previouslySelectedValue.contains(value))
+              const Tooltip(
+                message: "Your previously selected choice",
+                child: VariantChoiceChip(label: Text("currently installed")),
+              ),
+            if (widget.msg.importedValues.contains(value))
+              const Tooltip(
+                message: "Selected choice of imported Mod Set",
+                child: VariantChoiceChip(label: Text("imported from Mod Set")),
+              ),
+          ],
+        ),
+        subtitle: widget.msg.info.valueDescriptions.containsKey(value) ? Text('${widget.msg.info.valueDescriptions[value]}', style: hintStyle) : null,
+      )).toList();
+
+    if (_preselectedValue == null) {
+      return SimpleDialog(
+        title: title,
+        children: choices.map((choice) => SimpleDialogOption(
+          child: ListTile(title: choice.title, subtitle: choice.subtitle),
+          onPressed: () {
+            Navigator.pop(context, choice.value);
+          },
+        )).toList(),
+      );
+    } else {
+      return AlertDialog(
+        title: title,
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(choices.length, (int idx) =>
+              RadioListTile<int>(
+                title: choices[idx].title,
+                subtitle: choices[idx].subtitle,
+                value: idx,
+                groupValue: _selection,
+                onChanged: (int? value) {
+                  setState(() => _selection = idx );
+                }
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: switch(_selection) {
+              null => null,
+              int idx => () => Navigator.pop(context, widget.msg.choices[idx]),
+            },
+            child: const Text("OK"),
+          ),
+          OutlinedButton(
+            onPressed: () { Navigator.pop(context, null); },
+            child: const Text("Cancel"),
+          ),
+        ],
+      );
+    }
   }
 }
 
@@ -660,17 +759,7 @@ class _VariantsTableState extends State<VariantsTable> {
       return const Padding(padding: listViewTextPadding, child: Text("No variants installed yet."));
     } else {
       final entries = (widget.variants.entries.map((e) => (key: e.key, value: e.value.value, keyParts: e.key.split(':')))).toList();
-      entries.sort((a, b) {  // first global, then local variants (first leafs, then nodes -> recursively)
-        int i = 0;
-        for (; i < a.keyParts.length - 1 && i < b.keyParts.length - 1; i++) {
-          final c = a.keyParts[i].toLowerCase().compareTo(b.keyParts[i].toLowerCase());
-          if (c != 0) return c;  // different parent nodes
-        }
-        // same parent nodes at level i-1
-        final c = a.keyParts.length.compareTo(b.keyParts.length);
-        if (c != 0) return c;  // mixed leafs/nodes at level i
-        return a.keyParts[i].toLowerCase().compareTo(b.keyParts[i].toLowerCase());  // leafs at level i
-      });
+      Dashboard.sortVariants(entries, keyParts: (e) => e.keyParts);
       final table = Table(
         columnWidths: const {
           0: IntrinsicColumnWidth(),  // unused-error-icon

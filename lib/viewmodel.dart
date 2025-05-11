@@ -405,6 +405,17 @@ class MyPlugins {
   Set<InstallStateType> installStateSelection =
     {/*InstallStateType.markedForInstall,*/ InstallStateType.explicitlyInstalled, InstallStateType.installedAsDependency};
   SortOrder sortOrder = SortOrder.relevance;  // default order as returned by Api
+
+  void import(ExportData data) {
+    final variants = data.variants ?? data.config?.variant;
+    if (variants?.isNotEmpty == true) {
+      World.world.profile.dashboard.importedVariantSelections.add(variants!);
+    }
+    World.world.openPackages(
+      data.explicit?.map(BareModule.parse).toList() ?? [],
+      channelUrls: (data.channels ?? data.config?.channels)?.toSet() ?? {},
+    );
+  }
 }
 
 enum PendingUpdateStatus { add, remove, reinstall }
@@ -418,6 +429,7 @@ class Dashboard extends ChangeNotifier {
   }
   final Profile profile;
   final pendingUpdates = PendingUpdates();
+  final List<Map<String, String>> importedVariantSelections = [];  // FIFO, newest at the back
   late Future<VariantsList> variantsFuture;
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
@@ -432,6 +444,7 @@ class Dashboard extends ChangeNotifier {
   void onUpdateFinished(UpdateStatus status) {
     if (status == UpdateStatus.finished) {  // no error/no canceled
       pendingUpdates.clear();
+      importedVariantSelections.clear();
     }
     fetchVariants();
     profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id)
@@ -462,6 +475,22 @@ class Dashboard extends ChangeNotifier {
       }
     }
     return false;
+  }
+
+  static void sortVariants<A>(List<A> entries, {required List<String> Function(A) keyParts}) {
+    entries.sort((a, b) {  // first global, then local variants (first leafs, then nodes -> recursively)
+      final aKeyParts = keyParts(a);
+      final bKeyParts = keyParts(b);
+      int i = 0;
+      for (; i < aKeyParts.length - 1 && i < bKeyParts.length - 1; i++) {
+        final c = aKeyParts[i].toLowerCase().compareTo(bKeyParts[i].toLowerCase());
+        if (c != 0) return c;  // different parent nodes
+      }
+      // same parent nodes at level i-1
+      final c = aKeyParts.length.compareTo(bKeyParts.length);
+      if (c != 0) return c;  // mixed leafs/nodes at level i
+      return aKeyParts[i].toLowerCase().compareTo(bKeyParts[i].toLowerCase());  // leafs at level i
+    });
   }
 
 }
@@ -569,8 +598,9 @@ class UpdateProcess extends ChangeNotifier {
   final PendingUpdates pendingUpdates;
   final void Function(UpdateStatus) onFinished;
   final bool isBackground;
+  final List<Map<String, String>> importedVariantSelections;
 
-  UpdateProcess({required this.pendingUpdates, required this.onFinished, this.isBackground = false}) {
+  UpdateProcess({required this.pendingUpdates, required this.onFinished, required this.isBackground, required this.importedVariantSelections}) {
     final stAuth = World.world.settings.stAuth;
     {
       _ws = World.world.client.update(
@@ -612,6 +642,16 @@ class UpdateProcess extends ChangeNotifier {
 
   static final messageHandlers =
     Map.unmodifiable(<String, void Function(UpdateProcess self, Map<String, dynamic> data)>{
+      '/prompt/json/update/initial-arguments': (self, data) {
+        final msg = UpdateInitialArguments.fromJson(data);
+        self._ws.sink.add(jsonEncode({
+          '\$type': '/prompt/response',
+          'token': msg.token,
+          'body': {
+            'importedSelections': self.importedVariantSelections.reversed.toList(),  // switching to LIFO
+          },
+        }));
+      },
       '/prompt/confirmation/update/plan': (self, data) {
         final plan = UpdatePlan.fromJson(data);
         self.plan = plan;

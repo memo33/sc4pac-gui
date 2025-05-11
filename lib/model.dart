@@ -9,8 +9,10 @@ export 'data.dart' show BareModule;
 
 final Converter<List<int>, Object?> _jsonUtf8Decoder = const Utf8Decoder().fuse(const JsonDecoder());
 final Converter<Object?, List<int>> _jsonUtf8Encoder = JsonUtf8Encoder();
+final Converter<Object?, String> _jsonUtf8EncoderIndented = JsonUtf8Encoder('  ').fuse(const Utf8Decoder());
 final Object? Function(List<int> bytes) jsonUtf8Decode = _jsonUtf8Decoder.convert;
 final List<int> Function(Object? o) jsonUtf8Encode = _jsonUtf8Encoder.convert;
+final String Function(Object? o) jsonUtf8EncodeIndented = _jsonUtf8EncoderIndented.convert;
 
 class ApiError {
   final String type, title, detail;
@@ -295,6 +297,19 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     final response = await http.get(Uri.http(authority, '/plugins.installed.list', {'profile': profileId}));
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>).map((m) => InstalledListItem.fromJson(m as Map<String, dynamic>)).toList();
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  // TODO use BareModule instead of String
+  Future<ExportData> export(List<String> modules, {required String profileId}) async {
+    final response = await http.post(Uri.http(authority, '/plugins.export', {'profile': profileId}),
+      body: jsonUtf8Encode(modules),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      return ExportData.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     }

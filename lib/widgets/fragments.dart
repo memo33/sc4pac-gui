@@ -242,15 +242,18 @@ class PackageTileChip extends StatelessWidget {
       description: description,
     );
 
+  static const visualDensity = VisualDensity(horizontal: 0, vertical: -4);
+  static const padding = EdgeInsets.symmetric(vertical: 0, horizontal: 0);
+
   @override
   Widget build(BuildContext context) {
     final chip = Chip(
       avatar: description == null ? null : const Icon(Icons.info_outlined),
       label: label,
       onDeleted: onDeleted,
-      visualDensity: const VisualDensity(horizontal: 0, vertical: -4),
+      visualDensity: visualDensity,
       // materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+      padding: padding,
       // labelPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
       // shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
       backgroundColor: !filled ? null : Theme.of(context).colorScheme.secondaryContainer,
