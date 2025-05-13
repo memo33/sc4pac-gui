@@ -448,7 +448,7 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
     final title = Column(
       children: [
         Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
-        MarkdownText('## Choose a variant of type `${widget.msg.variantId}` for `pkg=${widget.msg.package}`:\n\n${widget.msg.info.description ?? ""}'),
+        MarkdownText('## Choose a variant of type `${PackageTileChip.stripVariantPackagePrefix(variantId: widget.msg.variantId, package: widget.msg.package)}` for `pkg=${widget.msg.package}`:\n\n${widget.msg.info.description ?? ""}'),
         const Divider(),
       ],
     );
@@ -473,7 +473,9 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
               ),
           ],
         ),
-        subtitle: widget.msg.info.valueDescriptions.containsKey(value) ? Text('${widget.msg.info.valueDescriptions[value]}', style: hintStyle) : null,
+        subtitle: switch (widget.msg.info.valueDescriptions[value]) {
+          final desc => desc?.isNotEmpty == true ? Text('${widget.msg.info.valueDescriptions[value]}', style: hintStyle) : null,
+        },
       )).toList();
 
     if (_preselectedValue == null) {

@@ -264,14 +264,18 @@ class PackageTileChip extends StatelessWidget {
   const PackageTileChip({required this.label, super.key, this.onDeleted, this.filled = false, this.description});
   PackageTileChip.variant(String label, String value, BareModule module, {Key? key, String? description}) :
     this(
-      label: switch (module.toString()) {
-        final pkg => label.startsWith(pkg) && label.startsWith(':', pkg.length)
-          ? Text('${label.substring(pkg.length + 1)} = $value')
-          : Text('$label = $value')
-      },
+      label: Text('${stripVariantPackagePrefix(variantId: label, package: module.toString())} = $value'),
       key: key,
       description: description,
     );
+
+  static String stripVariantPackagePrefix({required String variantId, required String package}) {
+    if (variantId.startsWith(package) && variantId.startsWith(':', package.length)) {
+      return variantId.substring(package.length + 1);
+    } else {
+      return variantId;
+    }
+  }
 
   static const visualDensity = VisualDensity(horizontal: 0, vertical: -4);
   static const padding = EdgeInsets.symmetric(vertical: 0, horizontal: 0);
