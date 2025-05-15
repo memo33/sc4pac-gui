@@ -283,7 +283,7 @@ class PackageTileChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chip = Chip(
-      avatar: description == null ? null : const Icon(Icons.info_outlined),
+      avatar: description?.isNotEmpty == true ? const Icon(Icons.info_outlined) : null,
       label: label,
       onDeleted: onDeleted,
       visualDensity: visualDensity,

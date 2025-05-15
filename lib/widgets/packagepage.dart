@@ -216,7 +216,7 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(const Text("Author"), SelectionArea(child: Text(text))),
                 if (remote case {'info': {'websites': List<dynamic> urls}})
                   if (urls.isNotEmpty)
-                    packageTableRow(Text(urls.length > 1 ? "Websites" : "Website"), Column(children: urls.cast<String>().map((url) => Hyperlink(url: url)).toList())),
+                    packageTableRow(Text(urls.length > 1 ? "Websites" : "Website"), Column(crossAxisAlignment: CrossAxisAlignment.start, children: urls.cast<String>().map((url) => Hyperlink(url: url)).toList())),
                 if (remote case {'channelLabel': [String label]})
                   packageTableRow(const Text("Channel"), SelectionArea(child: Text(label))),
                 packageTableRow(const Text("Subfolder"), SelectionArea(child: Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' }))),
