@@ -222,8 +222,9 @@ class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
 
 class MarkdownText extends StatelessWidget {
   final String text;
+  final TextStyle? style;
   final void Function()? refreshParent;
-  const MarkdownText(this.text, {this.refreshParent, super.key});
+  const MarkdownText(this.text, {this.refreshParent, this.style, super.key});
 
   static final _extensionSet = md.ExtensionSet(
     md.ExtensionSet.gitHubFlavored.blockSyntaxes,
@@ -241,6 +242,7 @@ class MarkdownText extends StatelessWidget {
       builders: {PkgLinkNode.pkgNodeTag: PkgLinkElementBuilder(refreshParent: refreshParent)},
       softLineBreak: false,
       styleSheet: fmd.MarkdownStyleSheet(
+        p: style,
         blockquoteDecoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(4)),
         code: DefaultTextStyle.of(context).style.copyWith(color: Theme.of(context).colorScheme.tertiary),
       ),

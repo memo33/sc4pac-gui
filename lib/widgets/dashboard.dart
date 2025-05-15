@@ -474,7 +474,7 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
           ],
         ),
         subtitle: switch (widget.msg.info.valueDescriptions[value]) {
-          final desc => desc?.isNotEmpty == true ? Text('${widget.msg.info.valueDescriptions[value]}', style: hintStyle) : null,
+          final desc => desc?.isNotEmpty == true ? MarkdownText('${widget.msg.info.valueDescriptions[value]}', style: hintStyle) : null,
         },
       )).toList();
 
