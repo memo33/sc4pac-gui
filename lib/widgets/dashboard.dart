@@ -445,13 +445,58 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
   @override
   Widget build(BuildContext context) {
     final hintStyle = TextStyle(color: Theme.of(context).hintColor);
+    final greenish = Theme.of(context).colorScheme.tertiary;
     final title = Column(
       children: [
-        Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: Theme.of(context).colorScheme.tertiary)),
-        MarkdownText('## Choose a variant of type `${PackageTileChip.stripVariantPackagePrefix(variantId: widget.msg.variantId, package: widget.msg.package)}` for `pkg=${widget.msg.package}`:\n\n${widget.msg.info.description ?? ""}'),
-        const Divider(),
+        Padding(padding: const EdgeInsets.all(10), child: VariantIcon(color: greenish)),
+        const Text("Select a variant"),
       ],
     );
+    final subtitle = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 720),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(Symbols.prompt_suggestion, color: hintStyle.color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: "Choose a variant of type "),
+                      TextSpan(
+                        text: PackageTileChip.stripVariantPackagePrefix(variantId: widget.msg.variantId, package: widget.msg.package),
+                        style: TextStyle(color: greenish),
+                      ),
+                      const TextSpan(text: " for "),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: PkgNameFragment(
+                          BareModule.parse(widget.msg.package),
+                          asInlineButton: true,
+                          suffix: ".",
+                        ),
+                      ),
+                    ],
+                    style: hintStyle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (widget.msg.info.description?.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.only(top: 24, bottom: 10),
+              child: MarkdownText(widget.msg.info.description ?? ''),
+            ),
+          const Divider(),
+        ],
+      ),
+    );
+
     final choices =
       widget.msg.choices.map((String value) => (
         value: value,
@@ -481,12 +526,15 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
     if (_preselectedValue == null) {
       return SimpleDialog(
         title: title,
-        children: choices.map((choice) => SimpleDialogOption(
-          child: ListTile(title: choice.title, subtitle: choice.subtitle),
-          onPressed: () {
-            Navigator.pop(context, choice.value);
-          },
-        )).toList(),
+        children: [
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: subtitle),
+          ...choices.map((choice) => SimpleDialogOption(
+            child: ListTile(title: choice.title, subtitle: choice.subtitle),
+            onPressed: () {
+              Navigator.pop(context, choice.value);
+            },
+          )),
+        ],
       );
     } else {
       return AlertDialog(
@@ -494,17 +542,20 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(choices.length, (int idx) =>
-              RadioListTile<int>(
-                title: choices[idx].title,
-                subtitle: choices[idx].subtitle,
-                value: idx,
-                groupValue: _selection,
-                onChanged: (int? value) {
-                  setState(() => _selection = idx );
-                }
+            children: [
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: subtitle),
+              ...List.generate(choices.length, (int idx) =>
+                RadioListTile<int>(
+                  title: choices[idx].title,
+                  subtitle: choices[idx].subtitle,
+                  value: idx,
+                  groupValue: _selection,
+                  onChanged: (int? value) {
+                    setState(() => _selection = idx );
+                  }
+                ),
               ),
-            ),
+            ],
           ),
         ),
         actions: [
