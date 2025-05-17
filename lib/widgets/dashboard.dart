@@ -97,7 +97,7 @@ class DashboardScreen extends StatefulWidget {
               children: msg.warnings.entries.expand((e) =>
                 (e.value).map((w) =>
                   ListTile(
-                    title: PkgNameFragment(BareModule.parse(e.key), asButton: false, colored: false),
+                    title: PkgNameFragment(BareModule.parse(e.key), asButton: true, colored: true),
                     subtitle: MarkdownText(w),
                     leading: const Icon(Icons.warning_outlined),
                   ),
