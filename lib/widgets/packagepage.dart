@@ -221,14 +221,23 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(const Text("Channel"), SelectionArea(child: Text(label))),
                 packageTableRow(const Text("Subfolder"), SelectionArea(child: Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' }))),
                 packageTableRow(const Text("Variants"),
-                  variants.isEmpty || variants.length == 1 && variants[0].isEmpty ? const Text('None') : Wrap(
-                    direction: Axis.vertical,
-                    spacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.start,
-                    children: variants.map((vs) => Wrap(spacing: 5, children: vs.map((v) =>
-                      PackageTileChip.variant(v.label, v.value, widget.module, description: v.desc),
-                    ).toList())).toList()
-                  )
+                  variants.isEmpty || variants.length == 1 && variants[0].isEmpty
+                    ? const Text('None')
+                    : LayoutBuilder(builder: (context, constraint) => Wrap(
+                      direction: Axis.vertical,
+                      spacing: 12,
+                      crossAxisAlignment: WrapCrossAlignment.start,
+                      children: variants.map((vs) => ConstrainedBox(
+                        constraints: constraint,
+                        child: Wrap(
+                          spacing: 5,
+                          runSpacing: 5,
+                          children: vs.map((v) =>
+                            PackageTileChip.variant(v.label, v.value, widget.module, description: v.desc),
+                          ).toList(),
+                        ),
+                      )).toList(),
+                    )),
                 ),
                 if (remote case {'info': dynamic info})
                   packageTableRow(const Text("Incompatibilities"), SelectionArea(child: switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') })),
