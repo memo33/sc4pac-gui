@@ -45,12 +45,14 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text(
               "If disabled (recommended), the channels are cached for half an hour to improve efficiency."
             ),
-            value: World.world.settings.refreshChannels,
+            value: World.world.settings?.refreshChannels ?? false,
             onChanged: (refreshChannels) {
-              final settings2 = World.world.settings.withRefreshChannels(refreshChannels);
-              World.world.updateSettings(settings2);
-              World.world.client.setSettings(settings2)
-                .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to save settings.", e.toString())));
+              final settings2 = World.world.settings?.withRefreshChannels(refreshChannels);
+              if (settings2 != null) {
+                World.world.updateSettings(settings2);
+                World.world.client.setSettings(settings2)
+                  .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to save settings.", e.toString())));
+              }
             },
           ),
         ),
@@ -104,7 +106,7 @@ class _CredentialsWidgetState extends State<CredentialsWidget> {
   }
 
   void _initFields() {
-    controller.text = World.world.settings.stAuth?.token ?? "";
+    controller.text = World.world.settings?.stAuth?.token ?? "";
   }
 
   void _submit(String? simtropolisToken) {

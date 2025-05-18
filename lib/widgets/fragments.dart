@@ -1,8 +1,9 @@
 // This file contains small reusable widgets that are used in multiple places of the app.
 import 'dart:math' show Random;
+import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 import 'package:url_launcher/link.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
@@ -12,7 +13,7 @@ import 'package:flutter_markdown/flutter_markdown.dart' as fmd;
 import 'package:open_file/open_file.dart';
 import '../icomoon_icons.dart' show Icomoon;
 import '../model.dart';
-import '../viewmodel.dart' show PendingUpdateStatus;
+import '../viewmodel.dart' show PendingUpdateStatus, World;
 import 'packagepage.dart';
 import '../main.dart' show NavigationService;
 import '../data.dart' show ChannelStats, InstalledStatus;
@@ -25,18 +26,90 @@ class ApiErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // TODO these widgets must be used with care as ListTile requires width constraints, so better replace with something more flexible
-    if (error.detail.isNotEmpty) {
-      return ExpansionTile(
-        leading: const Icon(Icons.error_outline),
-        title: Text(error.title),
-        children: [Padding(padding: listViewTextPadding, child: Text(error.detail))],
-      );
-    } else {
-      return ListTile(
-        leading: const Icon(Icons.error_outline),
-        title: Text(error.title),
-      );
-    }
+    final hintStyle = TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.25));
+    const pad = EdgeInsets.symmetric(vertical: 10, horizontal: 20);
+    return ExpansionTile(
+      leading: const Icon(Icons.error_outline),
+      title: Text(error.title),
+      children: [
+        if (error.detail.isNotEmpty)
+          Padding(padding: pad, child: Text(error.detail)),
+        switch (createDebugInfo().join("\n")) {
+          final String debugInfo => Card(
+            child: Padding(
+              padding: pad,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Tooltip(
+                        message: "Include this data if you report the problem. It helps identify the source of the issue.",
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Symbols.bug_report, color: hintStyle.color),
+                            const SizedBox(width: 8),
+                            Text("Debug Info", style: hintStyle),
+                            const SizedBox(width: 24),
+                            Icon(Symbols.info, color: hintStyle.color, size: 18),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Spacer(),
+                      Tooltip(
+                        message: "Copy to clipboard",
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.copy),
+                          label: const Text("Copy"),
+                          onPressed: () => Clipboard.setData(ClipboardData(text: "```\n${debugInfo.trim()}\n```"))
+                        ),
+                      ),
+                    ],
+                  ),
+                  Divider(color: Theme.of(context).scaffoldBackgroundColor),
+                  Text(debugInfo, style: hintStyle),
+                ],
+              ),
+            ),
+          ),
+        },
+      ],
+    );
+  }
+
+  List<String> createDebugInfo() {
+    return [
+      "Sc4pac GUI version: ${World.world.appInfo.version}",
+      "Sc4pac CLI version: ${World.world.serverVersion}",
+      "Platform: ${defaultTargetPlatform.name}",
+      "Web: $kIsWeb",
+      "OS (Java): ${World.world.serverStatusOs}",
+      ...kIsWeb ? [] : [
+        "OS (Dart): ${io.Platform.operatingSystem} - ${io.Platform.operatingSystemVersion}",
+        "Dart: ${io.Platform.version}",
+        "Exe: ${io.Platform.resolvedExecutable}",
+        "Arguments: ${World.world.args.arguments}",
+      ],
+      "",
+      "Error type: ${error.type}",
+      "Error title: ${error.title}",
+      "Error detail: ${error.detail}",
+      "",
+      "Init phase: ${World.world.initPhase}",
+      "Authority: ${World.world.authority}",
+      "Authenticated: ${World.world.settings == null ? null : World.world.settings?.stAuth != null}",
+      "Profiles config folder: ${World.world.profiles?.profilesDir}",
+      "Profile ID: ${World.world.profileInitialized ? World.world.profile.id : null}",
+      "Profile name: ${World.world.profileInitialized ? World.world.profile.name : null}",
+      "Plugins folder: ${World.world.profileInitialized ? World.world.profile.paths?.plugins : null}",
+      "Cache folder: ${World.world.profileInitialized ? World.world.profile.paths?.cache : null}",
+      "",
+      "Server log:${World.world.server?.stderrBuffer.isNotEmpty == true ? "" : " null"}",
+      ...?World.world.server?.stderrBuffer,
+    ];
   }
 
   static Future<void> dialog(Object error) {
@@ -44,7 +117,7 @@ class ApiErrorWidget extends StatelessWidget {
       context: NavigationService.navigatorKey.currentContext!,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.error),
-        content: ApiErrorWidget(ApiError.from(error)),
+        content: SingleChildScrollView(child: ApiErrorWidget(ApiError.from(error))),
         actions: [
           OutlinedButton(
             child: const Text("Dismiss"),

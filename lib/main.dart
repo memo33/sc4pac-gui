@@ -45,6 +45,7 @@ Options
 }
 
 class CommandlineArgs {
+  final List<String> arguments;
   bool help = false;
   int? port;
   String? host;
@@ -55,7 +56,8 @@ class CommandlineArgs {
   Uri? uri;  // currently unused
   static const sc4pacProtocolScheme = "sc4pac";
   static const sc4pacProtocol = "$sc4pacProtocolScheme://";
-  CommandlineArgs(List<String> args) {
+  CommandlineArgs(this.arguments) {
+    List<String> args = arguments;
     if (args.isNotEmpty && args[0].startsWith(sc4pacProtocol)) {
       // URI currently needs to be the first argument, see https://github.com/llfbandit/app_links/issues/129
       uri = Uri.tryParse(args[0]);
@@ -299,7 +301,7 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
   void _submit() {
     widget.world.client.addProfile(_profileNameController.text).then(
       (p) {
-        widget.world.profilesFuture = widget.world.client.profiles();  // reloads profiles with new current profile (async)
+        widget.world.updateProfilesFast();  // reloads profiles with new current profile (async)
         widget.world.updateProfile(p);  // instantly switches to next initPhase
       },
       onError: ApiErrorWidget.dialog,

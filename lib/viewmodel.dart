@@ -27,17 +27,20 @@ class World extends ChangeNotifier {
   final PackageInfo appInfo;
   final appLinks = AppLinks();
   bool appLinksInitialized = false;
-  late InitPhase initPhase;
+  InitPhase initPhase = InitPhase.connecting;
   late String authority;
-  late Sc4pacServer? server;
+  Sc4pacServer? server;
   late Future<Map<String, dynamic>> initialServerStatus;
   String? serverVersion;
+  String? serverStatusOs;
   late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
+  Profiles? profiles;
   bool createNewProfile = false;
+  bool profileInitialized = false;
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
-  late SettingsData settings;
+  SettingsData? settings;
   int navRailIndex = 0;
   // themeMode
   // other gui settings
@@ -53,6 +56,9 @@ class World extends ChangeNotifier {
       (serverStatus) {  // connection succeeded, so proceed to next phase
         if (serverStatus case {'sc4pacVersion': String version}) {
           serverVersion = version;
+        }
+        if (serverStatus case {'osVersion': String osVersion}) {
+          serverStatusOs = osVersion;
         }
         client = Sc4pacClient(
           authority,
@@ -73,18 +79,25 @@ class World extends ChangeNotifier {
     _switchToLoadingProfiles();
   }
 
+  void updateProfilesFast() {
+    profilesFuture = client.profiles()
+      ..then((profiles) => this.profiles = profiles);
+  }
+
   void _switchToLoadingProfiles() {
     initPhase = InitPhase.loadingProfiles;
     profilesFuture =
       client.getSettings()
       .then(updateSettings)
-      .then((_) => client.profiles());
+      .then((_) => client.profiles())
+      ..then((profiles) => this.profiles = profiles);
     notifyListeners();
   }
 
   void updateProfile(({String id, String name}) p) {
     createNewProfile = false;
     profile = Profile(p.id, p.name);
+    profileInitialized = true;
     _switchToInitialzingProfile();
   }
 
@@ -601,12 +614,12 @@ class UpdateProcess extends ChangeNotifier {
   final List<Map<String, String>> importedVariantSelections;
 
   UpdateProcess({required this.pendingUpdates, required this.onFinished, required this.isBackground, required this.importedVariantSelections}) {
-    final stAuth = World.world.settings.stAuth;
+    final stAuth = World.world.settings?.stAuth;
     {
       _ws = World.world.client.update(
         profileId: World.world.profile.id,
         simtropolisToken: stAuth?.token,
-        refreshChannels: World.world.settings.refreshChannels,
+        refreshChannels: World.world.settings?.refreshChannels ?? false,
       );
       _stream = _ws.ready
         .then((_) => true, onError: (e) {
