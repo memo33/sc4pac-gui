@@ -181,14 +181,14 @@ class _PackagePageState extends State<PackagePage> {
                 })),
               _ => {},
             };
-            final List<Iterable<({String label, String value, String? desc})>> variants = switch (remote) {
-              {'variants': List<dynamic> vds} =>
-                vds.map((vd) => switch (vd) {
-                  {'variant': Map<String, dynamic> variant} =>
-                    variant.entries.map<({String label, String value, String? desc})>((e) => (label: e.key, value: e.value, desc: descriptions[e.key]?[e.value])),
-                  _ => <({String label, String value, String? desc})>[]
+            final List<({String variantId, List<String> choices})> variantChoices = switch (remote) {
+              {'variantChoices': List<dynamic> vcs} =>
+                vcs.expand((vc) => switch (vc) {
+                  {'variantId': String variantId, 'choices': List<dynamic> choices} =>
+                    [(variantId: variantId, choices: choices.cast<String>())],
+                  _ => <({String variantId, List<String> choices})>[],
                 }).toList(),
-              _ => []
+              _ => [],
             };
             final status = statuses[moduleStr];
             bool addedExplicitly = status?.explicit ?? false;
@@ -221,23 +221,12 @@ class _PackagePageState extends State<PackagePage> {
                   packageTableRow(const Text("Channel"), SelectionArea(child: Text(label))),
                 packageTableRow(const Text("Subfolder"), SelectionArea(child: Text(switch (remote) { {'subfolder': String v} => v, _ => 'Unknown' }))),
                 packageTableRow(const Text("Variants"),
-                  variants.isEmpty || variants.length == 1 && variants[0].isEmpty
-                    ? const Text('None')
-                    : LayoutBuilder(builder: (context, constraint) => Wrap(
-                      direction: Axis.vertical,
-                      spacing: 12,
-                      crossAxisAlignment: WrapCrossAlignment.start,
-                      children: variants.map((vs) => ConstrainedBox(
-                        constraints: constraint,
-                        child: Wrap(
-                          spacing: 5,
-                          runSpacing: 5,
-                          children: vs.map((v) =>
-                            PackageTileChip.variant(v.label, v.value, widget.module, description: v.desc),
-                          ).toList(),
-                        ),
-                      )).toList(),
-                    )),
+                  VariantsPanel(
+                    variantChoices: variantChoices,
+                    installedStatus: status,
+                    descriptions: descriptions,
+                    package: moduleStr,
+                  ),
                 ),
                 if (remote case {'info': dynamic info})
                   packageTableRow(const Text("Incompatibilities"), SelectionArea(child: switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') })),
@@ -333,6 +322,51 @@ class _PackagePageState extends State<PackagePage> {
         }
       ),
     );
+  }
+}
+
+class VariantsPanel extends StatelessWidget {
+  final List<({String variantId, List<String> choices})> variantChoices;
+  final InstalledStatus? installedStatus;
+  final Map<String, Map<String, String>> descriptions;
+  final String package;
+  const VariantsPanel({required this.variantChoices, required this.installedStatus, required this.descriptions, required this.package, super.key});
+  @override
+  Widget build(BuildContext context) {
+    if (variantChoices.isEmpty) {
+      return const Text('None');
+    } else {
+      return ListenableBuilder(
+        listenable: World.world.profile.dashboard,
+        builder: (context, child) => FutureBuilder(
+          future: World.world.profile.dashboard.variantsFuture,
+          builder: (context, snapshot) {
+            final selected = snapshot.data?.variants ?? {};
+            return LayoutBuilder(builder: (context, constraint) => Wrap(
+              direction: Axis.vertical,
+              spacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.start,
+              children: variantChoices.map((vc) => ConstrainedBox(
+                constraints: constraint,
+                child: Wrap(
+                  spacing: 5,
+                  runSpacing: 5,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text("${PackageTileChip.stripVariantPackagePrefix(variantId: vc.variantId, package: package)} ="),
+                    ...vc.choices.map((value) => PackageTileChip.variantValue(
+                      value: value,
+                      filled: (selected[vc.variantId]?.value ?? installedStatus?.installed?.variant[vc.variantId]) == value,
+                      description: descriptions[vc.variantId]?[value],
+                    )),
+                  ],
+                ),
+              )).toList(),
+            ));
+          },
+        ),
+      );
+    }
   }
 }
 

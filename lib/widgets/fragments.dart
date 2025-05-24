@@ -344,6 +344,13 @@ class PackageTileChip extends StatelessWidget {
       key: key,
       description: description,
     );
+  PackageTileChip.variantValue({required String value, Key? key, String? description, bool filled = false}) :
+    this(
+      label: Text(value),
+      key: key,
+      description: description,
+      filled: filled,
+    );
 
   static String stripVariantPackagePrefix({required String variantId, required String package}) {
     if (variantId.startsWith(package) && variantId.startsWith(':', package.length)) {
@@ -359,7 +366,7 @@ class PackageTileChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chip = Chip(
-      avatar: description?.isNotEmpty == true ? const Icon(Icons.info_outlined) : null,
+      avatar: description?.isNotEmpty == true ? Icon(Symbols.info, color: Theme.of(context).colorScheme.onSurface) : null,
       label: label,
       onDeleted: onDeleted,
       visualDensity: visualDensity,
