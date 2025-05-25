@@ -378,7 +378,11 @@ class VariantsPanel extends StatelessWidget {
                       ),
                     ],
                   )),
-                  SelectVariantButton(module: module, variantId: vc.variantId),
+                  SelectVariantButton(
+                    module: module,
+                    variantId: vc.variantId,
+                    installedValue: installedStatus?.installed?.variant[vc.variantId],
+                  ),
                 ],
               )).map((row) => ConstrainedBox(constraints: constraint, child: row)).toList(),
             ));
@@ -392,7 +396,8 @@ class VariantsPanel extends StatelessWidget {
 class SelectVariantButton extends StatefulWidget {
   final BareModule module;
   final String variantId;
-  const SelectVariantButton({required this.module, required this.variantId, super.key});
+  final String? installedValue;
+  const SelectVariantButton({required this.module, required this.variantId, required this.installedValue, super.key});
   @override
   State<SelectVariantButton> createState() => _SelectVariantButtonState();
 }
@@ -405,7 +410,11 @@ class _SelectVariantButtonState extends State<SelectVariantButton> {
       tooltip: "Select a variant",
       onPressed: inProgress ? null : () async {
         setState(() => inProgress = true);
-        await World.world.profile.dashboard.selectVariant(widget.module, variantId: widget.variantId);
+        await World.world.profile.dashboard.selectVariant(
+          widget.module,
+          variantId: widget.variantId,
+          installedValue: widget.installedValue,
+        );
         setState(() => inProgress = false);
       },
     );

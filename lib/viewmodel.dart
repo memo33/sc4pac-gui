@@ -490,10 +490,10 @@ class Dashboard extends ChangeNotifier {
     return false;
   }
 
-  Future<void> selectVariant(BareModule module, {required String variantId}) {
+  Future<void> selectVariant(BareModule module, {required String variantId, required String? installedValue}) {
     return World.world.client.variantsChoices(module, variantId: variantId, profileId: World.world.profile.id)
       .then<void>((msg) async {
-        final choice = await DashboardScreen.showVariantDialog(msg);
+        final choice = await DashboardScreen.showVariantDialog(msg, installedValue: installedValue, hidePreviousChoice: true);
         if (choice != null) {
           await World.world.client.variantsSet({variantId: choice}, profileId: World.world.profile.id);
           if (installedValue != null) {

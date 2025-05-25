@@ -116,11 +116,11 @@ class DashboardScreen extends StatefulWidget {
     );
   }
 
-  static Future<String?> showVariantDialog(ChoiceUpdateVariant msg) {
+  static Future<String?> showVariantDialog(ChoiceUpdateVariant msg, {String? installedValue, bool hidePreviousChoice = false}) {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: true,  // allow to cancel update process without selecting a variant
-      builder: (context) => VariantChoiceDialog(msg),
+      builder: (context) => VariantChoiceDialog(msg, installedValue: installedValue, hidePreviousChoice: hidePreviousChoice),
     );
   }
 
@@ -425,13 +425,16 @@ class VariantChoiceChip extends StatelessWidget {
 
 class VariantChoiceDialog extends StatefulWidget {
   final ChoiceUpdateVariant msg;
-  const VariantChoiceDialog(this.msg, {super.key});
+  final String? installedValue;
+  final bool hidePreviousChoice;
+  const VariantChoiceDialog(this.msg, {this.installedValue, this.hidePreviousChoice = false, super.key});
   @override State<VariantChoiceDialog> createState() => _VariantChoiceDialogState();
 }
 class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
 
   late final String? _preselectedValue =
       widget.msg.previouslySelectedValue.firstOrNull
+      ?? widget.installedValue
       ?? widget.msg.importedValues.firstOrNull
       ?? widget.msg.info.defaultValue.firstOrNull;
 
@@ -506,11 +509,13 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
             Text(value),
             if (widget.msg.info.defaultValue.contains(value))
               const VariantChoiceChip(label: Text("default")),
-            if (widget.msg.previouslySelectedValue.contains(value))
+            if (widget.msg.previouslySelectedValue.contains(value) && !widget.hidePreviousChoice)
               const Tooltip(
-                message: "Your previously selected choice",
-                child: VariantChoiceChip(label: Text("currently installed")),
+                message: "Your last selected choice",
+                child: VariantChoiceChip(label: Text("previous choice")),
               ),
+            if (!(widget.msg.previouslySelectedValue.contains(value) && !widget.hidePreviousChoice) && value == widget.installedValue)
+              const VariantChoiceChip(label: Text("installed")),
             if (widget.msg.importedValues.contains(value))
               const Tooltip(
                 message: "Selected choice of imported Mod Set",
