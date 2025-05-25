@@ -128,7 +128,7 @@ class _PackagePageState extends State<PackagePage> {
         future: futureJson,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: ApiErrorWidget(ApiError.from(snapshot.error!)));
+            return Center(child: ApiErrorWidget.scroll(ApiError.from(snapshot.error!)));
           } else if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.data == PackageInfoResult.notFound) {
@@ -354,7 +354,7 @@ class PackageNotFoundMessage extends StatelessWidget {
           return const SizedBox();
         } else {
           Set<String> unknownChannelUrls = snapshot.data!;
-          return ApiErrorWidget(unknownChannelUrls.isNotEmpty
+          return ApiErrorWidget.scroll(unknownChannelUrls.isNotEmpty
             ? ApiError.unexpected(
               """The opened package "$module" comes from another channel."""
               " To display packages from this channel, first go to your Dashboard and add the new channel URL.",  // TODO provide dialog option to do this automatically

@@ -23,6 +23,7 @@ const listViewTextPadding = EdgeInsets.symmetric(vertical: 10, horizontal: 5);
 class ApiErrorWidget extends StatelessWidget {
   final ApiError error;
   const ApiErrorWidget(this.error, {super.key});
+  static Widget scroll(ApiError error, {Key? key}) => SingleChildScrollView(child: ApiErrorWidget(error, key: key));
   @override
   Widget build(BuildContext context) {
     // TODO these widgets must be used with care as ListTile requires width constraints, so better replace with something more flexible
@@ -117,7 +118,7 @@ class ApiErrorWidget extends StatelessWidget {
       context: NavigationService.navigatorKey.currentContext!,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.error),
-        content: SingleChildScrollView(child: ApiErrorWidget(ApiError.from(error))),
+        content: ApiErrorWidget.scroll(ApiError.from(error)),
         actions: [
           OutlinedButton(
             child: const Text("Dismiss"),

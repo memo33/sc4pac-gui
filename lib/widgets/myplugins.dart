@@ -310,27 +310,30 @@ class _ExportDialogState extends State<ExportDialog> {
         child:
         Column(
           mainAxisSize: MainAxisSize.max,  // so that height stays fixed when progress indicator is displayed
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             const Text("A Mod Set is a selection of packages, encoded in JSON format. Copy the JSON contents below to share the Mod Set."),
             const SizedBox(height: 10),
-            FutureBuilder(
-              future: widget.dataFuture,
-              builder: (context, snapshot) {
-                if (snapshot.hasError || !snapshot.hasData) {
-                  return SizedBox(
-                    width: ExportDialogTextField.maxWidth,
-                    child: snapshot.hasError
-                      ? Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))))
-                      : const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 60), child: CircularProgressIndicator())),
-                  );
-                } else {
-                  _controller.text = jsonUtf8EncodeIndented(snapshot.data);
-                  return ExportDialogTextField(
-                    controller: _controller,
-                    autovalidate: true,
-                  );
-                }
-              },
+            Expanded(
+              child: SizedBox(
+                width: ExportDialogTextField.maxWidth,
+                child: FutureBuilder(
+                  future: widget.dataFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return snapshot.hasError
+                        ? ApiErrorWidget.scroll(ApiError.from(snapshot.error!))
+                        : const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 60), child: CircularProgressIndicator()));
+                    } else {
+                      _controller.text = jsonUtf8EncodeIndented(snapshot.data);
+                      return ExportDialogTextField(
+                        controller: _controller,
+                        autovalidate: true,
+                      );
+                    }
+                  },
+                ),
+              ),
             ),
           ],
         ),
@@ -434,10 +437,15 @@ class _ImportDialogState extends State<ImportDialog> {
               },
             ),
             const SizedBox(height: 10),
-            ExportDialogTextField(
-              controller: _controller,
-              hintText: _hintText,
-              errorText: _errorText,
+            Expanded(
+              child: SizedBox(
+                width: ExportDialogTextField.maxWidth,
+                child: ExportDialogTextField(
+                  controller: _controller,
+                  hintText: _hintText,
+                  errorText: _errorText,
+                ),
+              ),
             ),
           ],
         ),
@@ -478,10 +486,7 @@ class ExportDialogTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: SizedBox(
-        width: ExportDialogTextField.maxWidth,
-        child: TextFormField(
+    return TextFormField(
           controller: controller,
           minLines: 100,
           keyboardType: TextInputType.multiline,
@@ -499,8 +504,6 @@ class ExportDialogTextField extends StatelessWidget {
             }
             return errMsg;
           },
-        ),
-      ),
     );
   }
 

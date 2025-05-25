@@ -263,8 +263,9 @@ class LoadingProfilesScreen extends StatelessWidget {
     return FutureBuilder<Profiles>(
       future: world.profilesFuture,
       builder: (context, snapshot) {
+        Widget content;
         if (snapshot.hasError) {
-          return Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
+          content = ApiErrorWidget.scroll(ApiError.from(snapshot.error!));
         } else {
           if (snapshot.hasData) {
             final data = snapshot.data!;
@@ -277,8 +278,9 @@ class LoadingProfilesScreen extends StatelessWidget {
               world.updateProfile(p);  // switches to next initPhase
             });
           }
-          return const Center(child: Card(child: ListTile(title: Text("Loading profiles…"))));
+          content = const ListTile(title: Text("Loading profiles…"));
         }
+        return Center(child: Card(child: content));
       },
     );
   }
@@ -367,8 +369,9 @@ class ReadingProfileScreen extends StatelessWidget {
     return FutureBuilder(
       future: world.readProfileFuture,
       builder: (context, snapshot) {
+        Widget content;
         if (snapshot.hasError) {
-          return Center(child: Card(child: ApiErrorWidget(ApiError.from(snapshot.error!))));
+          content = ApiErrorWidget.scroll(ApiError.from(snapshot.error!));
         } else {
           if (snapshot.hasData) {
             final profileData = snapshot.data!;
@@ -386,8 +389,9 @@ class ReadingProfileScreen extends StatelessWidget {
               });
             }
           }
-          return const Center(child: Card(child: ListTile(title: Text("Loading profile data…"))));
+          content = const ListTile(title: Text("Loading profile data…"));
         }
+        return Center(child: Card(child: content));
       },
     );
   }
