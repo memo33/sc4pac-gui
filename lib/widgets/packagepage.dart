@@ -225,7 +225,7 @@ class _PackagePageState extends State<PackagePage> {
                     variantChoices: variantChoices,
                     installedStatus: status,
                     descriptions: descriptions,
-                    package: moduleStr,
+                    module: widget.module,
                   ),
                 ),
                 if (remote case {'info': dynamic info})
@@ -329,8 +329,8 @@ class VariantsPanel extends StatelessWidget {
   final List<({String variantId, List<String> choices})> variantChoices;
   final InstalledStatus? installedStatus;
   final Map<String, Map<String, String>> descriptions;
-  final String package;
-  const VariantsPanel({required this.variantChoices, required this.installedStatus, required this.descriptions, required this.package, super.key});
+  final BareModule module;
+  const VariantsPanel({required this.variantChoices, required this.installedStatus, required this.descriptions, required this.module, super.key});
   @override
   Widget build(BuildContext context) {
     if (variantChoices.isEmpty) {
@@ -346,27 +346,69 @@ class VariantsPanel extends StatelessWidget {
               direction: Axis.vertical,
               spacing: 12,
               crossAxisAlignment: WrapCrossAlignment.start,
-              children: variantChoices.map((vc) => ConstrainedBox(
-                constraints: constraint,
-                child: Wrap(
-                  spacing: 5,
-                  runSpacing: 5,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text("${PackageTileChip.stripVariantPackagePrefix(variantId: vc.variantId, package: package)} ="),
-                    ...vc.choices.map((value) => PackageTileChip.variantValue(
-                      value: value,
-                      filled: (selected[vc.variantId]?.value ?? installedStatus?.installed?.variant[vc.variantId]) == value,
-                      description: descriptions[vc.variantId]?[value],
-                    )),
-                  ],
-                ),
-              )).toList(),
+              children: variantChoices.map((vc) => Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      switch (PackageTileChip.stripVariantPackagePrefix(variantId: vc.variantId, package: module.toString())) {
+                        final variantIdShort => switch (variantIdShort.split(":")) {
+                          final parts => parts.length >= 3
+                            ? PkgNameFragment(
+                                BareModule(parts[0], parts[1]),
+                                localVariant: parts.sublist(2).join(":"),
+                                asInlineButton: true,
+                                refreshParent: null,  // for now, we do not pass a refresh callback, as we listen to dashboard
+                              )
+                            : Text(variantIdShort),
+                        },
+                      },
+                      const SizedBox(height: 5),
+                      Wrap(
+                        spacing: 5,
+                        runSpacing: 5,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: vc.choices.map((value) => PackageTileChip.variantValue(
+                          value: value,
+                          filled: (selected[vc.variantId]?.value ?? installedStatus?.installed?.variant[vc.variantId]) == value,
+                          description: descriptions[vc.variantId]?[value],
+                        )).toList(),
+                      ),
+                    ],
+                  )),
+                  SelectVariantButton(module: module, variantId: vc.variantId),
+                ],
+              )).map((row) => ConstrainedBox(constraints: constraint, child: row)).toList(),
             ));
           },
         ),
       );
     }
+  }
+}
+
+class SelectVariantButton extends StatefulWidget {
+  final BareModule module;
+  final String variantId;
+  const SelectVariantButton({required this.module, required this.variantId, super.key});
+  @override
+  State<SelectVariantButton> createState() => _SelectVariantButtonState();
+}
+class _SelectVariantButtonState extends State<SelectVariantButton> {
+  bool inProgress = false;
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(inProgress ? Symbols.pending : Symbols.edit_square),
+      tooltip: "Select a variant",
+      onPressed: inProgress ? null : () async {
+        setState(() => inProgress = true);
+        await World.world.profile.dashboard.selectVariant(widget.module, variantId: widget.variantId);
+        setState(() => inProgress = false);
+      },
+    );
   }
 }
 

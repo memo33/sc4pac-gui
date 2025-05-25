@@ -490,6 +490,21 @@ class Dashboard extends ChangeNotifier {
     return false;
   }
 
+  Future<void> selectVariant(BareModule module, {required String variantId}) {
+    return World.world.client.variantsChoices(module, variantId: variantId, profileId: World.world.profile.id)
+      .then<void>((msg) async {
+        final choice = await DashboardScreen.showVariantDialog(msg);
+        if (choice != null) {
+          await World.world.client.variantsSet({variantId: choice}, profileId: World.world.profile.id);
+          if (installedValue != null) {
+            pendingUpdates.onSwitchedVariant(module);
+          }
+          fetchVariants();
+        }
+      })
+      .catchError(ApiErrorWidget.dialog);
+  }
+
   static void sortVariants<A>(List<A> entries, {required List<String> Function(A) keyParts}) {
     entries.sort((a, b) {  // first global, then local variants (first leafs, then nodes -> recursively)
       final aKeyParts = keyParts(a);
@@ -532,6 +547,10 @@ class PendingUpdates extends ChangeNotifier {
   void clear() {
     _overwrites.clear();
     notifyListeners();
+  }
+
+  void onSwitchedVariant(BareModule module) {
+    setPendingUpdate(module, PendingUpdateStatus.reinstall);
   }
 
   Future<void> onToggledStarButton(BareModule module, bool checked) {

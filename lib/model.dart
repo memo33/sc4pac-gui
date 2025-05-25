@@ -334,6 +334,29 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
+  Future<void> variantsSet(Map<String, String> variants, {required String profileId}) async {
+    final response = await http.post(Uri.http(authority, '/variants.set', {'profile': profileId}),
+      body: jsonUtf8Encode(variants),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
+  Future<ChoiceUpdateVariant> variantsChoices(BareModule module, {required String variantId, required String profileId}) async {
+    final response = await http.get(Uri.http(authority, '/variants.choices', {
+      'pkg': module.toString(),
+      'variantId': variantId,
+      'profile': profileId,
+    }));
+    if (response.statusCode == 200) {
+      return ChoiceUpdateVariant.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   Future<List<String>> channelsList({required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/channels.list', {'profile': profileId}));
     if (response.statusCode == 200) {
