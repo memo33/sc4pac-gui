@@ -114,8 +114,8 @@ class Sc4pacServer {
               await stderrTerminated.catchError((_) {});
               final detail = stderrBuffer.join("\n");
               launchError ??= detail.isNotEmpty
-                  ? ApiError.unexpected("Launching the local sc4pac server failed.", detail)
-                  : ApiError.unexpected("Launching the local sc4pac server failed (unknown reason).", unknownLaunchErrorDetail);
+                  ? ApiError.unexpected("Launching the local sc4pac server failed ($exitCode).", detail)
+                  : ApiError.unexpected("Launching the local sc4pac server failed (unknown reason: $exitCode).", unknownLaunchErrorDetail);
             }
           }
         }).whenComplete(() {  // whenComplete runs regardless of whether future succeeded or failed
