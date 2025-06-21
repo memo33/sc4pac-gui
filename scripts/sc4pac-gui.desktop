@@ -19,6 +19,7 @@ Exec=sc4pac-gui %u
 StartupNotify=false
 MimeType=x-scheme-handler/sc4pac;
 # Icon=sc4pac-gui.png
+Icon=sc4pac-gui
 Terminal=false
 Type=Application
 Categories=Game;PackageManager;
