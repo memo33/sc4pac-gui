@@ -17,6 +17,8 @@ class DashboardScreen extends StatefulWidget {
 
   @override State<DashboardScreen> createState() => _DashboardScreenState();
 
+  static String okCancelFromYesNo(String choice) => choice == "Yes" ? "OK" : choice == "No" ? "Cancel" : choice;
+
   static Future<String?> showUpdatePlan(UpdatePlan plan) {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,  // We use global context so that update process can show dialog popups even when the current screen is disposed.
@@ -74,7 +76,7 @@ class DashboardScreen extends StatefulWidget {
           ),
         ),
         actions: plan.choices.map((choice) => OutlinedButton(
-          child: Text(choice),
+          child: Text(okCancelFromYesNo(choice)),
           onPressed: () {
             Navigator.pop(context, choice);
           },
@@ -107,7 +109,7 @@ class DashboardScreen extends StatefulWidget {
           ),
         ),
         actions: msg.choices.map((choice) => OutlinedButton(
-          child: Text(choice),
+          child: Text(okCancelFromYesNo(choice)),
           onPressed: () {
             Navigator.pop(context, choice);
           },
@@ -277,7 +279,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
             ),
           ),
           actions: msg.choices.map((choice) => OutlinedButton(
-            child: Text(choice == "Yes" ? "OK" : choice == "No" ? "Cancel" : choice),
+            child: Text(okCancelFromYesNo(choice)),
             onPressed: () {
               Navigator.pop(context, choice);
             },
