@@ -342,13 +342,9 @@ class _ExportDialogState extends State<ExportDialog> {
         FutureBuilder(
           future: widget.dataFuture,
           builder: (context, snapshot) =>
-            Tooltip(
-              message: "Copy to clipboard",
-              child: TextButton.icon(
-                icon: const Icon(Icons.copy),
-                label: const Text("Copy"),
-                onPressed: !snapshot.hasData ? null : () => Clipboard.setData(ClipboardData(text: _controller.text))
-              ),
+            AnimatedCopyButton(
+              label: const Text("Copy"),
+              getCopyableText: !snapshot.hasData ? null : () => _controller.text,
             ),
         ),
         FutureBuilder(

@@ -60,13 +60,9 @@ class ApiErrorWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       const Spacer(),
-                      Tooltip(
-                        message: "Copy to clipboard",
-                        child: TextButton.icon(
-                          icon: const Icon(Icons.copy),
-                          label: const Text("Copy"),
-                          onPressed: () => Clipboard.setData(ClipboardData(text: "```\n${debugInfo.trim()}\n```"))
-                        ),
+                      AnimatedCopyButton(
+                        label: const Text("Copy"),
+                        getCopyableText: () => "```\n${debugInfo.trim()}\n```",
                       ),
                     ],
                   ),
@@ -178,10 +174,10 @@ class PkgNameFragment extends StatelessWidget {
   }
 }
 
-class CopyButton extends StatelessWidget {
+class TextWithCopyButton extends StatelessWidget {
   final String copyableText;
   final Widget child;
-  const CopyButton({required this.copyableText, required this.child, super.key});
+  const TextWithCopyButton({required this.copyableText, required this.child, super.key});
   @override Widget build(BuildContext context) {
     return Wrap(
       direction: Axis.horizontal,
@@ -189,14 +185,60 @@ class CopyButton extends StatelessWidget {
       spacing: 10,
       children: [
         child,
-        IconButton(
-          tooltip: "Copy to clipboard",
-          icon: const Icon(Icons.copy),
-          onPressed: () async {
-            await Clipboard.setData(ClipboardData(text: copyableText));
-          },
+        AnimatedCopyButton(
+          getCopyableText: () => copyableText,
         ),
       ]
+    );
+  }
+}
+
+class AnimatedCopyButton extends StatefulWidget {
+  final Widget? label;
+  final String Function()? getCopyableText;
+  const AnimatedCopyButton({this.label, this.getCopyableText, super.key});
+  @override State<AnimatedCopyButton> createState() => _AnimatedCopyButtonState();
+}
+class _AnimatedCopyButtonState extends State<AnimatedCopyButton> {
+  int _count = 0;
+  bool _recentlyPressed = false;
+  @override
+  Widget build(BuildContext context) {
+    final onPressed = switch (widget.getCopyableText) {
+      null => null,
+      final getCopyableText => () async {
+        _count++;
+        final startedAtCount = _count;
+        setState(() => _recentlyPressed = true);
+        await Clipboard.setData(ClipboardData(text: getCopyableText()));
+        await Future.delayed(const Duration(milliseconds: 2500), () {
+          if (_count == startedAtCount && mounted) {
+            setState(() => _recentlyPressed = false);
+          }
+        });
+      },
+    };
+    final animatedIcon = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: Icon(
+        _recentlyPressed ? Icons.check : Icons.copy,
+        key: ValueKey<bool>(_recentlyPressed),
+        color: _recentlyPressed ? Theme.of(context).colorScheme.secondary : null,
+      ),
+    );
+    return Tooltip(
+      message: "Copy to clipboard",
+      child: switch (widget.label) {
+        null => IconButton(
+          icon: animatedIcon,
+          onPressed: onPressed,
+        ),
+        final label => TextButton.icon(
+          icon: animatedIcon,
+          label: label,
+          onPressed: onPressed,
+        ),
+      },
     );
   }
 }

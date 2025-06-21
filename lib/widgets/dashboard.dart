@@ -614,7 +614,7 @@ class _SelectMirrorDialogState extends State<SelectMirrorDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text("This file could not be downloaded. Choose what to do."),
-            CopyButton(copyableText: widget.msg.url, child: Hyperlink(url: widget.msg.url)),
+            TextWithCopyButton(copyableText: widget.msg.url, child: Hyperlink(url: widget.msg.url)),
             ApiErrorWidget(ApiError(widget.msg.reason)),
             RadioListTile<int>(
               title: const Text("Retry the download"),

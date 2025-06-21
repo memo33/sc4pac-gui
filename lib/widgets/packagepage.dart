@@ -114,7 +114,7 @@ class _PackagePageState extends State<PackagePage> {
     final moduleStr = widget.module.toString();
     return Scaffold(
       appBar: AppBar(
-        title: CopyButton(
+        title: TextWithCopyButton(
           copyableText: moduleStr,
           child: PkgNameFragment(widget.module, asButton: false, colored: false, refreshParent: _refresh),
         ),
