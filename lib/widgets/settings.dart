@@ -60,8 +60,26 @@ class SettingsScreen extends StatelessWidget {
           icon: const Icon(Symbols.info),
           applicationIcon: Image.asset("assets/sc4pac-gui.png", width: 96, height: 96),
           applicationVersion: "Version ${World.world.appInfo.version}\n(with sc4pac CLI version ${World.world.serverVersion})",
-          aboutBoxChildren: const [
-            AboutMessage(),
+          aboutBoxChildren: [
+            const AboutMessage(),
+            const SizedBox(height: 10),
+            TextButton(
+              child: const Text("Show debug info"),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    content: SingleChildScrollView(child: DebugInfoCard(ApiErrorWidget.createDebugInfo(null).join("\n"))),
+                    actions: [
+                      OutlinedButton(
+                        child: const Text("Dismiss"),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            ),
           ],
         ),
       ],

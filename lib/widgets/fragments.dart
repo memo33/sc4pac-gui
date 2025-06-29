@@ -24,60 +24,22 @@ class ApiErrorWidget extends StatelessWidget {
   final ApiError error;
   const ApiErrorWidget(this.error, {super.key});
   static Widget scroll(ApiError error, {Key? key}) => SingleChildScrollView(child: ApiErrorWidget(error, key: key));
+  static const padding = EdgeInsets.symmetric(vertical: 10, horizontal: 20);
   @override
   Widget build(BuildContext context) {
     // TODO these widgets must be used with care as ListTile requires width constraints, so better replace with something more flexible
-    final hintStyle = TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.25));
-    const pad = EdgeInsets.symmetric(vertical: 10, horizontal: 20);
     return ExpansionTile(
       leading: const Icon(Icons.error_outline),
       title: Text(error.title),
       children: [
         if (error.detail.isNotEmpty)
-          Padding(padding: pad, child: Text(error.detail)),
-        switch (createDebugInfo().join("\n")) {
-          final String debugInfo => Card(
-            child: Padding(
-              padding: pad,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Tooltip(
-                        message: "Include this data if you report the problem. It helps identify the source of the issue.",
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Symbols.bug_report, color: hintStyle.color),
-                            const SizedBox(width: 8),
-                            Text("Debug Info", style: hintStyle),
-                            const SizedBox(width: 24),
-                            Icon(Symbols.info, color: hintStyle.color, size: 18),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Spacer(),
-                      AnimatedCopyButton(
-                        label: const Text("Copy"),
-                        getCopyableText: () => "```\n${debugInfo.trim()}\n```",
-                      ),
-                    ],
-                  ),
-                  Divider(color: Theme.of(context).scaffoldBackgroundColor),
-                  Text(debugInfo, style: hintStyle),
-                ],
-              ),
-            ),
-          ),
-        },
+          Padding(padding: padding, child: Text(error.detail)),
+        DebugInfoCard(createDebugInfo(error).join("\n")),
       ],
     );
   }
 
-  List<String> createDebugInfo() {
+  static List<String> createDebugInfo(ApiError? error) {
     return [
       "Sc4pac GUI version: ${World.world.appInfo.version}",
       "Sc4pac CLI version: ${World.world.serverVersion}",
@@ -91,10 +53,12 @@ class ApiErrorWidget extends StatelessWidget {
         "Arguments: ${World.world.args.arguments}",
       ],
       "",
-      "Error type: ${error.type}",
-      "Error title: ${error.title}",
-      "Error detail: ${error.detail}",
-      "",
+      if (error != null) ...[
+        "Error type: ${error.type}",
+        "Error title: ${error.title}",
+        "Error detail: ${error.detail}",
+        "",
+      ],
       "Init phase: ${World.world.initPhase}",
       "Authority: ${World.world.authority}",
       "Authenticated: ${World.world.settings == null ? null : World.world.settings?.stAuth != null}",
@@ -121,6 +85,51 @@ class ApiErrorWidget extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class DebugInfoCard extends StatelessWidget {
+  final String debugInfo;
+  const DebugInfoCard(this.debugInfo, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final hintStyle = TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.25));
+    return Card(
+      child: Padding(
+        padding: ApiErrorWidget.padding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Tooltip(
+                  message: "Include this data if you report the problem. It helps identify the source of the issue.",
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Symbols.bug_report, color: hintStyle.color),
+                      const SizedBox(width: 8),
+                      Text("Debug Info", style: hintStyle),
+                      const SizedBox(width: 24),
+                      Icon(Symbols.info, color: hintStyle.color, size: 18),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Spacer(),
+                AnimatedCopyButton(
+                  label: const Text("Copy"),
+                  getCopyableText: () => "```\n${debugInfo.trim()}\n```",
+                ),
+              ],
+            ),
+            Divider(color: Theme.of(context).scaffoldBackgroundColor),
+            Text(debugInfo, style: hintStyle),
+          ],
+        ),
       ),
     );
   }
