@@ -657,7 +657,7 @@ class UpdateProcess extends ChangeNotifier {
           // this can happen if sc4pac process crashes, so no final message is sent through the websocket before closing
           err ??= ApiError.unexpected(
             "Websocket closed unexpectedly. This seems to be a bug in sc4pac itself. Please report it.",
-            World.world.server?.stderrBuffer.join("\n") ?? "",
+            World.world.server?.stderrBuffer.takeRight(5).join("\n") ?? "",
           );
         }
       });

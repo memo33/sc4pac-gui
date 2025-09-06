@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:async';
 import 'data.dart';
 export 'data.dart' show BareModule;
+import 'dart:math' as math;
 
 final Converter<List<int>, Object?> _jsonUtf8Decoder = const Utf8Decoder().fuse(const JsonDecoder());
 final Converter<Object?, List<int>> _jsonUtf8Encoder = JsonUtf8Encoder();
@@ -27,6 +28,31 @@ class ApiError {
   }
 }
 
+class RingBuffer<A> extends Iterable<A> {
+  final int capacity;
+  final List<A> buffer = [];
+  int start = 0;
+  RingBuffer({required this.capacity});
+  void add(A value) {
+    if (buffer.length < capacity) {
+      buffer.add(value);
+    } else {
+      buffer[start] = value;
+      start = (start + 1) % capacity;
+    }
+  }
+  @override int get length => buffer.length < capacity ? buffer.length - start : capacity;
+  @override bool get isEmpty => length == 0;
+  @override bool get isNotEmpty => length != 0;
+  Iterable<A> takeRight(int count) {
+    count = math.max(0, math.min(count, length));
+    final l1 = math.min(count, start);
+    final l2 = count - l1;
+    return buffer.getRange(buffer.length - l2, buffer.length).followedBy(buffer.getRange(start - l1, start));
+  }
+  @override Iterator<A> get iterator => takeRight(length).iterator;
+}
+
 enum ServerStatus { launching, listening, terminated }
 
 // server is launched from desktop GUI, but not from webapp
@@ -38,7 +64,7 @@ class Sc4pacServer {
   late final Future<Process> _process;
   late final Future<bool> ready;  // true once server listens, false if launching server did not work (This future never fails)
   ApiError? launchError;
-  List<String> stderrBuffer = [];
+  RingBuffer<String> stderrBuffer = RingBuffer(capacity: 256);
 
   static const int _javaNotFound = 55;
   static const int _portOccupied = 56;
@@ -82,11 +108,8 @@ class Sc4pacServer {
           }
         });
         Future<void> stderrTerminated = process.stderr.transform(utf8.decoder).forEach((String lines) {
-          stderrBuffer.add(lines);
-          if (stderrBuffer.length >= 10) {
-            stderrBuffer = stderrBuffer.sublist(5);
-          }
           for (final line in splitter.convert(lines)) {
+            stderrBuffer.add(line);
             stdout.writeln("[SERVER:err] $line");
           }
           if (!completer.isCompleted && lines.contains("UnsupportedClassVersion")) {
@@ -114,7 +137,7 @@ class Sc4pacServer {
             stdout.writeln("Sc4pac server exited with code $exitCode");
             if (!completer.isCompleted) {  // launching failed
               await stderrTerminated.catchError((_) {});
-              final detail = stderrBuffer.join("\n");
+              final detail = stderrBuffer.takeRight(5).join("\n");
               launchError ??= detail.isNotEmpty
                   ? ApiError.unexpected("Launching the local sc4pac server failed ($exitCode).", detail)
                   : ApiError.unexpected("Launching the local sc4pac server failed (unknown reason: $exitCode).", unknownLaunchErrorDetail);

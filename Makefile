@@ -21,9 +21,12 @@ run-linux-server:
 run-web:
 	$(FLUTTER) run --device-id chrome --dart-define=port=51515
 
+test:
+	$(FLUTTER) test test/* -r expanded
+
 generate-code:
 	$(DART) run build_runner build --delete-conflicting-outputs
 generate-code-watch:
 	$(DART) run build_runner watch --delete-conflicting-outputs
 
-.PHONY: build-linux build-web run-linux run-linux-server run-web
+.PHONY: build-linux build-web run-linux run-linux-server run-web test
