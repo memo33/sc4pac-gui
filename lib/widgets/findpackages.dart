@@ -137,11 +137,47 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
             } else if (!snapshot.hasData) {
               return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
             } else if (snapshot.data!.packages.isEmpty) {
-              return SliverToBoxAdapter(child: ListTile(leading: const Icon(Icons.search_off), title: Text(
-                    widget.findPackages.searchWithAnyFilterActive() ? "No search results. Check the filtering options." :
-                    widget.findPackages.noCategoryOrSearchActive() ? "No search results. Select a Category or use the Search." :
-                    "No search results."
-              )));
+              final noResultsText =
+                widget.findPackages.searchWithAnyFilterActive() ? "No search results. Check the filtering options." :
+                widget.findPackages.noCategoryOrSearchActive() ? "No search results. Select a Category or use the Search." :
+                "No search results.";
+              final theme = Theme.of(context);
+              final hintStyle = theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor);
+              return SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 20, right: 20, top: 30, bottom: 20),
+                      child: Card(
+                        child: ListTile(leading: const Icon(Icons.search_off), title: Text(noResultsText)),
+                      ),
+                    ),
+                    const Spacer(),
+                    ListTile(
+                      leading: const Icon(Symbols.lightbulb),
+                      iconColor: theme.hintColor,
+                      titleTextStyle: hintStyle,
+                      title: const Text.rich(TextSpan(
+                        children: <InlineSpan>[
+                          TextSpan(text: "Couldn't find what you're looking for? Try the "),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Hyperlink(text: "interactive YAML editor", url: "https://yamleditorforsc4pac.net/"),
+                          ),
+                          TextSpan(text: " to add new "),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Hyperlink(text: "metadata", url: "https://memo33.github.io/sc4pac/#/metadata?id=testing-your-changes"),
+                          ),
+                          TextSpan(text: " for plugins that are not available with sc4pac yet."),
+                        ],
+                      )),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              );
             } else {
               final searchResult = snapshot.data!;
               return SliverList(

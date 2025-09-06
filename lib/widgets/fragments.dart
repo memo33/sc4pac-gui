@@ -253,25 +253,29 @@ class _AnimatedCopyButtonState extends State<AnimatedCopyButton> {
 }
 
 class Hyperlink extends StatelessWidget {
-  final Uri? url;
-  Hyperlink({required String url, super.key}) : url = Uri.tryParse(url);
+  final String urlStr;
+  final String? text;
+  const Hyperlink({required String url, this.text, super.key}) : urlStr = url;
+  static String urlTooltip(String url) => switch (url.indexOf('?')) { final i => i < 0 ? url : "${url.substring(0, i)}?..." };
   @override Widget build(BuildContext context) {
+    final url = Uri.tryParse(urlStr);
+    final link = Link(
+      uri: url,
+      builder: (context, followLink) => CopyLinkAddress(
+        url: urlStr,
+        child: InkWell(
+          onTap: url == null ? null : () {
+            ContextMenuController.removeAny();
+            // opens new tab in web (in contrast to `followLink`) and external browser on other platforms
+            launchUrl(url, mode: LaunchMode.externalApplication);
+          },
+          child: Text(text ?? urlStr, style: DefaultTextStyle.of(context).style.copyWith(color: const Color(0xff2196f3))),  // steel blue
+        ),
+      ),
+    );
     return RichText(
       text: WidgetSpan(
-        child: Link(
-          uri: url,
-          builder: (context, followLink) => CopyLinkAddress(
-            url: url.toString(),
-            child: InkWell(
-              onTap: url == null ? null : () {
-                ContextMenuController.removeAny();
-                // opens new tab in web (in contrast to `followLink`) and external browser on other platforms
-                launchUrl(url!, mode: LaunchMode.externalApplication);
-              },
-              child: Text(url.toString(), style: DefaultTextStyle.of(context).style.copyWith(color: const Color(0xff2196f3))),  // steel blue
-            ),
-          ),
-        ),
+        child: text == null ? link : Tooltip(message: urlTooltip(urlStr), child: link),
       ),
     );
   }

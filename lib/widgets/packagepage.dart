@@ -466,7 +466,7 @@ class MetadataUrlButton extends StatelessWidget {
     return CopyLinkAddress(
       url: url,
       child: Tooltip(
-        message: switch (url.indexOf('?')) { final i => i < 0 ? url : "${url.substring(0, i)}?..." },
+        message: Hyperlink.urlTooltip(url),
         child: TextButton.icon(
           icon: icon,
           label: Text(text),

@@ -92,14 +92,14 @@ class AboutMessage extends StatelessWidget {
   static const sourceUrl = "https://github.com/memo33/sc4pac-gui";
   const AboutMessage({super.key});
   @override Widget build(BuildContext context) {
-    return Text.rich(TextSpan(
+    return const Text.rich(TextSpan(
         children: <InlineSpan>[
-          const TextSpan(text: "A mod manager for SimCity 4 plugins.\n\nMore information available at "),
+          TextSpan(text: "A mod manager for SimCity 4 plugins.\n\nMore information available at "),
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Hyperlink(url: websiteUrl),
           ),
-          const TextSpan(text: ".\n\nSource code: "),
+          TextSpan(text: ".\n\nSource code: "),
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Hyperlink(url: sourceUrl),
