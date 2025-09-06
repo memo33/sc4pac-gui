@@ -40,12 +40,17 @@ class ApiErrorWidget extends StatelessWidget {
   }
 
   static List<String> createDebugInfo(ApiError? error) {
+    final String? javaVersion = switch (World.world.serverStatus) {
+      null => null,
+      final s => "${s['javaVersion']} - ${s['javaRuntime']}",
+    };
     return [
       "Sc4pac GUI version: ${World.world.appInfo.version}",
       "Sc4pac CLI version: ${World.world.serverVersion}",
       "Platform: ${defaultTargetPlatform.name}",
       "Web: $kIsWeb",
-      "OS (Java): ${World.world.serverStatusOs}",
+      "Java: $javaVersion",
+      "OS (Java): ${World.world.serverStatus?['osVersion']}",
       ...kIsWeb ? [] : [
         "OS (Dart): ${io.Platform.operatingSystem} - ${io.Platform.operatingSystemVersion}",
         "Dart: ${io.Platform.version}",

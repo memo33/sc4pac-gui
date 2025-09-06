@@ -32,7 +32,7 @@ class World extends ChangeNotifier {
   Sc4pacServer? server;
   late Future<Map<String, dynamic>> initialServerStatus;
   String? serverVersion;
-  String? serverStatusOs;
+  Map<String, dynamic>? serverStatus;
   late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
   Profiles? profiles;
@@ -57,9 +57,7 @@ class World extends ChangeNotifier {
         if (serverStatus case {'sc4pacVersion': String version}) {
           serverVersion = version;
         }
-        if (serverStatus case {'osVersion': String osVersion}) {
-          serverStatusOs = osVersion;
-        }
+        this.serverStatus = serverStatus;
         client = Sc4pacClient(
           authority,
           onConnectionLost: () => updateConnection(authority, notify: true),
