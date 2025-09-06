@@ -104,8 +104,10 @@ class Sc4pacServer {
             launchError ??= ApiError.unexpected(msg, "");
           } else if (exitCode == _portOccupied) {
             final msg = """Another program is already running on port $port. Please quit the other program – likely another instance of sc4pac.""";
-            final detail = """Alternatively, launch the sc4pac GUI on a different port (using the "--port" launch option) or connect to an existing sc4pac process on port $port (using the "--launch-server=false" option)."""
-                """\n(For technical reasons, this error can also occur if you open and close the sc4pac GUI in quick succession. In this case, just wait for 20 seconds before re-opening the application again.)""";
+            final detail =
+                """For technical reasons, this error can occur if you open and close the sc4pac GUI in quick succession. In this case, just wait for 20 seconds before re-opening the application again."""
+                """\nAlternatively, launch the sc4pac GUI on a different port (using the "--port" launch option) or connect to an existing sc4pac process on port $port (using the "--launch-server=false" option)."""
+                """\nA terminal command to find the process occupying the port is `netstat -ano` on Windows and `lsof -i tcp:$port` on Linux.""";
             stdout.writeln("$msg $detail");
             launchError ??= ApiError.unexpected(msg, detail);
           } else {
