@@ -147,12 +147,13 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 hasScrollBody: false,
                 child: Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 20, right: 20, top: 30, bottom: 20),
-                      child: Card(
-                        child: ListTile(leading: const Icon(Icons.search_off), title: Text(noResultsText)),
-                      ),
-                    ),
+                    // Padding(
+                    //   padding: const EdgeInsets.only(left: 20, right: 20, top: 30, bottom: 20),
+                    //   child: Card(
+                    //     child: ListTile(leading: const Icon(Icons.search_off), title: Text(noResultsText)),
+                    //   ),
+                    // ),
+                    ListTile(leading: const Icon(Icons.search_off), title: Text(noResultsText)),
                     const Spacer(),
                     ListTile(
                       leading: const Icon(Symbols.lightbulb),
