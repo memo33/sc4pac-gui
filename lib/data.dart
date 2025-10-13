@@ -196,14 +196,15 @@ class InstalledListItem {
   factory InstalledListItem.fromJson(Map<String, dynamic> json) => _$InstalledListItemFromJson(json);
 }
 
+typedef ProfilesListItem = ({String id, String name, String? pluginsRoot});
 @JsonSerializable()
 class Profiles {
-  final List<({String id, String name})> profiles;
+  final List<ProfilesListItem> profiles;
   final List<String> currentProfileId;
   final String profilesDir;
   Profiles(this.profiles, this.currentProfileId, this.profilesDir);
   factory Profiles.fromJson(Map<String, dynamic> json) => _$ProfilesFromJson(json);
-  ({String id, String name})? currentProfile() {
+  ProfilesListItem? currentProfile() {
     final idx = profiles.indexWhere((p) => currentProfileId.contains(p.id));
     return idx == -1 ? null : profiles[idx];
   }

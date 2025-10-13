@@ -5,6 +5,7 @@ import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as P;
 import 'dart:io' as io;
 import 'model.dart';
 import 'data.dart';
@@ -275,7 +276,7 @@ class LoadingProfilesScreen extends StatelessWidget {
             final String id = data.currentProfileId.first;
             final p = data.profiles.firstWhere((p) => p.id == id);
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              world.updateProfile(p);  // switches to next initPhase
+              world.updateProfile((id: p.id, name: p.name));  // switches to next initPhase
             });
           }
           content = const ListTile(title: Text("Loading profiles…"));
@@ -408,6 +409,14 @@ class InitProfileDialog extends StatefulWidget {
 class _InitProfileDialogState extends State<InitProfileDialog> {
   late final TextEditingController _pluginsPathController = TextEditingController(text: widget.initialPluginsPath);
   late final TextEditingController _cachePathController = TextEditingController(text: widget.initialCachePath);
+  late final Future<Profiles> _profilesFuture = World.world.client.profiles(includePlugins: true);
+  late Future<List<Widget>> _conflictWarningsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateConflictWarnings();
+  }
 
   @override
   void dispose() {
@@ -426,6 +435,23 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
     );
   }
 
+  void _updateConflictWarnings() {
+    final pluginsPath = _pluginsPathController.text.trim();
+    _conflictWarningsFuture = _profilesFuture
+      .then((profiles) => World.world.conflictingPluginsPaths(profiles, currentPluginsRoot: pluginsPath))
+      .catchError((e) {
+        debugPrint("Unexpected error while reading all profiles: $e");
+        return <ProfilesListItem>[];  // ignore
+      })
+      .then((conflicts) {
+        return [
+          if (conflicts.isNotEmpty) PluginsConflictWarning(conflicts, atNewProfile: true),
+          if (P.basename(pluginsPath) != "Plugins") const PluginsSymlinkWarning(),
+        ];
+      });
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return CenteredFullscreenDialog(
@@ -442,7 +468,14 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
             ],
           ),
           const SizedBox(height: 15),
-          FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", onSelected: () => setState(() {})),
+          FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", onChanged: _updateConflictWarnings, onSelected: _updateConflictWarnings),
+          FutureBuilder(
+            future: _conflictWarningsFuture,
+            builder: (context, snapshot) =>
+              snapshot.data?.isNotEmpty != true ? const SizedBox(height: 0) :
+                Column(children: snapshot.data!
+                  .map((w) => Padding(padding: const EdgeInsets.only(top: 15), child: w)).toList()),
+          ),
           const SizedBox(height: 30),
           const ExpansionTile(
             trailing: Icon(Icons.info_outlined),
@@ -465,14 +498,34 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
   }
 }
 
+class PluginsSymlinkWarning extends StatelessWidget {
+  const PluginsSymlinkWarning({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(TextSpan(
+      children: [
+        const TextSpan(text:
+          """Note: The selected folder is not named "Plugins"."""
+          """ This is probably a mistake (unless you are sure you want to manually create Symbolic Links to make the game load files from this location)."""
+          """ Instead, choose a folder named "Plugins", and use the """
+        ),
+        PluginsConflictWarning.link("-UserDir SC4 launch option"),
+        const TextSpan(text: " to make the game load the Plugins of this Profile if you have more than one Profile."),
+      ],
+      style: TextStyle(color: Theme.of(context).colorScheme.error),
+    ));
+  }
+}
+
 class FolderPathEdit extends StatelessWidget {
   final TextEditingController controller;
   final String? labelText;
   final void Function()? beforeSelected;
   final void Function() onSelected;
+  final void Function()? onChanged;
   final bool pickFile;
   final bool enabled;
-  const FolderPathEdit(this.controller, {this.labelText, this.beforeSelected, required this.onSelected, this.pickFile = false, this.enabled = true, super.key});
+  const FolderPathEdit(this.controller, {this.labelText, this.beforeSelected, required this.onSelected, this.pickFile = false, this.enabled = true, this.onChanged, super.key});
   static const supportsDirectoryPicker = !kIsWeb;
 
   @override
@@ -490,6 +543,7 @@ class FolderPathEdit extends StatelessWidget {
             ),
             readOnly: supportsDirectoryPicker,
             enabled: enabled,
+            onChanged: (_) => onChanged != null ? onChanged!() : {},
           ),
         ),
         const SizedBox(width: 10),

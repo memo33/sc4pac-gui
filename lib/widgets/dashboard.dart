@@ -342,12 +342,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ExpansionTile(
             leading: const Icon(Symbols.folder_supervised),
-            title: const Text("Folders"),
+            title: FutureBuilder(
+              future: World.world.conflictingPluginsPathFuture,
+              builder: (context, snapshot) => Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                direction: Axis.horizontal,
+                spacing: 10,
+                children: [
+                  const Text("Folders"),
+                  if (snapshot.hasData && snapshot.data?.isNotEmpty == true) Tooltip(
+                    message: "Conflict detected",
+                    child: Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
+                  )
+                ],
+              ),
+            ),
             children: [
               ...switch (widget.dashboard.profile.paths?.plugins) {
                 null => [],
                 String path => [
                   const ListTile(title: Text("Plugins"), leading: Icon(Symbols.folder_special)),
+                  FutureBuilder(
+                    future: World.world.conflictingPluginsPathFuture,
+                    builder: (context, snapshot) =>
+                      snapshot.data?.isNotEmpty != true ? const SizedBox(height: 0) :
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: listViewTextPadding,
+                            child: PluginsConflictWarning(snapshot.data!),
+                          ),
+                        ),
+                  ),
                   PathField(path: path),
                 ],
               },
@@ -406,6 +432,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+}
+
+class PluginsConflictWarning extends StatelessWidget {
+  final List<ProfilesListItem> conflicts;
+  final bool atNewProfile;
+  const PluginsConflictWarning(this.conflicts, {this.atNewProfile = false, super.key});
+
+  static InlineSpan link(String text) {
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: Hyperlink(url: "https://memo33.github.io/sc4pac/#/faq?id=changing-plugins-location", text: text),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(TextSpan(
+      children: [
+        TextSpan(text: "Conflict: This Plugins folder path is in conflict with the Plugins folder of another Profile (${conflicts.map((p) => p.name).join(", ")})."),
+        ...(atNewProfile
+          ? [const TextSpan(text: " Select a different folder, or change the Plugins folder location "), link("of the other Profile")]
+          : [const TextSpan(text: " Resolve this by "), link("changing the Plugins folder location"), const TextSpan(text: ", either for this or for the other Profile")]
+        ),
+        const TextSpan(text: ". The folders must be distinct and neither folder can be contained in the other."),
+        if (!atNewProfile)  // TODO replace this by pressing a Repair button
+          const TextSpan(text: " If you have already installed packages in both Profiles, there is a high risk that the files in your Plugins are in an inconsistent state, so ideally re-install all packages."),
+      ],
+      style: TextStyle(color: Theme.of(context).colorScheme.error),
+    ));
   }
 }
 

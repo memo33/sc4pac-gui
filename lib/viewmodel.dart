@@ -40,6 +40,7 @@ class World extends ChangeNotifier {
   bool profileInitialized = false;
   late Profile profile;
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
+  late Future<List<ProfilesListItem>> conflictingPluginsPathFuture;
   SettingsData? settings;
   int navRailIndex = 0;
   // themeMode
@@ -105,6 +106,38 @@ class World extends ChangeNotifier {
     notifyListeners();
   }
 
+  // check whether one path is equal or subpath of the other
+  static bool isSubpathSymmetric(String path1, String path2) {
+    final sep = RegExp(r"[\\/]");
+    final parts1 = path1.split(sep).where((s) => s.isNotEmpty).toList();
+    final parts2 = path2.split(sep).where((s) => s.isNotEmpty).toList();
+
+    for (int i = 0; i < parts1.length && i < parts2.length; i++) {
+      if (parts1[i] != parts2[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  List<ProfilesListItem> conflictingPluginsPaths(Profiles profiles, {String? currentProfileId, String? currentPluginsRoot}) {
+    if (currentPluginsRoot == null) {
+      final idx = profiles.profiles.indexWhere((p) => p.id == currentProfileId);
+      if (idx != -1) {
+        currentPluginsRoot = profiles.profiles[idx].pluginsRoot;
+      }
+    }
+    if (currentPluginsRoot == null) {
+      return [];
+    } else {
+      return profiles.profiles.where((p) =>
+        p.pluginsRoot != null
+        && (p.id != currentProfileId || currentProfileId == null)
+        && (p.pluginsRoot == currentPluginsRoot || isSubpathSymmetric(p.pluginsRoot!, currentPluginsRoot!))
+      ).toList();
+    }
+  }
+
   void updatePaths(({String plugins, String cache}) paths) {
     profile.paths = paths;
     _switchToInitialized();
@@ -130,6 +163,11 @@ class World extends ChangeNotifier {
           )));
       }
     }
+
+    conflictingPluginsPathFuture = Future.delayed(const Duration(seconds: 2), () =>
+      client.profiles(includePlugins: true)
+      .then((profiles) => conflictingPluginsPaths(profiles, currentProfileId: profile.id))
+    );
 
     initPhase = InitPhase.initialized;
     notifyListeners();

@@ -438,8 +438,10 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     return ws;
   }
 
-  Future<Profiles> profiles() async {
-    final response = await http.get(Uri.http(authority, '/profiles.list'));
+  Future<Profiles> profiles({bool includePlugins = false}) async {
+    final response = await http.get(Uri.http(authority, '/profiles.list', {
+      if (includePlugins) 'includePlugins': null,
+    }));
     if (response.statusCode == 200) {
       return Profiles.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
