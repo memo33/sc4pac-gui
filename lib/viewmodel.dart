@@ -600,8 +600,8 @@ class PendingUpdates extends ChangeNotifier {
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
   }
 
-  Future<void> onReinstallButton(BareModule module) {
-    return World.world.client.reinstall([module], profileId: World.world.profile.id).then((_) {
+  Future<void> onReinstallButton(BareModule module, {required bool redownload}) {
+    return World.world.client.reinstall([module], redownload: redownload, profileId: World.world.profile.id).then((_) {
       setPendingUpdate(module, PendingUpdateStatus.reinstall);
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
   }

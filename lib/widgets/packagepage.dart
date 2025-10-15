@@ -208,9 +208,35 @@ class _PackagePageState extends State<PackagePage> {
                       builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text("Reinstall"), onPressed: onPressed),
                       symbol: Symbols.restart_alt,
                       action: () {
-                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module)
+                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module, redownload: false)
                           .then((_) => _refresh());
                       },
+                    ),
+                    MenuAnchor(
+                      builder: (BuildContext context, MenuController controller, Widget? child) {
+                        return IconButton(
+                          color: Theme.of(context).colorScheme.primary,
+                          icon: const Icon(Symbols.more_vert, weight: 800),
+                          onPressed: () {
+                            if (controller.isOpen) {
+                              controller.close();
+                            } else {
+                              controller.open();
+                            }
+                          },
+                          tooltip: "More",
+                        );
+                      },
+                      menuChildren: [
+                        MenuItemButton(
+                          leadingIcon: const Icon(Symbols.cloud_sync),
+                          child: const Text("Redownload & Reinstall"),
+                          onPressed: () {
+                            World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module, redownload: true)
+                              .then((_) => _refresh());
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ])),

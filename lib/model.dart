@@ -318,9 +318,12 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<void> reinstall(List<BareModule> modules, {required String profileId}) async {
+  Future<void> reinstall(List<BareModule> modules, {required bool redownload, required String profileId}) async {
     if (modules.isNotEmpty) {
-      final response = await http.post(Uri.http(authority, '/plugins.reinstall', {'profile': profileId}),
+      final response = await http.post(Uri.http(authority, '/plugins.reinstall', {
+          'profile': profileId,
+          if (redownload) 'redownload': null,
+        }),
         body: jsonUtf8Encode(modules.map((m) => m.toString()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
