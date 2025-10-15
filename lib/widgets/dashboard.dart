@@ -9,6 +9,7 @@ import '../model.dart';
 import '../viewmodel.dart';
 import '../main.dart';
 import 'fragments.dart';
+import 'packagepage.dart' show PackagePage;
 
 class DashboardScreen extends StatefulWidget {
   final Dashboard dashboard;
@@ -18,6 +19,7 @@ class DashboardScreen extends StatefulWidget {
   @override State<DashboardScreen> createState() => _DashboardScreenState();
 
   static String okCancelFromYesNo(String choice) => choice == "Yes" ? "OK" : choice == "No" ? "Cancel" : choice;
+  static const String updateAllButtonLabel = "Update All";
 
   static Future<String?> showUpdatePlan(UpdatePlan plan) {
     return showDialog(
@@ -393,6 +395,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ChannelsList(),
             ],
           ),
+          const RepairWidget(),
           ListenableBuilder(
             listenable: widget.dashboard,
             builder: (context, child) => VariantsWidget(widget.dashboard.variantsFuture),
@@ -415,7 +418,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                 });
               },
-              label: const Text("Update All"),
+              label: const Text(DashboardScreen.updateAllButtonLabel),
             ),
           ),
           if (widget.dashboard.updateProcess?.isBackground == false)
@@ -431,6 +434,112 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class RepairWidget extends StatefulWidget {
+  const RepairWidget({super.key});
+  @override State<RepairWidget> createState() => _RepairWidgetState();
+  static const scanAndRepairButtonLabel = "Scan & Repair Plugins";
+}
+class _RepairWidgetState extends State<RepairWidget> {
+  bool _running = false;
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      leading: const Icon(Symbols.construction),
+      title: const Text("Maintenance & Repair"),
+      children: [
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: listViewTextPadding,
+            child: MarkdownText(
+"""If your Plugins files somehow got out-of-sync with sc4pac's internal state, click this button to fix that.
+This detects `.sc4pac` subfolders that are either missing or outdated and not needed anymore for this Profile.
+
+(If individual files of a package are missing, use the package's `${PackagePage.reinstallButtonLabel}` button instead.)
+"""),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: OutlinedButton.icon(
+            icon: _running ? const SizedBox(width: 24, height: 24, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5))) : const Icon(Symbols.troubleshoot),
+            label: const Text(RepairWidget.scanAndRepairButtonLabel),
+            onPressed: _running ? null : () async {
+              setState(() {
+                _running = true;
+                World.world.profile.dashboard.repairProcessResult = null;
+              });
+              final plan = await World.world.client.repairScan(profileId: World.world.profile.id);
+              setState(() => _running = false);
+              if (plan.isUpToDate()) {
+                setState(() => World.world.profile.dashboard.repairProcessResult = "Looking good. No issues found in your Plugins folder.");
+              } else {
+                final confirmed = await showRepairPlan(plan);
+                if (confirmed == true) {
+                  setState(() { _running = true; });
+                  final upToDate = await World.world.client.repair(plan, profileId: World.world.profile.id);
+                  setState(() {
+                    _running = false;
+                    World.world.profile.dashboard.repairProcessResult = upToDate ? "All detected issues have been fixed." : "Press `${DashboardScreen.updateAllButtonLabel}` to complete the repair.";
+                    World.world.profile.dashboard.pendingUpdates.onRepairComplete(plan.incompletePackages.map(BareModule.parse));
+                  });
+                }
+              }
+            },
+          ),
+        ),
+        if (!_running)
+          ListenableBuilder(
+            listenable: World.world.profile.dashboard,
+            builder: (context, child) => World.world.profile.dashboard.repairProcessResult == null
+              ? const SizedBox(height: 0)
+              : Padding(padding: const EdgeInsets.only(bottom: 10), child: MarkdownText(World.world.profile.dashboard.repairProcessResult ?? "")),
+          ),
+      ],
+    );
+  }
+
+  static Future<bool?> showRepairPlan(RepairPlan plan) {
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,  // We use global context so that process can show dialog popups even when the current screen is disposed.
+      barrierDismissible: true,
+      builder: (context) {
+        final hintStyle = TextStyle(color: Theme.of(context).hintColor);
+        return AlertDialog(
+          icon: const Icon(Icons.warning_outlined),
+          title: const Text("Fix broken package folders?"),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (plan.orphanFiles.isNotEmpty)
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Folders that don't belong to any installed packages of current Profile (will be deleted):")),
+                ...plan.orphanFiles.map((path) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(path, style: hintStyle),
+                  )),
+                if (plan.incompletePackages.isNotEmpty)
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Packages with missing files (will be re-installed):")),
+                ...plan.incompletePackages.map((pkg) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: PkgNameFragment(BareModule.parse(pkg), asButton: false, colored: false),
+                  )),
+              ],
+            ),
+          ),
+          actions: [true, false].map((choice) => OutlinedButton(
+            child: Text(!choice ? "Cancel" : plan.orphanFiles.isNotEmpty
+              ? (plan.incompletePackages.isNotEmpty ? "OK, delete & reinstall" : "OK, delete")
+              : (plan.incompletePackages.isNotEmpty ? "OK, reinstall" : "OK")
+            ),
+            onPressed: () => Navigator.pop(context, choice),
+          )).toList(),
+        );
+      }
     );
   }
 }
@@ -457,8 +566,8 @@ class PluginsConflictWarning extends StatelessWidget {
           : [const TextSpan(text: " Resolve this by "), link("changing the Plugins folder location"), const TextSpan(text: ", either for this or for the other Profile")]
         ),
         const TextSpan(text: ". The folders must be distinct and neither folder can be contained in the other."),
-        if (!atNewProfile)  // TODO replace this by pressing a Repair button
-          const TextSpan(text: " If you have already installed packages in both Profiles, there is a high risk that the files in your Plugins are in an inconsistent state, so ideally re-install all packages."),
+        if (!atNewProfile)
+          const TextSpan(text: """ Afterwards, run "${RepairWidget.scanAndRepairButtonLabel}" in both Profiles."""),
       ],
       style: TextStyle(color: Theme.of(context).colorScheme.error),
     ));

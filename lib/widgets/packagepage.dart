@@ -30,7 +30,7 @@ class PackagePage extends StatefulWidget {
   }
 
   static const tableLabelPadding = EdgeInsets.fromLTRB(10, 5, 20, 5);
-
+  static const reinstallButtonLabel = "Reinstall";
 
   static Future<bool?> showUnknownChannelsDialog(List<String> unknownChannelUrls) {
     return showDialog<bool>(
@@ -205,7 +205,7 @@ class _PackagePageState extends State<PackagePage> {
                   if (installedVersion != null) ...[
                     const SizedBox(width: 10),
                     AnimatedActionButton(
-                      builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text("Reinstall"), onPressed: onPressed),
+                      builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed),
                       symbol: Symbols.restart_alt,
                       action: () {
                         World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module, redownload: false)

@@ -387,3 +387,13 @@ class ExportData {
   factory ExportData.fromJson(Map<String, dynamic> json) => _$ExportDataFromJson(json);
   Map<String, dynamic> toJson() => _$ExportDataToJson(this);
 }
+
+@JsonSerializable()
+class RepairPlan {
+  final List<String> incompletePackages;
+  final List<String> orphanFiles;
+  RepairPlan(this.incompletePackages, this.orphanFiles);
+  factory RepairPlan.fromJson(Map<String, dynamic> json) => _$RepairPlanFromJson(json);
+  Map<String, dynamic> toJson() => _$RepairPlanToJson(this);
+  bool isUpToDate() => incompletePackages.isEmpty && orphanFiles.isEmpty;
+}

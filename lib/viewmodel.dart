@@ -478,6 +478,7 @@ class Dashboard extends ChangeNotifier {
   }
   final Profile profile;
   final pendingUpdates = PendingUpdates();
+  String? repairProcessResult;
   final List<Map<String, String>> importedVariantSelections = [];  // FIFO, newest at the back
   late Future<VariantsList> variantsFuture;
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
@@ -494,6 +495,7 @@ class Dashboard extends ChangeNotifier {
     if (status == UpdateStatus.finished) {  // no error/no canceled
       pendingUpdates.clear();
       importedVariantSelections.clear();
+      repairProcessResult = null;
     }
     fetchVariants();
     profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id)
@@ -604,6 +606,12 @@ class PendingUpdates extends ChangeNotifier {
     return World.world.client.reinstall([module], redownload: redownload, profileId: World.world.profile.id).then((_) {
       setPendingUpdate(module, PendingUpdateStatus.reinstall);
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+  }
+
+  void onRepairComplete(Iterable<BareModule> modules) {
+    for (final module in modules) {
+      setPendingUpdate(module, PendingUpdateStatus.reinstall);
+    }
   }
 
   // on toggling multiple star buttons simultaneously (e.g. Add All or Reset)
