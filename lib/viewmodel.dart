@@ -600,6 +600,12 @@ class PendingUpdates extends ChangeNotifier {
     }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
   }
 
+  Future<void> onReinstallButton(BareModule module) {
+    return World.world.client.reinstall([module], profileId: World.world.profile.id).then((_) {
+      setPendingUpdate(module, PendingUpdateStatus.reinstall);
+    }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+  }
+
   // on toggling multiple star buttons simultaneously (e.g. Add All or Reset)
   Future<void> toggleMany({List<PackageSearchResultItem> toAdd = const [], List<PackageSearchResultItem> toRemove = const [], required bool reset}) async {
     await World.world.client.remove(toRemove.map((item) => item.module).toList(), profileId: World.world.profile.id);

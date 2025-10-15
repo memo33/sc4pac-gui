@@ -200,7 +200,20 @@ class _PackagePageState extends State<PackagePage> {
               children: <TableRow>[
                 if (images.isNotEmpty)
                   packageTableRow(null, ImageCarousel(images)),
-                packageTableRow(null, AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),  // TODO positioning
+                packageTableRow(null, Row(children: [
+                  Expanded(child: AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),
+                  if (installedVersion != null) ...[
+                    const SizedBox(width: 10),
+                    AnimatedActionButton(
+                      builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text("Reinstall"), onPressed: onPressed),
+                      symbol: Symbols.restart_alt,
+                      action: () {
+                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module)
+                          .then((_) => _refresh());
+                      },
+                    ),
+                  ],
+                ])),
                 packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
                 packageTableRow(const Text("Version"), SelectionArea(child: Text(switch (remote) {
                   {'version': String v} => installedVersion != null && installedVersion != v ? "$v (currently installed: $installedVersion)" : v,

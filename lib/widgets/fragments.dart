@@ -207,52 +207,65 @@ class TextWithCopyButton extends StatelessWidget {
   }
 }
 
-class AnimatedCopyButton extends StatefulWidget {
-  final Widget? label;
-  final String Function()? getCopyableText;
-  const AnimatedCopyButton({this.label, this.getCopyableText, super.key});
-  @override State<AnimatedCopyButton> createState() => _AnimatedCopyButtonState();
+class AnimatedActionButton extends StatefulWidget {
+  final Widget Function(BuildContext context, Widget icon, VoidCallback? onPressed) builder;
+  final IconData symbol;
+  final VoidCallback? action;
+  const AnimatedActionButton({required this.builder, required this.symbol, required this.action, super.key});
+  @override State<AnimatedActionButton> createState() => _AnimatedActionButtonState();
 }
-class _AnimatedCopyButtonState extends State<AnimatedCopyButton> {
+class _AnimatedActionButtonState extends State<AnimatedActionButton> {
   int _count = 0;
   bool _recentlyPressed = false;
+
+  late final onPressed = switch (widget.action) {
+    null => null,
+    final f => () async {
+      _count++;
+      final startedAtCount = _count;
+      _recentlyPressed = true;
+      setState(() {});
+      f();  // not waiting for potential asynchronous computation which could take a long time
+      await Future.delayed(const Duration(milliseconds: 2500), () {
+        if (_count == startedAtCount && mounted) {
+          setState(() => _recentlyPressed = false);
+        }
+      });
+    }
+  };
+
   @override
   Widget build(BuildContext context) {
-    final onPressed = switch (widget.getCopyableText) {
-      null => null,
-      final getCopyableText => () async {
-        _count++;
-        final startedAtCount = _count;
-        setState(() => _recentlyPressed = true);
-        await Clipboard.setData(ClipboardData(text: getCopyableText()));
-        await Future.delayed(const Duration(milliseconds: 2500), () {
-          if (_count == startedAtCount && mounted) {
-            setState(() => _recentlyPressed = false);
-          }
-        });
-      },
-    };
     final animatedIcon = AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       child: Icon(
-        _recentlyPressed ? Icons.check : Icons.copy,
+        _recentlyPressed ? Icons.check : widget.symbol,
         key: ValueKey<bool>(_recentlyPressed),
         color: _recentlyPressed ? Theme.of(context).colorScheme.secondary : null,
       ),
     );
+    return widget.builder(context, animatedIcon, onPressed);
+  }
+}
+
+class AnimatedCopyButton extends StatelessWidget {
+  final Widget? label;
+  final String Function()? getCopyableText;
+  const AnimatedCopyButton({this.label, this.getCopyableText, super.key});
+  @override Widget build(BuildContext context) {
     return Tooltip(
       message: "Copy to clipboard",
-      child: switch (widget.label) {
-        null => IconButton(
-          icon: animatedIcon,
-          onPressed: onPressed,
-        ),
-        final label => TextButton.icon(
-          icon: animatedIcon,
-          label: label,
-          onPressed: onPressed,
-        ),
-      },
+      child: AnimatedActionButton(
+        builder: (context, icon, onPressed) => switch (label) {
+          null => IconButton(icon: icon, onPressed: onPressed),
+          final label => TextButton.icon(icon: icon, label: label, onPressed: onPressed),
+        },
+        symbol: Icons.copy,
+        action: switch (getCopyableText) {
+          null => null,
+          final getCopyableText => () => Clipboard.setData(ClipboardData(text: getCopyableText())),
+        },
+      ),
     );
   }
 }
@@ -449,7 +462,10 @@ class InstalledStatusIcon extends StatelessWidget {
     String tooltip = "Not installed";
     Widget? icon;
     if (status != null) {
-      if (status!.explicit) {
+      if (status!.installed?.reinstall == true) {
+        tooltip = "Reinstall pending";
+        icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
+      } else if (status!.explicit) {
         if (status!.installed == null) {
           tooltip = "Update pending";
           icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);

@@ -229,7 +229,7 @@ class ChannelStatsAll {
 @JsonSerializable()
 class InstalledStatus {
   final bool explicit;
-  final ({String version, Map<String, String> variant, DateTime installedAt, DateTime updatedAt})? installed;
+  final ({String version, Map<String, String> variant, DateTime installedAt, DateTime updatedAt, bool? reinstall})? installed;
   InstalledStatus(this.explicit, this.installed);
   factory InstalledStatus.fromJson(Map<String, dynamic> json) => _$InstalledStatusFromJson(json);
 

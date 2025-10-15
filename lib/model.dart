@@ -318,6 +318,18 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
+  Future<void> reinstall(List<BareModule> modules, {required String profileId}) async {
+    if (modules.isNotEmpty) {
+      final response = await http.post(Uri.http(authority, '/plugins.reinstall', {'profile': profileId}),
+        body: jsonUtf8Encode(modules.map((m) => m.toString()).toList()),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode != 200) {
+        throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      }
+    }
+  }
+
   Future<List<InstalledListItem>> installed({required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/plugins.installed.list', {'profile': profileId}));
     if (response.statusCode == 200) {
