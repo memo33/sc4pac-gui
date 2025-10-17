@@ -651,6 +651,8 @@ class PendingUpdates extends ChangeNotifier {
 
 enum UpdateStatus { running, finished, finishedWithError, canceled }
 
+enum UpdateMode { backgroundFetch, interactiveUpdate }
+
 class UpdateProcess extends ChangeNotifier {
   late final WebSocketChannel _ws;
   late final Stream<Map<String, dynamic>> _stream;
@@ -679,10 +681,10 @@ class UpdateProcess extends ChangeNotifier {
 
   final PendingUpdates pendingUpdates;
   final void Function(UpdateStatus) onFinished;
-  final bool isBackground;
+  final UpdateMode mode;
   final List<Map<String, String>> importedVariantSelections;
 
-  UpdateProcess({required this.pendingUpdates, required this.onFinished, required this.isBackground, required this.importedVariantSelections}) {
+  UpdateProcess({required this.pendingUpdates, required this.onFinished, required this.mode, required this.importedVariantSelections}) {
     final stAuth = World.world.settings?.stAuth;
     {
       _ws = World.world.client.update(
@@ -745,7 +747,7 @@ class UpdateProcess extends ChangeNotifier {
             PendingUpdateStatus.reinstall,
           );
         }
-        if (self.isBackground) {
+        if (self.mode == UpdateMode.backgroundFetch) {
           self.cancel();  // for background process we are done, as we do not want to install anything
         } else if (plan.nothingToDo){
           self._ws.sink.add(jsonEncode(plan.responses['Yes']));  // everything up-to-date
@@ -756,7 +758,7 @@ class UpdateProcess extends ChangeNotifier {
           });
         }
       },
-      '/prompt/confirmation/update/warnings': (self, data) {  // not relevant for isBackground, as these warnings are triggered during installation
+      '/prompt/confirmation/update/warnings': (self, data) {  // not relevant for mode == UpdateMode.backgroundFetch, as these warnings are triggered during installation
         final msg = ConfirmationUpdateWarnings.fromJson(data);
         if (msg.warnings.isEmpty) {
           self._ws.sink.add(jsonEncode(msg.responses['Yes']));  // no warnings
@@ -769,7 +771,7 @@ class UpdateProcess extends ChangeNotifier {
       },
       '/prompt/choice/update/variant': (self, data) {
         final msg = ChoiceUpdateVariant.fromJson(data);
-        if (self.isBackground) {
+        if (self.mode == UpdateMode.backgroundFetch) {
           // we cannot make this selection without user interaction
           self.pendingUpdates.setPendingUpdate(BareModule.parse(msg.package), PendingUpdateStatus.reinstall);
           self.cancel();
@@ -787,7 +789,7 @@ class UpdateProcess extends ChangeNotifier {
       },
       '/prompt/confirmation/update/remove-unresolvable-packages': (self, data) {
         final msg = ConfirmationRemoveUnresolvablePackages.fromJson(data);
-        if (self.isBackground) {
+        if (self.mode == UpdateMode.backgroundFetch) {
           self.cancel();  // we cannot make this selection without user interaction
         } else {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -803,7 +805,7 @@ class UpdateProcess extends ChangeNotifier {
       },
       '/prompt/choice/update/remove-conflicting-packages': (self, data) {
         final msg = ChoiceRemoveConflictingPackages.fromJson(data);
-        if (self.isBackground) {
+        if (self.mode == UpdateMode.backgroundFetch) {
           self.cancel();  // we cannot make this selection without user interaction
         } else {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -819,7 +821,7 @@ class UpdateProcess extends ChangeNotifier {
       },
       '/prompt/json/update/download-failed-select-mirror': (self, data) {
         final msg = DownloadFailedSelectMirror.fromJson(data);
-        if (self.isBackground) {
+        if (self.mode == UpdateMode.backgroundFetch) {
           self.cancel();  // we cannot make this selection without user interaction
         } else {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -839,7 +841,7 @@ class UpdateProcess extends ChangeNotifier {
       },
       '/prompt/confirmation/update/installing-dlls': (self, data) {
         final msg = ConfirmationInstallingDlls.fromJson(data);
-        if (self.isBackground) {
+        if (self.mode == UpdateMode.backgroundFetch) {
           self.cancel();  // we cannot make this selection without user interaction
         } else {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -872,7 +874,7 @@ class UpdateProcess extends ChangeNotifier {
         self.downloadsFailed |= !msg.success;
         self._downloadsCompletedOnNextNonProgressDownloadMsg = true;
       },
-      '/progress/update/extraction': (self, data) {  // not relevant for isBackground
+      '/progress/update/extraction': (self, data) {  // not relevant for mode == UpdateMode.backgroundFetch
         final msg = ProgressUpdateExtraction.fromJson(data);
         self.extractionProgress = msg;
         if (msg.progress.numerator == msg.progress.denominator) {

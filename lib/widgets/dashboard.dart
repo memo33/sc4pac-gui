@@ -298,7 +298,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     widget.dashboard.updateProcess ??= UpdateProcess(  // initial check for metadata updates without installing anything
       pendingUpdates: widget.dashboard.pendingUpdates,
-      isBackground: true,
+      mode: UpdateMode.backgroundFetch,
       onFinished: widget.dashboard.onUpdateFinished,
       importedVariantSelections: [],  // variant selections are not useful for background process
     );
@@ -413,7 +413,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
                     pendingUpdates: widget.dashboard.pendingUpdates,
                     onFinished: widget.dashboard.onUpdateFinished,
-                    isBackground: false,
+                    mode: UpdateMode.interactiveUpdate,
                     importedVariantSelections: widget.dashboard.importedVariantSelections,
                   );
                 });
@@ -421,11 +421,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               label: const Text(DashboardScreen.updateAllButtonLabel),
             ),
           ),
-          if (widget.dashboard.updateProcess?.isBackground == false)
+          if (widget.dashboard.updateProcess?.mode == UpdateMode.interactiveUpdate)
             Card.outlined(
               child: UpdateWidget(widget.dashboard.updateProcess!),
             ),
-          if (widget.dashboard.updateProcess?.isBackground == false && widget.dashboard.updateProcess?.status != UpdateStatus.running)
+          if (widget.dashboard.updateProcess?.mode == UpdateMode.interactiveUpdate && widget.dashboard.updateProcess?.status != UpdateStatus.running)
             ElevatedButton(
               onPressed: () => setState(() {
                 widget.dashboard.updateProcess = null;  // TODO ensure that ws was closed
@@ -1068,12 +1068,12 @@ class _UpdateWidgetState extends State<UpdateWidget> {
                 ? ApiErrorWidget(widget.proc.err!)  // if aborted via dialog, we show a different icon via the branch below
                 : ListTile(
                   leading: Icon(
-                    widget.proc.isBackground
+                    widget.proc.mode == UpdateMode.backgroundFetch
                     ? (widget.proc.plan?.nothingToDo ?? false ? Icons.check_circle_outline : Icons.update_outlined)
                     : widget.proc.status == UpdateStatus.finished ? Icons.check_circle_outline : Icons.block_outlined  // canceled or finishedWithError
                   ),
                   title: Text(widget.proc.err?.title ?? (
-                      widget.proc.isBackground ? _pendingUpdatesLabel(widget.proc) : _finishedLabel(widget.proc)
+                      widget.proc.mode == UpdateMode.backgroundFetch ? _pendingUpdatesLabel(widget.proc) : _finishedLabel(widget.proc)
                   )),
                 ),
             ],
@@ -1365,7 +1365,7 @@ class PendingUpdatesWidget extends StatelessWidget {
   const PendingUpdatesWidget(this.dashboard, {super.key});
   @override
   Widget build(BuildContext context) {
-    final bool runningInBackground = dashboard.updateProcess?.status == UpdateStatus.running && dashboard.updateProcess?.isBackground == true;
+    final bool runningInBackground = dashboard.updateProcess?.status == UpdateStatus.running && dashboard.updateProcess?.mode == UpdateMode.backgroundFetch;
     final int? count = runningInBackground ? null : dashboard.pendingUpdates.getCount();
 
     return ExpansionTile(
