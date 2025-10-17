@@ -11,6 +11,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:io';
 import 'dart:collection' show LinkedHashMap;
+import 'dart:async' show Completer;
 import 'protocol_handler_none.dart'  // web
   if (dart.library.io) 'protocol_handler.dart'  // desktop
   as protocol_handler;
@@ -506,6 +507,20 @@ class Dashboard extends ChangeNotifier {
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
     fetchVariants();
+  }
+
+  Future<UpdateStatus> startUpdateProcess(UpdateMode mode) {
+    final completer = Completer<UpdateStatus>();
+    updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
+      pendingUpdates: pendingUpdates,
+      mode: mode,
+      onFinished: (status) {
+        onUpdateFinished(status);
+        completer.complete(status);
+      },
+      importedVariantSelections: mode != UpdateMode.interactiveUpdate ? [] : importedVariantSelections,  // variant selections are not useful for background process
+    );
+    return completer.future;
   }
 
   void fetchVariants() {

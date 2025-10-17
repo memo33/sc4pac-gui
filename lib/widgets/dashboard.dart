@@ -297,12 +297,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void initState() {
-    widget.dashboard.updateProcess ??= UpdateProcess(  // initial check for metadata updates without installing anything
-      pendingUpdates: widget.dashboard.pendingUpdates,
-      mode: UpdateMode.backgroundFetch,
-      onFinished: widget.dashboard.onUpdateFinished,
-      importedVariantSelections: [],  // variant selections are not useful for background process
-    );
+    if (widget.dashboard.updateProcess == null) {  // initial check for metadata updates without installing anything
+      widget.dashboard.startUpdateProcess(UpdateMode.backgroundFetch);
+    }
     super.initState();
   }
 
@@ -339,7 +336,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: const Text("New"),
                   ),
                   ElevatedButton(
-                    onPressed: () => showDialog(
+                    onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () => showDialog(
                       context: context,
                       barrierDismissible: true,
                       builder: (context) => const DeleteProfileDialog(),
@@ -419,12 +416,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.refresh),
               onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () {
                 setState(() {
-                  widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
-                    pendingUpdates: widget.dashboard.pendingUpdates,
-                    onFinished: widget.dashboard.onUpdateFinished,
-                    mode: UpdateMode.interactiveUpdate,
-                    importedVariantSelections: widget.dashboard.importedVariantSelections,
-                  );
+                  widget.dashboard.startUpdateProcess(UpdateMode.interactiveUpdate);
                 });
               },
               label: const Text(DashboardScreen.updateAllButtonLabel),
@@ -452,7 +444,23 @@ class DeleteProfileDialog extends StatefulWidget {
   @override State<DeleteProfileDialog> createState() => _DeleteProfileDialogState();
 }
 class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
-  late Future<List<InstalledListItem>> installedPluginsFuture = World.world.client.installed(profileId: World.world.profile.id);
+  late Future<List<InstalledListItem>> _installedPluginsFuture;
+  late final Future<ExportData> _exportDataFuture;
+  bool _finishedDeleteAllPackages = false;
+
+  @override initState() {
+    super.initState();
+    _fetchInstalledPlugins();
+    // We create ExportData directly when opening the dialog, so that Export still works even after uninstalling all packages
+    _exportDataFuture = _installedPluginsFuture.then((installedItems) {
+      final modules = [for (final item in installedItems) if (item.explicit == true) item.package];
+      return MyPlugins.createExportData(modules);
+    });
+  }
+
+  void _fetchInstalledPlugins() {
+    _installedPluginsFuture = World.world.client.installed(profileId: World.world.profile.id);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -496,45 +504,63 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text("Export Mod Set"),
-                        subtitle: Text("Optionally, first export the list of installed packages as JSON file for back-up. You can re-import it later to restore the Profile contents.", style: hintStyle),
+                        subtitle: Text("Optionally, export the list of installed packages as JSON file for back-up. You can re-import it later to restore the Profile contents.", style: hintStyle),
                         trailing: OutlinedButton.icon(
                           icon: const Icon(Symbols.upload),
                           label: const Text("Export"),
                           onPressed: () {
-                            final dataFuture = installedPluginsFuture.then((installedItems) {
-                              final modules = [for (final item in installedItems) if (item.explicit == true) item.package];
-                              return MyPlugins.createExportData(modules);
-                            });
-                            ExportDialog.show(context, dataFuture);
+                            ExportDialog.show(context, _exportDataFuture);
                           },
                         ),
                       ),
-                      FutureBuilder(
-                        future: installedPluginsFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.data == null) {
-                            return const SizedBox(height: 0);
-                          } else {
-                            final subtitle =
-                              snapshot.hasError ? Text("Error: ${snapshot.error}", style: redTextStyle) :
-                              Text(snapshot.data?.isEmpty == true
-                                ? "There are 0 packages installed in your Plugins folder."
-                                : "You currently have ${snapshot.data?.length ?? "?"} packages installed in your Plugins folder. They will all be removed. In contrast, other plugin files installed without sc4pac will be left unchanged.",
-                                style: hintStyle,
-                              );
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text("Remove packages from Plugins"),
-                              subtitle: subtitle,
-                              trailing: FilledButton.icon(
-                                style: redFilledButtonStyle,
-                                icon: const Icon(Symbols.delete_sweep, weight: 500),
-                                label: const Text("Uninstall all packages"),
-                                onPressed: snapshot.data?.isNotEmpty == true ? () {} : null,
-                              ),
-                            );
-                          }
-                        },
+                      ListenableBuilder(
+                        listenable: World.world.profile.dashboard,
+                        builder: (context, child) =>
+                          FutureBuilder(
+                            future: _installedPluginsFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.data == null) {
+                                return const SizedBox(height: 0);
+                              } else {
+                                final subtitle =
+                                  snapshot.hasError ? Text("Error: ${snapshot.error}", style: redTextStyle) :
+                                  Text(snapshot.data?.isEmpty != true
+                                    ? "You currently have ${snapshot.data?.length ?? "?"} packages installed in your Plugins folder. They will all be removed. In contrast, other plugin files installed without sc4pac will be left unchanged."
+                                    : _finishedDeleteAllPackages
+                                    ? "All packages have been removed from your Plugins folder."
+                                    : "There are 0 packages installed in your Plugins folder.",
+                                    style: hintStyle,
+                                  );
+                                return ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text("Remove packages from Plugins"),
+                                  subtitle: subtitle,
+                                  trailing: FilledButton.icon(
+                                    style: redFilledButtonStyle,
+                                    icon: World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? const CircularProgressIcon() : const Icon(Symbols.delete_sweep, weight: 500),
+                                    label: const Text("Uninstall all packages"),
+                                    onPressed: snapshot.data?.isNotEmpty != true || World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? null : () async {
+                                      final dashboard = World.world.profile.dashboard;
+                                      assert(dashboard.updateProcess?.status != UpdateStatus.running, "Delete Options dialog should only be visible when regular UpdateProcess is not running.");
+                                      final explicitlyAddedPlugins = await World.world.client.added(profileId: World.world.profile.id);
+                                      await World.world.client.remove(explicitlyAddedPlugins.map(BareModule.parse).toList(), profileId: World.world.profile.id);
+                                      final status = await dashboard.startUpdateProcess(UpdateMode.backgroundDeleteAll);
+                                      setState(() {
+                                        if (status == UpdateStatus.finished) {
+                                          _finishedDeleteAllPackages = true;
+                                        }
+                                        _fetchInstalledPlugins();
+                                      });
+                                      final err = dashboard.updateProcess?.err;
+                                      if (err != null) {
+                                        ApiErrorWidget.dialog(err);
+                                      }
+                                    },
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                       ),
                     ],
                   ),
@@ -551,7 +577,7 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                       const MarkdownText("This operation will _not_ affect any files in your Plugins folder:"),
                       Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: Text(World.world.profile.paths?.plugins ?? "?", style: emphStyle)),
                       FutureBuilder(
-                        future: installedPluginsFuture,
+                        future: _installedPluginsFuture,
                         builder: (context, snapshot) =>
                           snapshot.hasError ? Text("Error: ${snapshot.error}", style: redTextStyle) :
                           !snapshot.hasData ? const SizedBox(height: 0) :
@@ -624,7 +650,7 @@ This detects `.sc4pac` subfolders that are either missing or outdated and not ne
         Padding(
           padding: const EdgeInsets.all(10),
           child: OutlinedButton.icon(
-            icon: _running ? const SizedBox(width: 24, height: 24, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5))) : const Icon(Symbols.troubleshoot),
+            icon: _running ? const CircularProgressIcon() : const Icon(Symbols.troubleshoot),
             label: const Text(RepairWidget.scanAndRepairButtonLabel),
             onPressed: _running ? null : () async {
               setState(() {
@@ -700,6 +726,13 @@ This detects `.sc4pac` subfolders that are either missing or outdated and not ne
       }
     );
   }
+}
+
+// a smaller CircularProgressIndicator for use as icon in buttons
+class CircularProgressIcon extends StatelessWidget {
+  const CircularProgressIcon({super.key});
+  @override Widget build(BuildContext context) =>
+    const SizedBox(width: 24, height: 24, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)));
 }
 
 class PluginsConflictWarning extends StatelessWidget {
@@ -1528,7 +1561,7 @@ class PendingUpdatesWidget extends StatelessWidget {
 
     return ExpansionTile(
       leading: runningInBackground
-        ? const SizedBox(width: 20, height: 20, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)))
+        ? const CircularProgressIcon()
         : const Icon(Symbols.update),
       title: Text(["Pending updates", if (count != null) "($count)"].join(' ')),
       // expandedAlignment: Alignment.centerLeft,

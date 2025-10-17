@@ -356,6 +356,15 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
+  Future<List<String>> added({required String profileId}) async {
+    final response = await http.get(Uri.http(authority, '/plugins.added.list', {'profile': profileId}));
+    if (response.statusCode == 200) {
+      return List<String>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
+    } else {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    }
+  }
+
   Future<List<InstalledListItem>> installed({required String profileId}) async {
     final response = await http.get(Uri.http(authority, '/plugins.installed.list', {'profile': profileId}));
     if (response.statusCode == 200) {
