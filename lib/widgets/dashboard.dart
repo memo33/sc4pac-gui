@@ -337,6 +337,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     },
                     label: const Text("New"),
                   ),
+                  ElevatedButton(
+                    onPressed: () => showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (context) => const DeleteProfileDialog(),
+                    ),
+                    child: const Text("Delete options…"),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -433,6 +441,145 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: const Text('Clear Log'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class DeleteProfileDialog extends StatefulWidget {
+  const DeleteProfileDialog({super.key});
+  @override State<DeleteProfileDialog> createState() => _DeleteProfileDialogState();
+}
+class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
+  late Future<List<InstalledListItem>> installedPluginsFuture = World.world.client.installed(profileId: World.world.profile.id);
+
+  @override
+  Widget build(BuildContext context) {
+    final redTextStyle = TextStyle(color: Theme.of(context).colorScheme.error);
+    final redFilledButtonStyle = FilledButton.styleFrom(
+      foregroundColor: Theme.of(context).colorScheme.onError,
+      backgroundColor: Theme.of(context).colorScheme.error,
+    );
+    final hintStyle = TextStyle(color: Theme.of(context).hintColor);
+    final emphStyle = TextStyle(color: Theme.of(context).colorScheme.secondary);
+    return Dialog(
+      child: ClipRRect(
+        borderRadius: const BorderRadius.all(Radius.circular(32)),
+        child: DefaultTabController(
+          length: 2,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680, maxHeight: 540),
+            child: Scaffold(
+              appBar: AppBar(
+                automaticallyImplyLeading: false,
+                title: Center(child: Text("Danger Zone", style: redTextStyle)),
+                bottom: const TabBar(
+                  tabs: [
+                    Tab(child: TextWithIcon("Uninstall packages", symbol: Symbols.deployed_code_account)),
+                    Tab(child: TextWithIcon("Delete Profile", symbol: Symbols.person_remove)),
+                  ],
+                ),
+              ),
+              body: TabBarView(
+                children: [
+                  Wrap(
+                    direction: Axis.horizontal,
+                    spacing: 15,
+                    runSpacing: 15,
+                    children: [
+                      Text.rich(TextSpan(children: [
+                        const TextSpan(text: "Here you have the option to remove all packages installed by sc4pac for the current Profile "),
+                        TextSpan(text: "“${World.world.profile.name}”", style: emphStyle),
+                        const TextSpan(text: "."),
+                      ])),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text("Export Mod Set"),
+                        subtitle: Text("Optionally, first export the list of installed packages as JSON file for back-up. You can re-import it later to restore the Profile contents.", style: hintStyle),
+                        trailing: OutlinedButton.icon(icon: const Icon(Symbols.upload), label: const Text("Export"), onPressed: () {}),
+                      ),
+                      FutureBuilder(
+                        future: installedPluginsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.data == null) {
+                            return const SizedBox(height: 0);
+                          } else {
+                            final subtitle =
+                              snapshot.hasError ? Text("Error: ${snapshot.error}", style: redTextStyle) :
+                              Text(snapshot.data?.isEmpty == true
+                                ? "There are 0 packages installed in your Plugins folder."
+                                : "You currently have ${snapshot.data?.length ?? "?"} packages installed in your Plugins folder. They will all be removed. In contrast, other plugin files installed without sc4pac will be left unchanged.",
+                                style: hintStyle,
+                              );
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text("Remove packages from Plugins"),
+                              subtitle: subtitle,
+                              trailing: FilledButton.icon(
+                                style: redFilledButtonStyle,
+                                icon: const Icon(Symbols.delete_sweep, weight: 500),
+                                label: const Text("Uninstall all packages"),
+                                onPressed: snapshot.data?.isNotEmpty == true ? () {} : null,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    direction: Axis.horizontal,
+                    spacing: 15,
+                    runSpacing: 15,
+                    children: [
+                      Text.rich(TextSpan(children: [
+                        const TextSpan(text: "Here you can delete the entire Profile "),
+                        TextSpan(text: "“${World.world.profile.name}”", style: emphStyle),
+                        const TextSpan(text: " from the sc4pac GUI."),
+                      ])),
+                      const MarkdownText("This operation will _not_ affect any files in your Plugins folder:"),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: Text(World.world.profile.paths?.plugins ?? "?", style: emphStyle)),
+                      FutureBuilder(
+                        future: installedPluginsFuture,
+                        builder: (context, snapshot) =>
+                          snapshot.hasError ? Text("Error: ${snapshot.error}", style: redTextStyle) :
+                          !snapshot.hasData ? const SizedBox(height: 0) :
+                          MarkdownText(snapshot.data!.isEmpty == true
+                            ? "You have 0 installed packages in your Plugins, so the Profile can be safely deleted."
+                            : "**Note:** You still have `${snapshot.data!.length}` installed packages in your Plugins. These will _not_ be removed when deleting the Profile. After deleting the Profile, sc4pac will not be able to update or uninstall these packages anymore."
+                          ),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text("Delete Profile from sc4pac GUI"),
+                        subtitle: Text(
+                          "Delete the Profile “${World.world.profile.name}”. "
+                          "Files in your Plugins folder will be left unchanged.",
+                          style: hintStyle,
+                        ),
+                        trailing: FilledButton.icon(
+                          style: redFilledButtonStyle,
+                          icon: const Icon(Symbols.delete_forever, fill: 1),
+                          label: const Text("Delete Profile"),
+                          onPressed: () {},
+                        ),
+                      ),
+                    ],
+                  ),
+                ].map((w) => SingleChildScrollView(child: Padding(padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 36), child: w))).toList(),
+              ),
+              bottomNavigationBar: BottomAppBar(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: OutlinedButton(child: const Text("Dismiss"), onPressed: () => Navigator.pop(context, null)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
