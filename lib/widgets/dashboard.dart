@@ -10,6 +10,7 @@ import '../viewmodel.dart';
 import '../main.dart';
 import 'fragments.dart';
 import 'packagepage.dart' show PackagePage;
+import 'myplugins.dart' show ExportDialog;
 
 class DashboardScreen extends StatefulWidget {
   final Dashboard dashboard;
@@ -496,7 +497,17 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                         contentPadding: EdgeInsets.zero,
                         title: const Text("Export Mod Set"),
                         subtitle: Text("Optionally, first export the list of installed packages as JSON file for back-up. You can re-import it later to restore the Profile contents.", style: hintStyle),
-                        trailing: OutlinedButton.icon(icon: const Icon(Symbols.upload), label: const Text("Export"), onPressed: () {}),
+                        trailing: OutlinedButton.icon(
+                          icon: const Icon(Symbols.upload),
+                          label: const Text("Export"),
+                          onPressed: () {
+                            final dataFuture = installedPluginsFuture.then((installedItems) {
+                              final modules = [for (final item in installedItems) if (item.explicit == true) item.package];
+                              return MyPlugins.createExportData(modules);
+                            });
+                            ExportDialog.show(context, dataFuture);
+                          },
+                        ),
                       ),
                       FutureBuilder(
                         future: installedPluginsFuture,

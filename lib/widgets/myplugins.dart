@@ -6,7 +6,6 @@ import 'dart:typed_data' show Uint8List;
 import 'dart:math';
 import 'dart:ui' show PointerDeviceKind;
 import 'dart:convert';
-import 'dart:collection' show LinkedHashMap;
 import 'package:collection/collection.dart' show mergeSort;
 import 'package:badges/badges.dart' as badges;
 import '../data.dart';
@@ -198,33 +197,11 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       label: const Text("Export"),
                       style: textButtonStyle,
                       onPressed: () {
-                        final dataFuture = filteredList
-                          .then((searchedItems) async {
-                            final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
-                            final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)  // somewhat expensive due to resolving (which requires parsing package files)
-                              .catchError((Object e) async {
-                                await ApiErrorWidget.dialog(e);
-                                // as fallback, use all variants and channels
-                                final variants = (await World.world.profile.dashboard.variantsFuture).variants;
-                                final channels = await World.world.profile.dashboard.channelUrls;
-                                return ExportData(
-                                  explicit: modules,
-                                  variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},
-                                  channels: channels,
-                                );
-                              });
-                            final variantEntries = data.variants?.entries.toList();
-                            if (variantEntries != null) {
-                              Dashboard.sortVariants(variantEntries, keyParts: (e) => e.key.split(':'));
-                              data.variants = LinkedHashMap.fromEntries(variantEntries);  // preserves insertion order
-                            }
-                            return data;
-                          });
-                        showDialog(
-                          context: context,
-                          barrierDismissible: true,
-                          builder: (context) => ExportDialog(dataFuture),
-                        );
+                        final dataFuture = filteredList.then((searchedItems) {
+                          final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
+                          return MyPlugins.createExportData(modules);
+                        });
+                        ExportDialog.show(context, dataFuture);
                       },
                     ),
                   ],
@@ -290,6 +267,13 @@ class ExportDialog extends StatefulWidget {
   final Future<ExportData> dataFuture;
   const ExportDialog(this.dataFuture, {super.key});
   @override State<ExportDialog> createState() => _ExportDialogState();
+
+  static Future<T?> show<T>(BuildContext context, Future<ExportData> dataFuture) =>
+    showDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ExportDialog(dataFuture),
+    );
 }
 class _ExportDialogState extends State<ExportDialog> {
   late final _controller = TextEditingController();

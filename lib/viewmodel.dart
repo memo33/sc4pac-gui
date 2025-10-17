@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:io';
+import 'dart:collection' show LinkedHashMap;
 import 'protocol_handler_none.dart'  // web
   if (dart.library.io) 'protocol_handler.dart'  // desktop
   as protocol_handler;
@@ -464,6 +465,27 @@ class MyPlugins {
       data.explicit?.map(BareModule.parse).toList() ?? [],
       channelUrls: (data.channels ?? data.config?.channels)?.toSet() ?? {},
     );
+  }
+
+  static Future<ExportData> createExportData(List<String> modules) async {
+    final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)  // somewhat expensive due to resolving (which requires parsing package files)
+      .catchError((Object e) async {
+        await ApiErrorWidget.dialog(e);
+        // as fallback, use all variants and channels
+        final variants = (await World.world.profile.dashboard.variantsFuture).variants;
+        final channels = await World.world.profile.dashboard.channelUrls;
+        return ExportData(
+          explicit: modules,
+          variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},
+          channels: channels,
+        );
+      });
+    final variantEntries = data.variants?.entries.toList();
+    if (variantEntries != null) {
+      Dashboard.sortVariants(variantEntries, keyParts: (e) => e.key.split(':'));
+      data.variants = LinkedHashMap.fromEntries(variantEntries);  // preserves insertion order
+    }
+    return data;
   }
 }
 
