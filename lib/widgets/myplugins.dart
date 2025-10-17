@@ -303,7 +303,7 @@ class _ExportDialogState extends State<ExportDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      icon: const Icon(Symbols.download),
+      icon: const Icon(Symbols.upload),
       title: const Text('Export a Mod Set'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 720),

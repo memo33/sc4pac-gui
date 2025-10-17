@@ -218,24 +218,23 @@ class _AnimatedActionButtonState extends State<AnimatedActionButton> {
   int _count = 0;
   bool _recentlyPressed = false;
 
-  late final onPressed = switch (widget.action) {
-    null => null,
-    final f => () async {
-      _count++;
-      final startedAtCount = _count;
-      _recentlyPressed = true;
-      setState(() {});
-      f();  // not waiting for potential asynchronous computation which could take a long time
-      await Future.delayed(const Duration(milliseconds: 2500), () {
-        if (_count == startedAtCount && mounted) {
-          setState(() => _recentlyPressed = false);
-        }
-      });
-    }
-  };
-
   @override
   Widget build(BuildContext context) {
+    final onPressed = switch (widget.action) {  // `onPressed` must be defined inside `build`, as null-ness depends on context
+      null => null,
+      final f => () async {
+        _count++;
+        final startedAtCount = _count;
+        _recentlyPressed = true;
+        setState(() {});
+        f();  // not waiting for potential asynchronous computation which could take a long time
+        await Future.delayed(const Duration(milliseconds: 2500), () {
+          if (_count == startedAtCount && mounted) {
+            setState(() => _recentlyPressed = false);
+          }
+        });
+      }
+    };
     final animatedIcon = AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       child: Icon(
@@ -263,7 +262,7 @@ class AnimatedCopyButton extends StatelessWidget {
         symbol: Icons.copy,
         action: switch (getCopyableText) {
           null => null,
-          final getCopyableText => () => Clipboard.setData(ClipboardData(text: getCopyableText())),
+          final f => () => Clipboard.setData(ClipboardData(text: f())),
         },
       ),
     );
