@@ -447,9 +447,12 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
   late Future<List<InstalledListItem>> _installedPluginsFuture;
   late final Future<ExportData> _exportDataFuture;
   bool _finishedDeleteAllPackages = false;
+  bool _runningDeleteProfile = false;
+  late final Profile _profileToDelete;
 
   @override initState() {
     super.initState();
+    _profileToDelete = World.world.profile;  // retrieve it only once when opening the dialog to guard against deleting more than one profile accidentally
     _fetchInstalledPlugins();
     // We create ExportData directly when opening the dialog, so that Export still works even after uninstalling all packages
     _exportDataFuture = _installedPluginsFuture.then((installedItems) {
@@ -459,7 +462,7 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
   }
 
   void _fetchInstalledPlugins() {
-    _installedPluginsFuture = World.world.client.installed(profileId: World.world.profile.id);
+    _installedPluginsFuture = World.world.client.installed(profileId: _profileToDelete.id);
   }
 
   @override
@@ -498,7 +501,7 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                     children: [
                       Text.rich(TextSpan(children: [
                         const TextSpan(text: "Here you have the option to remove all packages installed by sc4pac for the current Profile "),
-                        TextSpan(text: "“${World.world.profile.name}”", style: emphStyle),
+                        TextSpan(text: "“${_profileToDelete.name}”", style: emphStyle),
                         const TextSpan(text: "."),
                       ])),
                       ListTile(
@@ -542,8 +545,8 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                                     onPressed: snapshot.data?.isNotEmpty != true || World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? null : () async {
                                       final dashboard = World.world.profile.dashboard;
                                       assert(dashboard.updateProcess?.status != UpdateStatus.running, "Delete Options dialog should only be visible when regular UpdateProcess is not running.");
-                                      final explicitlyAddedPlugins = await World.world.client.added(profileId: World.world.profile.id);
-                                      await World.world.client.remove(explicitlyAddedPlugins.map(BareModule.parse).toList(), profileId: World.world.profile.id);
+                                      final explicitlyAddedPlugins = await World.world.client.added(profileId: _profileToDelete.id);
+                                      await World.world.client.remove(explicitlyAddedPlugins.map(BareModule.parse).toList(), profileId: _profileToDelete.id);
                                       final status = await dashboard.startUpdateProcess(UpdateMode.backgroundDeleteAll);
                                       setState(() {
                                         if (status == UpdateStatus.finished) {
@@ -571,11 +574,11 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                     children: [
                       Text.rich(TextSpan(children: [
                         const TextSpan(text: "Here you can delete the entire Profile "),
-                        TextSpan(text: "“${World.world.profile.name}”", style: emphStyle),
+                        TextSpan(text: "“${_profileToDelete.name}”", style: emphStyle),
                         const TextSpan(text: " from the sc4pac GUI."),
                       ])),
                       const MarkdownText("This operation will _not_ affect any files in your Plugins folder:"),
-                      Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: Text(World.world.profile.paths?.plugins ?? "?", style: emphStyle)),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: Text(_profileToDelete.paths?.plugins ?? "?", style: emphStyle)),
                       FutureBuilder(
                         future: _installedPluginsFuture,
                         builder: (context, snapshot) =>
@@ -590,7 +593,7 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                         contentPadding: EdgeInsets.zero,
                         title: const Text("Delete Profile from sc4pac GUI"),
                         subtitle: Text(
-                          "Delete the Profile “${World.world.profile.name}”. "
+                          "Delete the Profile “${_profileToDelete.name}”. "
                           "Files in your Plugins folder will be left unchanged.",
                           style: hintStyle,
                         ),
@@ -598,7 +601,18 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                           style: redFilledButtonStyle,
                           icon: const Icon(Symbols.delete_forever, fill: 1),
                           label: const Text("Delete Profile"),
-                          onPressed: () {},
+                          onPressed: _runningDeleteProfile ? null : () async {
+                            try {
+                              setState(() => _runningDeleteProfile = true);
+                              await World.world.client.removeProfile(_profileToDelete.id);
+                              if (context.mounted) Navigator.pop(context, null);
+                              World.world.reloadProfiles(createNewProfile: false);  // TODO avoid hard reload of everything
+                            } catch (err) {
+                              ApiErrorWidget.dialog(err);
+                            } finally {
+                              setState(() => _runningDeleteProfile = false);
+                            }
+                          },
                         ),
                       ),
                     ],
@@ -1106,10 +1120,8 @@ class _ProfileSelectMenuState extends State<ProfileSelectMenu> {
 
   void _submit(String profileId) {
     World.world.client.switchProfile(profileId)
-      .then(
-        (_) => World.world.reloadProfiles(createNewProfile: false),  // TODO avoid hard reload of everything
-        onError: ApiErrorWidget.dialog,
-      );
+      .then((_) => World.world.reloadProfiles(createNewProfile: false))  // TODO avoid hard reload of everything
+      .catchError(ApiErrorWidget.dialog);
   }
 
   @override
