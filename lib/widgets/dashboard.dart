@@ -447,6 +447,7 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
   late Future<List<InstalledListItem>> _installedPluginsFuture;
   late final Future<ExportData> _exportDataFuture;
   bool _finishedDeleteAllPackages = false;
+  bool _runningDeleteAllPackages = false;
   bool _runningDeleteProfile = false;
   late final Profile _profileToDelete;
 
@@ -540,23 +541,31 @@ class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
                                   subtitle: subtitle,
                                   trailing: FilledButton.icon(
                                     style: redFilledButtonStyle,
-                                    icon: World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? const CircularProgressIcon() : const Icon(Symbols.delete_sweep, weight: 500),
+                                    icon: _runningDeleteAllPackages || World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? const CircularProgressIcon() : const Icon(Symbols.delete_sweep, weight: 500),
                                     label: const Text("Uninstall all packages"),
-                                    onPressed: snapshot.data?.isNotEmpty != true || World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? null : () async {
-                                      final dashboard = World.world.profile.dashboard;
-                                      assert(dashboard.updateProcess?.status != UpdateStatus.running, "Delete Options dialog should only be visible when regular UpdateProcess is not running.");
-                                      final explicitlyAddedPlugins = await World.world.client.added(profileId: _profileToDelete.id);
-                                      await World.world.client.remove(explicitlyAddedPlugins.map(BareModule.parse).toList(), profileId: _profileToDelete.id);
-                                      final status = await dashboard.startUpdateProcess(UpdateMode.backgroundDeleteAll);
-                                      setState(() {
-                                        if (status == UpdateStatus.finished) {
-                                          _finishedDeleteAllPackages = true;
-                                        }
+                                    onPressed: snapshot.data?.isNotEmpty != true || _runningDeleteAllPackages || World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? null : () async {
+                                      try {
+                                        setState(() => _runningDeleteAllPackages = true);
+                                        final dashboard = World.world.profile.dashboard;
+                                        assert(dashboard.updateProcess?.status != UpdateStatus.running, "Delete Options dialog should only be visible when regular UpdateProcess is not running.");
+                                        final explicitlyAddedPlugins = await World.world.client.added(profileId: _profileToDelete.id);
+                                        await World.world.client.remove(explicitlyAddedPlugins.map(BareModule.parse).toList(), profileId: _profileToDelete.id);
+                                        final status = await dashboard.startUpdateProcess(UpdateMode.backgroundDeleteAll);
                                         _fetchInstalledPlugins();
-                                      });
-                                      final err = dashboard.updateProcess?.err;
-                                      if (err != null) {
+                                        await _installedPluginsFuture;  // to avoid flashing button disabled-enabled-disabled
+                                        setState(() {
+                                          if (status == UpdateStatus.finished) {
+                                            _finishedDeleteAllPackages = true;
+                                          }
+                                          _runningDeleteAllPackages = false;
+                                        });
+                                        final err = dashboard.updateProcess?.err;
+                                        if (err != null) {
+                                          ApiErrorWidget.dialog(err);
+                                        }
+                                      } catch (err) {
                                         ApiErrorWidget.dialog(err);
+                                        setState(() => _runningDeleteAllPackages = false);
                                       }
                                     },
                                   ),
