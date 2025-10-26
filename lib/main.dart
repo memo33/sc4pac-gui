@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as P;
+import 'package:localstorage/localstorage.dart' show initLocalStorage;
 import 'dart:io' as io;
 import 'model.dart';
 import 'data.dart';
@@ -32,15 +33,19 @@ URI: an optional "${CommandlineArgs.sc4pacProtocol}" URL passed as first argumen
 Options
   --port number              Port of sc4pac server (default: ${Sc4pacClient.defaultPort})
   --host IP                  Hostname of sc4pac server (default: localhost)
-  --launch-server=false      Do not launch sc4pac server from GUI, but connect to external process instead (default: true)
   --profiles-dir path        Profiles directory for sc4pac server (default: platform-dependent), resolved relatively to current directory
   --sc4pac-cli-dir path      Contains sc4pac CLI scripts for launching the server (default: BUNDLEDIR/cli), resolved relative to current directory
   --register-protocol=false  Do not register "${CommandlineArgs.sc4pacProtocol}" protocol handler in Windows registry (default: true, Windows only).
                              Disabling this is useful if you manually changed the registry entry.
   -h, --help                 Print help message and exit"""
+//  --launch-server=false      Do not launch sc4pac server from GUI, but connect to external process instead (default: true)
     );
     io.exit(0);
   } else {
+    assert(Sc4pacClient.useCookie == kIsWeb);
+    if (kIsWeb) {
+      await initLocalStorage();
+    }
     runApp(Sc4pacGuiApp(World(args: cmdArgs, appInfo: appInfo)));
   }
 }
@@ -52,7 +57,7 @@ class CommandlineArgs {
   String? host;
   String? profilesDir;
   String? cliDir;
-  bool launchServer = true;
+  // bool launchServer = true;
   bool registerProtocol = true;
   Uri? uri;  // currently unused
   static const sc4pacProtocolScheme = "sc4pac";
@@ -70,8 +75,8 @@ class CommandlineArgs {
         case ["--host", var h, ...(var rest)]:             host = h;                 args = rest; break;
         case ["--profiles-dir", var p, ...(var rest)]:     profilesDir = p;          args = rest; break;
         case ["--sc4pac-cli-dir", var p, ...(var rest)]:   cliDir = p;               args = rest; break;
-        case ["--launch-server=true",  ...(var rest)]:     launchServer = true;      args = rest; break;
-        case ["--launch-server=false", ...(var rest)]:     launchServer = false;     args = rest; break;
+        case ["--launch-server=true",  ...(var rest)]:     /*launchServer = true;*/      args = rest; break;  // ignore, for backward compatibility
+        case ["--launch-server=false", ...(var rest)]:     /*launchServer = false;*/     args = rest; break;  // ignore, for backward compatibility
         case ["--register-protocol=true",  ...(var rest)]: registerProtocol = true;  args = rest; break;
         case ["--register-protocol=false", ...(var rest)]: registerProtocol = false; args = rest; break;
         case ["--help" || "-h", ...(var rest)]:            help = true;              args = rest; break;
@@ -166,90 +171,44 @@ class Sc4pacGuiApp extends StatelessWidget {
   }
 }
 
-class ConnectionScreen extends StatefulWidget {
+class ConnectionScreen extends StatelessWidget {
   final World world;
   const ConnectionScreen(this.world, {super.key});
-  @override State<ConnectionScreen> createState() => _ConnectionScreenState();
-}
-class _ConnectionScreenState extends State<ConnectionScreen> {
-  late final TextEditingController _controller = TextEditingController();
-  bool _isValid = true;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final text = _controller.text;
-    final uri = Uri.tryParse(text.startsWith('http://') || text.startsWith('https://') ? text : "http://$text");
-    setState(() {
-      _isValid = uri != null;
-      if (uri != null) {
-        _controller.text = uri.authority;
-        widget.world.updateConnection(uri.authority, notify: true);
-      }
-    });
-  }
-
   @override build(BuildContext context) {
     return FutureBuilder(
-      future: widget.world.initialServerStatus,
+      future: world.clientFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return CenteredFullscreenDialog(
             title: const Text("Establish connection"),
-            child: Column(children: switch (widget.world.server?.launchError) {
+            child: Column(children: switch (world.server?.launchError) {
               ApiError error => [
                 ApiErrorWidget(error),  // this is a dead end (e.g. Java not found or too old), so requires restarting the application once resolved
                 const SizedBox(height: 20),
                 const Text("Restart the application once the above problem is resolved."),
               ],
               null => [
-                // ApiErrorWidget(ApiError.from(snapshot.error!)),
-                // const SizedBox(height: 20),
                 ExpansionTile(
                   trailing: const Icon(Icons.info_outlined),
                   leading: const Icon(Icons.wifi_tethering_error),
-                  title: Text("Connection to local sc4pac server not possible at ${widget.world.authority}"),
-                  children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system. "
-                    "The local backend server is either not running or the GUI does not know its address."
-                    " As a workaround, you may connect to an existing sc4pac server process using the input field below."
-                    " Alternatively, restarting the application might resolve the problem.")],
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _controller,
-                  decoration: InputDecoration(
-                    icon: const Icon(Icons.edit),
-                    labelText: "Host and Port",
-                    helperText: "Enter \"host:port\" for local sc4pac backend server to connect to.",
-                    errorText: _isValid ? null : "Enter \"host:port\" for local sc4pac backend server to connect to.",
-                    helperMaxLines: 10,
-                    hintText: "localhost:${Sc4pacClient.defaultPort} or 127.0.0.1:${Sc4pacClient.defaultPort}",
-                  ),
-                  onSubmitted: (String text) {
-                    if (text.isNotEmpty) {
-                      _submit();
-                    }
-                  }
+                  title: Text("Connection to local sc4pac server not possible at ${world.authority}"),
+                  children: const [Text("The sc4pac GUI is a lightweight interface to the background sc4pac process which performs all the heavy operations on your local file system."
+                    // " The local backend server is either not running or the GUI does not know its address."
+                    // " As a workaround, you may connect to an existing sc4pac server process using the input field below."
+                    // " Alternatively, restarting the application might resolve the problem."
+                    " The sc4pac GUI failed to connect to the background process."
+                    " Restarting the application might resolve the problem."
+                    " Make sure only one instance of sc4pac is running."
+                  )],
                 ),
                 const SizedBox(height: 20),
-                ListenableBuilder(
-                  listenable: _controller,
-                  builder: (context, child) => FilledButton(
-                    onPressed: _controller.text.isEmpty ? null : _submit,
-                    child: child,
-                  ),
-                  child: const Text("Connect")
-                ),
+                ApiErrorWidget(ApiError.from(snapshot.error!)),
               ],
             }),
           );
         } else {
           // connecting (or connection established; we don't care about the result, as initPhase change triggers next screen)
-          final text = widget.world.server?.status == ServerStatus.launching ? "Launching sc4pac…" : "Connecting…";
+          final text = world.server?.status == ServerStatus.launching ? "Launching sc4pac…" : "Connecting…";
           return Center(child: Card(child: ListTile(title: Text(text))));
         }
       },

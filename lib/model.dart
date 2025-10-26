@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'dart:async';
 import 'data.dart';
@@ -60,6 +61,7 @@ class Sc4pacServer {
   final String cliDir;
   final String? profilesDir;
   final int port;
+  final String clientSecret;
   ServerStatus status = ServerStatus.launching;
   late final Future<Process> _process;
   late final Future<bool> ready;  // true once server listens, false if launching server did not work (This future never fails)
@@ -73,7 +75,13 @@ class Sc4pacServer {
       " whether the console output contains any error messages indicating what the problem could be."
       " Alternatively, try the web-app version of the sc4pac GUI.";
 
-  Sc4pacServer({required this.cliDir, required this.profilesDir, required this.port}) {
+  static String generateToken() {
+    final random = math.Random.secure();
+    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
+    return base64.encode(bytes);
+  }
+
+  Sc4pacServer({required this.cliDir, required this.profilesDir, required this.port, required this.clientSecret}) {
     const readyTag = "[LISTENING]";
     final completer = Completer<bool>();
     const splitter = LineSplitter();
@@ -93,10 +101,12 @@ class Sc4pacServer {
             ...["--profiles-dir", profilesDir!],
           "--auto-shutdown",
           "--startup-tag", readyTag,
+          "--client-secret-stdin",
         ],
       )
       ..then((process) {
         stdout.writeln("Sc4pac server PID: ${process.pid}");
+        process.stdin.writeln(clientSecret);
         // it's important to consume both stdout and stderr to avoid freezes
         process.stdout.transform(utf8.decoder).forEach((String lines) {
           if (status == ServerStatus.launching && lines.contains(readyTag)) {
@@ -129,7 +139,7 @@ class Sc4pacServer {
             final msg = """Another program is already running on port $port. Please quit the other program – likely another instance of sc4pac.""";
             final detail =
                 """For technical reasons, this error can occur if you open and close the sc4pac GUI in quick succession. In this case, just wait for 20 seconds before re-opening the application again."""
-                """\nAlternatively, launch the sc4pac GUI on a different port (using the "--port" launch option) or connect to an existing sc4pac process on port $port (using the "--launch-server=false" option)."""
+                """\nAlternatively, launch the sc4pac GUI on a different port (using the "--port" launch option)."""  // or connect to an existing sc4pac process on port $port (using the "--launch-server=false" option).
                 """\nA terminal command to find the process occupying the port is `netstat -ano` on Windows and `lsof -i tcp:$port` on Linux.""";
             stdout.writeln("$msg $detail");
             launchError ??= ApiError.unexpected(msg, detail);
@@ -158,6 +168,8 @@ class Sc4pacServer {
   }
 }
 
+typedef ImgInfo = ({String url, Map<String, String>? headers});
+
 enum ClientStatus { connecting, connected, serverNotRunning, lostConnection }
 
 // TODO refactor to make use of http.Client for keep-alive connections
@@ -165,14 +177,15 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   static const defaultPort = 51515;
   final String authority;
   final String wsUrl;
+  final String bearerToken;
   final WebSocketChannel connection;
   ClientStatus status = ClientStatus.connecting;
   final void Function() onConnectionLost;
   final void Function(List<BareModule> packages, {Map<String, List<String>> externalIds, required Set<String> channelUrls}) openPackages;
 
-  Sc4pacClient(this.authority, {required this.onConnectionLost, required this.openPackages}) :
+  Sc4pacClient(this.authority, {required this.bearerToken, required this.onConnectionLost, required this.openPackages}) :
     wsUrl = 'ws://$authority',
-    connection = serverConnect('ws://$authority')  // TODO appears to unregister automatically when application exits
+    connection = serverConnect('ws://$authority', bearerToken: bearerToken)  // TODO appears to unregister automatically when application exits
   {
     connection.ready
       .then((_) {
@@ -195,6 +208,70 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       });
   }
 
+  static const bool useCookie = kIsWeb;
+
+  static const sc4pacGuiClientId = "sc4pacGUIxDI5NjY4MzE2MDQ5OTQ0";  // public info
+  static Future<String> authToken(String authority, {required String clientSecret}) async {
+    final basicAuth = "Basic ${base64.encode(utf8.encode("$sc4pacGuiClientId:$clientSecret"))}";
+    final response = await http.post(Uri.http(authority, '/auth/token'),
+      body: {'grant_type': useCookie ? 'client_credentials_cookie_sc4pac' : 'client_credentials'},  // application/x-www-form-urlencoded
+      headers: {'authorization': basicAuth},
+    );
+    if (response.statusCode == 200) {
+      final data = jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+      if (data['token_type']?.toLowerCase() == 'bearer') {
+        if (useCookie) {
+          if (data case {'csrf_token': String bearerToken}) {
+            return bearerToken;
+          }
+        } else {
+          if (data case {'access_token': String bearerToken}) {
+            return bearerToken;
+          }
+        }
+      }
+    }
+    final errData = jsonUtf8Decode(response.bodyBytes);
+    if (errData case {'error': 'invalid_grant'}) {
+      throw ApiError.unexpected("Authentication failed (invalid_grant)", "Missing/invalid credentials or token. Try restarting the application.");
+    } else if (errData case {'error': 'invalid_client'}) {
+      throw ApiError.unexpected("Authentication failed (invalid_client)", "Missing/invalid credentials or token. Try restarting the application.");
+    } else {
+      throw ApiError.unexpected("Authentication failed. Try restarting the application.", errData.toString());
+    }
+  }
+
+  static Future<http.Response> serverStatusResponse(String authority, {required String bearerToken}) {
+    return http.get(Uri.http(authority, '/server.status'), headers: {'authorization': "bearer $bearerToken"});
+  }
+  static Map<String, dynamic> parseServerStatus(String authority, http.Response response) {
+    if (response.statusCode == 200) {
+      try {
+        return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
+      } on FormatException {
+        throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
+      }
+    } else {
+      // throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
+    }
+  }
+  Future<Map<String, dynamic>> serverStatus() async {
+    return parseServerStatus(authority, await serverStatusResponse(authority, bearerToken: bearerToken));
+  }
+
+  Future<http.Response> _get(Uri url, {Map<String, String>? headers}) {
+    headers = headers ?? {};
+    headers['authorization'] = "bearer $bearerToken";
+    return http.get(url, headers: headers);
+  }
+
+  Future<http.Response> _post(Uri url, {Map<String, String>? headers, Object? body}) {
+    headers = headers ?? {};
+    headers['authorization'] = "bearer $bearerToken";
+    return http.post(url, headers: headers, body: body);
+  }
+
   void handleMessage(Map<String, dynamic> data) {
     if (data case {'\$type': String type}) {
       if (type == '/prompt/open/package') {
@@ -214,7 +291,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<({bool initialized, Map<String, dynamic> data})> profileRead({required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/profile.read', {'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/profile.read', {'profile': profileId}));
     final data = jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
     if (response.statusCode == 409 && data['\$type'] == '/error/profile-not-initialized'
       || response.statusCode == 200) {
@@ -228,7 +305,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<Map<String, dynamic>> profileInit({required String profileId, required ({String plugins, String cache}) paths}) async {
-    final response = await http.post(Uri.http(authority, '/profile.init', {'profile': profileId}),
+    final response = await _post(Uri.http(authority, '/profile.init', {'profile': profileId}),
       body: jsonUtf8Encode({'plugins': paths.plugins, 'cache': paths.cache, 'temp': "../temp"}),
       headers: {'Content-Type': 'application/json'},
     );
@@ -240,7 +317,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<PackageInfoResult> info(BareModule module, {required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/packages.info', {'pkg': module.toString(), 'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/packages.info', {'pkg': module.toString(), 'profile': profileId}));
     if (response.statusCode == 200) {
       return PackageInfoResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else if (response.statusCode == 404) {
@@ -251,14 +328,15 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<PackageSearchResult> search(String query, {String? category, List<String> notCategories = const [], String? channel, bool ignoreInstalled = false, required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/packages.search', {
-      'q': query,
-      'profile': profileId,
-      if (category?.isNotEmpty == true) 'category': category,
-      if (notCategories.isNotEmpty) 'notCategory': notCategories,
-      if (channel?.isNotEmpty == true) 'channel': channel,
-      if (ignoreInstalled) 'ignoreInstalled': null,
-    }));
+    final response = await _get(Uri.http(authority, '/packages.search',
+      {
+        'q': query,
+        'profile': profileId,
+        if (category?.isNotEmpty == true) 'category': category,
+        if (notCategories.isNotEmpty) 'notCategory': notCategories,
+        if (channel?.isNotEmpty == true) 'channel': channel,
+        if (ignoreInstalled) 'ignoreInstalled': null,
+      }));
     if (response.statusCode == 200) {
       return PackageSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -267,7 +345,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<PackageSearchResult> searchById(List<BareModule> packages, {Map<String, List<String>>? externalIds, required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/packages.search.id', {'profile': profileId}),
+    final response = await _post(Uri.http(authority, '/packages.search.id', {'profile': profileId}),
       body: jsonUtf8Encode({
         'packages': packages,
         'externalIds': externalIds?.entries.expand((e) => e.value.map((id) => [e.key, id])).toList() ?? [],
@@ -282,11 +360,12 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<PluginsSearchResult> pluginsSearch(String query, {String? category, required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/plugins.search', {
-      'q': query,
-      'profile': profileId,
-      if (category != null && category.isNotEmpty) 'category': category
-    }));
+    final response = await _get(Uri.http(authority, '/plugins.search',
+      {
+        'q': query,
+        'profile': profileId,
+        if (category != null && category.isNotEmpty) 'category': category
+      }));
     if (response.statusCode == 200) {
       return PluginsSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -296,7 +375,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
 
   Future<void> add(List<BareModule> modules, {required String profileId}) async {
     if (modules.isNotEmpty) {
-      final response = await http.post(Uri.http(authority, '/plugins.add', {'profile': profileId}),
+      final response = await _post(Uri.http(authority, '/plugins.add', {'profile': profileId}),
         body: jsonUtf8Encode(modules.map((m) => m.toString()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
@@ -308,7 +387,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
 
   Future<void> remove(List<BareModule> modules, {required String profileId}) async {
     if (modules.isNotEmpty) {
-      final response = await http.post(Uri.http(authority, '/plugins.remove', {'profile': profileId}),
+      final response = await _post(Uri.http(authority, '/plugins.remove', {'profile': profileId}),
         body: jsonUtf8Encode(modules.map((m) => m.toString()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
@@ -320,7 +399,8 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
 
   Future<void> reinstall(List<BareModule> modules, {required bool redownload, required String profileId}) async {
     if (modules.isNotEmpty) {
-      final response = await http.post(Uri.http(authority, '/plugins.reinstall', {
+      final response = await _post(Uri.http(authority, '/plugins.reinstall',
+        {
           'profile': profileId,
           if (redownload) 'redownload': null,
         }),
@@ -334,7 +414,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<RepairPlan> repairScan({required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/plugins.repair.scan', {'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/plugins.repair.scan', {'profile': profileId}));
     if (response.statusCode == 200) {
       return RepairPlan.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -344,7 +424,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
 
   // Returns false if a subsequent Update is needed to complete the repair
   Future<bool> repair(RepairPlan plan, {required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/plugins.repair', {'profile': profileId}),
+    final response = await _post(Uri.http(authority, '/plugins.repair', {'profile': profileId}),
       body: jsonUtf8Encode(plan),
       headers: {'Content-Type': 'application/json'},
     );
@@ -357,7 +437,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<List<String>> added({required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/plugins.added.list', {'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/plugins.added.list', {'profile': profileId}));
     if (response.statusCode == 200) {
       return List<String>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
     } else {
@@ -366,7 +446,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<List<InstalledListItem>> installed({required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/plugins.installed.list', {'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/plugins.installed.list', {'profile': profileId}));
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>).map((m) => InstalledListItem.fromJson(m as Map<String, dynamic>)).toList();
     } else {
@@ -376,7 +456,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
 
   // TODO use BareModule instead of String
   Future<ExportData> export(List<String> modules, {required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/plugins.export', {'profile': profileId}),
+    final response = await _post(Uri.http(authority, '/plugins.export', {'profile': profileId}),
       body: jsonUtf8Encode(modules),
       headers: {'Content-Type': 'application/json'},
     );
@@ -388,7 +468,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<VariantsList> variantsList({required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/variants.list', {'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/variants.list', {'profile': profileId}));
     if (response.statusCode == 200) {
       return VariantsList.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -397,7 +477,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<void> variantsReset(List<String> variants, {required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/variants.reset', {'profile': profileId}),
+    final response = await _post(Uri.http(authority, '/variants.reset', {'profile': profileId}),
       body: jsonUtf8Encode(variants),
       headers: {'Content-Type': 'application/json'},
     );
@@ -407,7 +487,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<void> variantsSet(Map<String, String> variants, {required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/variants.set', {'profile': profileId}),
+    final response = await _post(Uri.http(authority, '/variants.set', {'profile': profileId}),
       body: jsonUtf8Encode(variants),
       headers: {'Content-Type': 'application/json'},
     );
@@ -417,11 +497,12 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<ChoiceUpdateVariant> variantsChoices(BareModule module, {required String variantId, required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/variants.choices', {
-      'pkg': module.toString(),
-      'variantId': variantId,
-      'profile': profileId,
-    }));
+    final response = await _get(Uri.http(authority, '/variants.choices',
+      {
+        'pkg': module.toString(),
+        'variantId': variantId,
+        'profile': profileId,
+      }));
     if (response.statusCode == 200) {
       return ChoiceUpdateVariant.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -430,7 +511,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<List<String>> channelsList({required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/channels.list', {'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/channels.list', {'profile': profileId}));
     if (response.statusCode == 200) {
       return List<String>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
     } else {
@@ -439,7 +520,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<void> channelsSet(List<String> urls, {required String profileId}) async {
-    final response = await http.post(Uri.http(authority, '/channels.set', {'profile': profileId}),
+    final response = await _post(Uri.http(authority, '/channels.set', {'profile': profileId}),
       body: jsonUtf8Encode(urls),
       headers: {'Content-Type': 'application/json'},
     );
@@ -449,7 +530,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<ChannelStatsAll> channelsStats({required String profileId}) async {
-    final response = await http.get(Uri.http(authority, '/channels.stats', {'profile': profileId}));
+    final response = await _get(Uri.http(authority, '/channels.stats', {'profile': profileId}));
     if (response.statusCode == 200) {
       return ChannelStatsAll.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -460,35 +541,25 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   WebSocketChannel update({required String profileId, required String? simtropolisToken, required bool refreshChannels}) {
     final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/update').replace(queryParameters: {
       'profile': profileId,
+      'token': bearerToken,
       if (simtropolisToken != null) 'simtropolisToken': simtropolisToken,
       if (refreshChannels) 'refreshChannels': null,
     }));
     return ws;
   }
 
-  static Future<Map<String, dynamic>> serverStatus(String authority) async {
-    final response = await http.get(Uri.http(authority, '/server.status'));
-    if (response.statusCode == 200) {
-      try {
-        return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
-      } on FormatException {
-        throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
-      }
-    } else {
-      // throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
-      throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
-    }
-  }
-
-  static WebSocketChannel serverConnect(String wsUrl) {
-    final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/server.connect'));
+  static WebSocketChannel serverConnect(String wsUrl, {required String bearerToken}) {
+    final ws = WebSocketChannel.connect(Uri.parse('$wsUrl/server.connect').replace(queryParameters: {
+      'token': bearerToken,
+    }));
     return ws;
   }
 
   Future<Profiles> profiles({bool includePlugins = false}) async {
-    final response = await http.get(Uri.http(authority, '/profiles.list', {
-      if (includePlugins) 'includePlugins': null,
-    }));
+    final response = await _get(Uri.http(authority, '/profiles.list',
+      {
+        if (includePlugins) 'includePlugins': null,
+      }));
     if (response.statusCode == 200) {
       return Profiles.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -497,7 +568,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<({String id, String name})> addProfile(String name) async {
-    final response = await http.post(Uri.http(authority, '/profiles.add'),
+    final response = await _post(Uri.http(authority, '/profiles.add'),
       body: jsonUtf8Encode({'name': name}),
       headers: {'Content-Type': 'application/json'},
     );
@@ -511,7 +582,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<void> removeProfile(String profileId) async {
-    final response = await http.post(Uri.http(authority, '/profiles.remove'),
+    final response = await _post(Uri.http(authority, '/profiles.remove'),
       body: jsonUtf8Encode({'id': profileId}),
       headers: {'Content-Type': 'application/json'},
     );
@@ -521,7 +592,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<void> switchProfile(String profileId) async {
-    final response = await http.post(Uri.http(authority, '/profiles.switch'),
+    final response = await _post(Uri.http(authority, '/profiles.switch'),
       body: jsonUtf8Encode({'id': profileId}),
       headers: {'Content-Type': 'application/json'},
     );
@@ -531,7 +602,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<SettingsData> getSettings() async {
-    final response = await http.get(Uri.http(authority, '/settings.all.get'));
+    final response = await _get(Uri.http(authority, '/settings.all.get'));
     if (response.statusCode == 200) {
       return SettingsData.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
@@ -540,7 +611,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   Future<void> setSettings(SettingsData settingsData) async {
-    final response = await http.post(Uri.http(authority, '/settings.all.set'),
+    final response = await _post(Uri.http(authority, '/settings.all.set'),
       body: jsonUtf8Encode(settingsData),
       headers: {'Content-Type': 'application/json'},
     );
@@ -550,8 +621,11 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
   }
 
   // this redirection via API solves CORS errors in web browser (canvaskit renderer only)
-  Uri redirectImageUrl(String url) {
-    return Uri.http(authority, '/image.fetch', {'url': url});
+  ImgInfo redirectImageUrl(String url) {
+    return (
+      url: Uri.http(authority, '/image.fetch', {'url': url}).toString(),
+      headers: {'authorization': "bearer $bearerToken"},
+    );
   }
 
 }

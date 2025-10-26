@@ -9,12 +9,17 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:app_links/app_links.dart';
+import 'package:localstorage/localstorage.dart' show localStorage;
+import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'dart:collection' show LinkedHashMap;
 import 'dart:async' show Completer;
 import 'protocol_handler_none.dart'  // web
   if (dart.library.io) 'protocol_handler.dart'  // desktop
   as protocol_handler;
+import 'web_specific.dart'  // web
+  if (dart.library.io) 'web_specific_none.dart'  // desktop
+  as web_specific;
 import 'model.dart';
 import 'data.dart';
 import 'widgets/dashboard.dart';
@@ -32,9 +37,9 @@ class World extends ChangeNotifier {
   InitPhase initPhase = InitPhase.connecting;
   late String authority;
   Sc4pacServer? server;
-  late Future<Map<String, dynamic>> initialServerStatus;
   String? serverVersion;
   Map<String, dynamic>? serverStatus;
+  late Future<Sc4pacClient> clientFuture;
   late Sc4pacClient client;
   late Future<Profiles> profilesFuture;
   Profiles? profiles;
@@ -48,30 +53,83 @@ class World extends ChangeNotifier {
   // themeMode
   // other gui settings
 
-  void updateConnection(String authority, {required bool notify}) {
+  void updateConnection(String authority, {required String? clientSecret, required bool notify}) {
     initPhase = InitPhase.connecting;
     this.authority = authority;
-    initialServerStatus = (server?.ready ?? Future.value(true)).then((isReady) =>
-      isReady ? Sc4pacClient.serverStatus(authority)
-        : Future.error(server?.launchError ?? ApiError.unexpected("Failed to launch local sc4pac server (unknown reason).", Sc4pacServer.unknownLaunchErrorDetail))
-      );
-    initialServerStatus.then(
-      (serverStatus) {  // connection succeeded, so proceed to next phase
-        if (serverStatus case {'sc4pacVersion': String version}) {
-          serverVersion = version;
+    clientFuture = (server?.ready ?? Future.value(true)).then((isReady) async {
+      if (!isReady) {
+        // connection failed, so stay in InitPhase.connecting
+        return Future.error(server?.launchError ?? ApiError.unexpected("Failed to launch local sc4pac server (unknown reason).", Sc4pacServer.unknownLaunchErrorDetail));
+      } else {  // connection succeeded, so proceed to next phase
+        String? previousToken;
+        http.Response? validServerStatusResponse;
+        if (Sc4pacClient.useCookie) {  // check if csrf_token + cookie is still valid for authentication
+          previousToken = localStorage.getItem('csrf_token');
+          if (previousToken != null) {
+            final response = await Sc4pacClient.serverStatusResponse(authority, bearerToken: previousToken);
+            if (response.statusCode == 200) {
+              validServerStatusResponse = response;
+            } else if (response.statusCode == 401) {
+              previousToken = null;
+            } else {
+              throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+            }
+          }
         }
-        this.serverStatus = serverStatus;
+        final String token = previousToken ??
+          (clientSecret != null
+            ? await Sc4pacClient.authToken(authority, clientSecret: clientSecret)
+            : throw ApiError.unexpected("Missing URL query parameter '$_clientSecretUrlParameter'",
+                kIsWeb ? "Make sure to launch the web-app using the full URL including token." : "(This should not happen in the desktop app.)"));
+        if (Sc4pacClient.useCookie) {
+          assert(kIsWeb);
+          if (token != previousToken) {
+            localStorage.setItem('csrf_token', token);
+          }
+          final windowUrl = Uri.base;
+          if (windowUrl.queryParametersAll[_clientSecretUrlParameter] != null) {  // remove query parameter
+            web_specific.changeWindowUrl(_removeQueryParam(windowUrl, _clientSecretUrlParameter));
+          }
+        }
         client = Sc4pacClient(
           authority,
-          onConnectionLost: () => updateConnection(authority, notify: true),
+          bearerToken: token,
+          onConnectionLost: () => updateConnection(authority, clientSecret: clientSecret, notify: true),  // TODO clientSecret is not valid anymore, so this can only work in web-app when using csrf_token from localStorage
           openPackages: openPackages,
         );
+        (validServerStatusResponse != null
+          ? Future.value(Sc4pacClient.parseServerStatus(authority, validServerStatusResponse))
+          : client.serverStatus()
+        ).then((serverStatus) {  // async, no need to await
+          if (serverStatus case {'sc4pacVersion': String version}) {
+            serverVersion = version;
+          }
+          this.serverStatus = serverStatus;
+        });
         _switchToLoadingProfiles();
-      },
-      onError: (_) {},  // connection failed, so stay in InitPhase.connecting
-    );
+        return client;
+      }
+    });
     if (notify) {
       notifyListeners();
+    }
+  }
+
+  // Unlike Uri.replace, this function ensures that no sole `?` query is left behind if query becomes empty, see https://github.com/dart-lang/sdk/issues/51656
+  static Uri _removeQueryParam(Uri uri, String parameter) {
+    if (!uri.hasQuery || uri.queryParametersAll[parameter] == null) {
+      return uri;
+    } else {
+      final q = Map.fromEntries(uri.queryParametersAll.entries.where((entry) => entry.key != parameter));
+      return Uri(
+        scheme: uri.hasScheme ? uri.scheme : null,
+        userInfo: uri.userInfo,
+        host: uri.hasAuthority ? uri.host: null,
+        port: uri.hasPort ? uri.port : null,
+        path: uri.path,
+        queryParameters: q.isEmpty ? null : q,
+        fragment: uri.hasFragment ? uri.fragment : null,
+      );
     }
   }
 
@@ -196,20 +254,26 @@ class World extends ChangeNotifier {
       authority = kIsWeb ? Uri.base.authority : "localhost:$port";
     }
 
-    if (!kIsWeb && args.launchServer) {
+    String? clientSecret;
+    if (!kIsWeb /*&& args.launchServer*/) {
       final String bundleRoot = FileSystemEntity.parentOf(Platform.resolvedExecutable);
+      clientSecret = Sc4pacServer.generateToken();
       server = Sc4pacServer(
         cliDir: args.cliDir ?? "$bundleRoot/cli",
         profilesDir: args.profilesDir,
         port: port,
+        clientSecret: clientSecret,
       );
     } else {
       server = null;
+      clientSecret = Uri.base.queryParameters[_clientSecretUrlParameter];
+      if (clientSecret == null) debugPrint("Missing URL query parameter '$_clientSecretUrlParameter'");
     }
 
-    updateConnection(authority, notify: false);
+    updateConnection(authority, clientSecret: clientSecret, notify: false);
   }
 
+  static const _clientSecretUrlParameter = 'launch-token';
   static const _supportedSc4pacUrlParameters = {'pkg', 'channel', 'externalIdProvider', 'externalId'};
 
   // routing

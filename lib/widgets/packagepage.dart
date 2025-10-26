@@ -164,13 +164,13 @@ class _PackagePageState extends State<PackagePage> {
                 mods.map((s) => BareModule.parse(s as String)).whereType<BareModule>(),
               _ => <BareModule>[],
             });
-            final List<String> images = switch (remote) {
+            final List<ImgInfo> images = switch (remote) {
               {'info': {'images': List<dynamic> images }} =>
                 images.map((url) => ImageDialog.redirectImages
-                  ? World.world.client.redirectImageUrl(url as String).toString()
-                  : url as String  // on non-web platforms there's no CORS issue, so prefer direct url for incremental loading progress indicator
+                  ? World.world.client.redirectImageUrl(url as String)
+                  : (url: url as String, headers: null)  // on non-web platforms there's no CORS issue, so prefer direct url for incremental loading progress indicator
                 ).toList(),
-              _ => <String>[],
+              _ => <ImgInfo>[],
             };
             final Map<String, Map<String, String>> descriptions = switch (remote) {
               {'variantInfo': Map<String, dynamic> infos} =>
@@ -594,7 +594,7 @@ class _AddPackageButtonState extends State<AddPackageButton> {
 }
 
 class ImageCarousel extends StatefulWidget {
-  final List<String> images;
+  final List<ImgInfo> images;
   final int initialIndex;
   const ImageCarousel(this.images, {this.initialIndex = 0, super.key});
   @override State<ImageCarousel> createState() => _ImageCarouselState();
@@ -632,7 +632,8 @@ class _ImageCarouselState extends State<ImageCarousel> {
                     barrierDismissible: true,
                     builder: (context) => ImageDialog(images: widget.images, initialIndex: itemIndex),
                   ),
-                  child: Image.network(widget.images[itemIndex],
+                  child: Image.network(widget.images[itemIndex].url,
+                    headers: widget.images[itemIndex].headers,
                     frameBuilder: ImageDialog.imageFrameBuilderCoverShrink(const Size(imageWidth, imageHeight)),
                     loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
                     errorBuilder: ImageDialog.imageErrorBuilder,
@@ -746,7 +747,7 @@ class ImagePlaceholder extends StatelessWidget {
 }
 
 class ImageDialog extends StatefulWidget {
-  final List<String> images;
+  final List<ImgInfo> images;
   final int initialIndex;
   const ImageDialog({required this.images, required this.initialIndex, super.key});
   @override State<ImageDialog> createState() => _ImageDialogState();
@@ -809,7 +810,7 @@ class _ImageDialogState extends State<ImageDialog> {
     if (!prefetched.contains(nextIndex)) {
       prefetched.add(nextIndex);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-          precacheImage(NetworkImage(widget.images[nextIndex]), context);
+          precacheImage(NetworkImage(widget.images[nextIndex].url, headers: widget.images[nextIndex].headers), context);
       });
     }
   }
@@ -847,7 +848,8 @@ class _ImageDialogState extends State<ImageDialog> {
             Flexible(  // important to fit the image tightly within the surrounding row
               child: Center(
                 heightFactor: 1,
-                child: Image.network(widget.images[index],
+                child: Image.network(widget.images[index].url,
+                  headers: widget.images[index].headers,
                   fit: BoxFit.scaleDown,
                   frameBuilder: ImageDialog.imageFrameBuilder,
                   loadingBuilder: ImageDialog.redirectImages ? null : ImageDialog.imageLoadingBuilder,
