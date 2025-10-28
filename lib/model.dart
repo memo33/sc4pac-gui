@@ -17,12 +17,25 @@ final List<int> Function(Object? o) jsonUtf8Encode = _jsonUtf8Encoder.convert;
 final String Function(Object? o) jsonUtf8EncodeIndented = _jsonUtf8EncoderIndented.convert;
 
 class ApiError {
-  final String type, title, detail;
-  final Map<String, dynamic> json;
-  ApiError(this.json) :
-    type = json['\$type'] as String,
-    title = json['title'] as String,
-    detail = json['detail'] as String;
+  late final String type, title, detail;
+  final Object? json;
+  ApiError(this.json) {
+    if (json case {'\$type': String t}) {
+      type = t;
+    } else {
+      type = "unknown";
+    }
+    if (json case {'title': String t}) {
+      title = t;
+    } else {
+      title = "Unknown error";
+    }
+    if (json case {'detail': String d}) {
+      detail = d;
+    } else {
+      detail = "$json";
+    }
+  }
   factory ApiError.unexpected(String title, String detail) => ApiError({'\$type': '/error/unexpected', 'title': title, 'detail': detail});
   factory ApiError.from(Object err) {
     return err is ApiError ? err : ApiError.unexpected('Unexpected error', err.toString());
@@ -252,7 +265,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
       }
     } else {
-      // throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      // throw ApiError(jsonUtf8Decode(response.bodyBytes));
       throw ApiError.unexpected("Cannot connect to sc4pac server", "http://$authority/server.status");
     }
   }
@@ -312,7 +325,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -323,7 +336,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     } else if (response.statusCode == 404) {
       return PackageInfoResult.notFound;
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -340,7 +353,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return PackageSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -355,7 +368,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return PackageSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -369,7 +382,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return PluginsSearchResult.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -380,7 +393,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         headers: {'Content-Type': 'application/json'},
       );
       if (response.statusCode != 200) {
-        throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+        throw ApiError(jsonUtf8Decode(response.bodyBytes));
       }
     }
   }
@@ -392,7 +405,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         headers: {'Content-Type': 'application/json'},
       );
       if (response.statusCode != 200) {
-        throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+        throw ApiError(jsonUtf8Decode(response.bodyBytes));
       }
     }
   }
@@ -408,7 +421,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         headers: {'Content-Type': 'application/json'},
       );
       if (response.statusCode != 200) {
-        throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+        throw ApiError(jsonUtf8Decode(response.bodyBytes));
       }
     }
   }
@@ -418,7 +431,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return RepairPlan.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -432,7 +445,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       final json = jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>;
       return json['ok'] == true;
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -441,7 +454,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return List<String>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -450,7 +463,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return (jsonUtf8Decode(response.bodyBytes) as List<dynamic>).map((m) => InstalledListItem.fromJson(m as Map<String, dynamic>)).toList();
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -463,7 +476,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return ExportData.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -472,7 +485,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return VariantsList.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -482,7 +495,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -492,7 +505,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -506,7 +519,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return ChoiceUpdateVariant.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -515,7 +528,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return List<String>.from(jsonUtf8Decode(response.bodyBytes) as List<dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -525,7 +538,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -534,7 +547,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return ChannelStatsAll.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -563,7 +576,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return Profiles.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -578,7 +591,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
         return (id: id, name: name);
       }
     }
-    throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+    throw ApiError(jsonUtf8Decode(response.bodyBytes));
   }
 
   Future<void> removeProfile(String profileId) async {
@@ -587,7 +600,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -597,7 +610,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -606,7 +619,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     if (response.statusCode == 200) {
       return SettingsData.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
@@ -616,7 +629,7 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode != 200) {
-      throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 

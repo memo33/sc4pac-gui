@@ -72,7 +72,7 @@ class World extends ChangeNotifier {
             } else if (response.statusCode == 401) {
               previousToken = null;
             } else {
-              throw ApiError(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+              throw ApiError(jsonUtf8Decode(response.bodyBytes));
             }
           }
         }
