@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:io';
+import 'dart:collection' show LinkedHashMap;
+import 'dart:async' show Completer;
 import 'protocol_handler_none.dart'  // web
   if (dart.library.io) 'protocol_handler.dart'  // desktop
   as protocol_handler;
@@ -465,6 +467,27 @@ class MyPlugins {
       channelUrls: (data.channels ?? data.config?.channels)?.toSet() ?? {},
     );
   }
+
+  static Future<ExportData> createExportData(List<String> modules) async {
+    final ExportData data = await World.world.client.export(modules, profileId: World.world.profile.id)  // somewhat expensive due to resolving (which requires parsing package files)
+      .catchError((Object e) async {
+        await ApiErrorWidget.dialog(e);
+        // as fallback, use all variants and channels
+        final variants = (await World.world.profile.dashboard.variantsFuture).variants;
+        final channels = await World.world.profile.dashboard.channelUrls;
+        return ExportData(
+          explicit: modules,
+          variants: {for (final item in variants.entries) if (!item.value.unused) item.key: item.value.value},
+          channels: channels,
+        );
+      });
+    final variantEntries = data.variants?.entries.toList();
+    if (variantEntries != null) {
+      Dashboard.sortVariants(variantEntries, keyParts: (e) => e.key.split(':'));
+      data.variants = LinkedHashMap.fromEntries(variantEntries);  // preserves insertion order
+    }
+    return data;
+  }
 }
 
 enum PendingUpdateStatus { add, remove, reinstall }
@@ -484,6 +507,20 @@ class Dashboard extends ChangeNotifier {
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
     fetchVariants();
+  }
+
+  Future<UpdateStatus> startUpdateProcess(UpdateMode mode) {
+    final completer = Completer<UpdateStatus>();
+    updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
+      pendingUpdates: pendingUpdates,
+      mode: mode,
+      onFinished: (status) {
+        onUpdateFinished(status);
+        completer.complete(status);
+      },
+      importedVariantSelections: mode != UpdateMode.interactiveUpdate ? [] : importedVariantSelections,  // variant selections are not useful for background process
+    );
+    return completer.future;
   }
 
   void fetchVariants() {
@@ -651,6 +688,8 @@ class PendingUpdates extends ChangeNotifier {
 
 enum UpdateStatus { running, finished, finishedWithError, canceled }
 
+enum UpdateMode { backgroundFetch, interactiveUpdate, backgroundDeleteAll }
+
 class UpdateProcess extends ChangeNotifier {
   late final WebSocketChannel _ws;
   late final Stream<Map<String, dynamic>> _stream;
@@ -679,10 +718,10 @@ class UpdateProcess extends ChangeNotifier {
 
   final PendingUpdates pendingUpdates;
   final void Function(UpdateStatus) onFinished;
-  final bool isBackground;
+  final UpdateMode mode;
   final List<Map<String, String>> importedVariantSelections;
 
-  UpdateProcess({required this.pendingUpdates, required this.onFinished, required this.isBackground, required this.importedVariantSelections}) {
+  UpdateProcess({required this.pendingUpdates, required this.onFinished, required this.mode, required this.importedVariantSelections}) {
     final stAuth = World.world.settings?.stAuth;
     {
       _ws = World.world.client.update(
@@ -745,112 +784,152 @@ class UpdateProcess extends ChangeNotifier {
             PendingUpdateStatus.reinstall,
           );
         }
-        if (self.isBackground) {
-          self.cancel();  // for background process we are done, as we do not want to install anything
-        } else if (plan.nothingToDo){
-          self._ws.sink.add(jsonEncode(plan.responses['Yes']));  // everything up-to-date
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showUpdatePlan(plan)
-              .then((choice) => self._ws.sink.add(jsonEncode(plan.responses[choice])));
-          });
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            self.cancel();  // for background process we are done, as we do not want to install anything
+          case UpdateMode.backgroundDeleteAll:
+            if (plan.toInstall.isNotEmpty) {
+              self.err = ApiError.unexpected("Unexpected error: Did not expect new packages to be installed", '$data');
+              self.cancel();
+            } else {
+              self._ws.sink.add(jsonEncode(plan.responses['Yes']));  // go ahead and delete
+            }
+          case UpdateMode.interactiveUpdate:
+            if (plan.nothingToDo){
+              self._ws.sink.add(jsonEncode(plan.responses['Yes']));  // everything up-to-date
+            } else {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                DashboardScreen.showUpdatePlan(plan)
+                  .then((choice) => self._ws.sink.add(jsonEncode(plan.responses[choice])));
+              });
+            }
         }
       },
-      '/prompt/confirmation/update/warnings': (self, data) {  // not relevant for isBackground, as these warnings are triggered during installation
+      '/prompt/confirmation/update/warnings': (self, data) {
         final msg = ConfirmationUpdateWarnings.fromJson(data);
-        if (msg.warnings.isEmpty) {
-          self._ws.sink.add(jsonEncode(msg.responses['Yes']));  // no warnings
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showWarningsDialog(msg)
-              .then((choice) => self._ws.sink.add(jsonEncode(msg.responses[choice])));
-          });
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+          case UpdateMode.backgroundDeleteAll:
+            // warnings should be irrelevant here, as they are only triggered by installing packages, not be uninstalling
+            if (msg.warnings.isNotEmpty) {
+              debugPrint("Unexpected warnings during ${self.mode}: ${msg.warnings.toString()}");
+            }
+            self._ws.sink.add(jsonEncode(msg.responses['Yes']));  // silence
+          case UpdateMode.interactiveUpdate:
+            if (msg.warnings.isEmpty) {
+              self._ws.sink.add(jsonEncode(msg.responses['Yes']));  // no warnings
+            } else {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                DashboardScreen.showWarningsDialog(msg)
+                  .then((choice) => self._ws.sink.add(jsonEncode(msg.responses[choice])));
+              });
+            }
         }
       },
       '/prompt/choice/update/variant': (self, data) {
         final msg = ChoiceUpdateVariant.fromJson(data);
-        if (self.isBackground) {
-          // we cannot make this selection without user interaction
-          self.pendingUpdates.setPendingUpdate(BareModule.parse(msg.package), PendingUpdateStatus.reinstall);
-          self.cancel();
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showVariantDialog(msg).then((choice) {
-              if (choice == null) {
-                self.cancel();
-              } else {
-                self._ws.sink.add(jsonEncode(msg.responses[choice]));
-              }
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            // we cannot make this selection without user interaction
+            self.pendingUpdates.setPendingUpdate(BareModule.parse(msg.package), PendingUpdateStatus.reinstall);
+            self.cancel();
+          case UpdateMode.backgroundDeleteAll:
+            self.err = ApiError.unexpected("Unexpected error: Did not expect variant selections during ${self.mode}", '$data');
+            self.cancel();
+          case UpdateMode.interactiveUpdate:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DashboardScreen.showVariantDialog(msg).then((choice) {
+                if (choice == null) {
+                  self.cancel();
+                } else {
+                  self._ws.sink.add(jsonEncode(msg.responses[choice]));
+                }
+              });
             });
-          });
         }
       },
       '/prompt/confirmation/update/remove-unresolvable-packages': (self, data) {
         final msg = ConfirmationRemoveUnresolvablePackages.fromJson(data);
-        if (self.isBackground) {
-          self.cancel();  // we cannot make this selection without user interaction
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showRemoveUnresolvablePkgsDialog(msg).then((choice) {
-              if (choice == null) {
-                self.cancel();
-              } else {
-                self._ws.sink.add(jsonEncode(msg.responses[choice]));
-              }
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            self.cancel();  // we cannot make this selection without user interaction
+          case UpdateMode.backgroundDeleteAll:
+            self.err = ApiError.unexpected("Unexpected error: Did not expect unresolvable packages during ${self.mode}", '$data');
+            self.cancel();
+          case UpdateMode.interactiveUpdate:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DashboardScreen.showRemoveUnresolvablePkgsDialog(msg).then((choice) {
+                if (choice == null) {
+                  self.cancel();
+                } else {
+                  self._ws.sink.add(jsonEncode(msg.responses[choice]));
+                }
+              });
             });
-          });
         }
       },
       '/prompt/choice/update/remove-conflicting-packages': (self, data) {
         final msg = ChoiceRemoveConflictingPackages.fromJson(data);
-        if (self.isBackground) {
-          self.cancel();  // we cannot make this selection without user interaction
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showRemoveConflictingPkgsDialog(msg).then((choice) {
-              if (choice == null) {
-                self.cancel();
-              } else {
-                self._ws.sink.add(jsonEncode(msg.responses[choice]));
-              }
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            self.cancel();  // we cannot make this selection without user interaction
+          case UpdateMode.backgroundDeleteAll:
+            self.err = ApiError.unexpected("Unexpected error: Did not expect conflicting packages during ${self.mode}", '$data');
+            self.cancel();
+          case UpdateMode.interactiveUpdate:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DashboardScreen.showRemoveConflictingPkgsDialog(msg).then((choice) {
+                if (choice == null) {
+                  self.cancel();
+                } else {
+                  self._ws.sink.add(jsonEncode(msg.responses[choice]));
+                }
+              });
             });
-          });
         }
       },
       '/prompt/json/update/download-failed-select-mirror': (self, data) {
         final msg = DownloadFailedSelectMirror.fromJson(data);
-        if (self.isBackground) {
-          self.cancel();  // we cannot make this selection without user interaction
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showSelectMirrorDialog(msg).then((respData) {
-              if (respData == null) {
-                self.cancel();
-              } else {
-                self._ws.sink.add(jsonEncode({
-                  '\$type': '/prompt/response',
-                  'token': msg.token,
-                  'body': {'retry': respData.retry, 'localMirror': respData.localMirror},
-                }));
-              }
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            self.cancel();  // we cannot make this selection without user interaction
+          case UpdateMode.backgroundDeleteAll:
+            self.err = ApiError.unexpected("Unexpected error: Did not expect download failures during ${self.mode}", '$data');
+            self.cancel();
+          case UpdateMode.interactiveUpdate:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DashboardScreen.showSelectMirrorDialog(msg).then((respData) {
+                if (respData == null) {
+                  self.cancel();
+                } else {
+                  self._ws.sink.add(jsonEncode({
+                    '\$type': '/prompt/response',
+                    'token': msg.token,
+                    'body': {'retry': respData.retry, 'localMirror': respData.localMirror},
+                  }));
+                }
+              });
             });
-          });
         }
       },
       '/prompt/confirmation/update/installing-dlls': (self, data) {
         final msg = ConfirmationInstallingDlls.fromJson(data);
-        if (self.isBackground) {
-          self.cancel();  // we cannot make this selection without user interaction
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            DashboardScreen.showInstallingDllsDialog(msg).then((choice) {
-              if (choice == null) {
-                self.cancel();
-              } else {
-                self._ws.sink.add(jsonEncode(msg.responses[choice]));
-              }
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            self.cancel();  // we cannot make this selection without user interaction
+          case UpdateMode.backgroundDeleteAll:
+            self.err = ApiError.unexpected("Unexpected error: Did not expect to install DLLs during ${self.mode}", '$data');
+            self.cancel();
+          case UpdateMode.interactiveUpdate:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DashboardScreen.showInstallingDllsDialog(msg).then((choice) {
+                if (choice == null) {
+                  self.cancel();
+                } else {
+                  self._ws.sink.add(jsonEncode(msg.responses[choice]));
+                }
+              });
             });
-          });
         }
       },
       '/progress/download/started': (self, data) {
@@ -872,7 +951,7 @@ class UpdateProcess extends ChangeNotifier {
         self.downloadsFailed |= !msg.success;
         self._downloadsCompletedOnNextNonProgressDownloadMsg = true;
       },
-      '/progress/update/extraction': (self, data) {  // not relevant for isBackground
+      '/progress/update/extraction': (self, data) {  // not relevant for UpdateMode.backgroundFetch or UpdateMode.backgroundDeleteAll
         final msg = ProgressUpdateExtraction.fromJson(data);
         self.extractionProgress = msg;
         if (msg.progress.numerator == msg.progress.denominator) {

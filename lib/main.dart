@@ -270,11 +270,10 @@ class LoadingProfilesScreen extends StatelessWidget {
         } else {
           if (snapshot.hasData) {
             final data = snapshot.data!;
-            if (data.currentProfileId.isEmpty || world.createNewProfile) {
+            if (data.profiles.isEmpty || world.createNewProfile) {
               return CreateProfileDialog(world);
             }
-            final String id = data.currentProfileId.first;
-            final p = data.profiles.firstWhere((p) => p.id == id);
+            final p = data.currentProfile() ?? data.profiles.last;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               world.updateProfile((id: p.id, name: p.name));  // switches to next initPhase
             });

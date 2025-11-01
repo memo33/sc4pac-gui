@@ -200,12 +200,13 @@ typedef ProfilesListItem = ({String id, String name, String? pluginsRoot});
 @JsonSerializable()
 class Profiles {
   final List<ProfilesListItem> profiles;
-  final List<String> currentProfileId;
+  @JsonKey(name: 'currentProfileId', includeFromJson: true, includeToJson: true)
+  final List<String> _currentProfileId;  // use currentProfile or World.world.profile.id instead, as this field may be empty or ID might not exist
   final String profilesDir;
-  Profiles(this.profiles, this.currentProfileId, this.profilesDir);
+  Profiles(this.profiles, this._currentProfileId, this.profilesDir);
   factory Profiles.fromJson(Map<String, dynamic> json) => _$ProfilesFromJson(json);
   ProfilesListItem? currentProfile() {
-    final idx = profiles.indexWhere((p) => currentProfileId.contains(p.id));
+    final idx = profiles.indexWhere((p) => _currentProfileId.contains(p.id));
     return idx == -1 ? null : profiles[idx];
   }
 }

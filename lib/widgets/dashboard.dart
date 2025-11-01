@@ -10,6 +10,7 @@ import '../viewmodel.dart';
 import '../main.dart';
 import 'fragments.dart';
 import 'packagepage.dart' show PackagePage;
+import 'myplugins.dart' show ExportDialog;
 
 class DashboardScreen extends StatefulWidget {
   final Dashboard dashboard;
@@ -296,12 +297,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void initState() {
-    widget.dashboard.updateProcess ??= UpdateProcess(  // initial check for metadata updates without installing anything
-      pendingUpdates: widget.dashboard.pendingUpdates,
-      isBackground: true,
-      onFinished: widget.dashboard.onUpdateFinished,
-      importedVariantSelections: [],  // variant selections are not useful for background process
-    );
+    if (widget.dashboard.updateProcess == null) {  // initial check for metadata updates without installing anything
+      widget.dashboard.startUpdateProcess(UpdateMode.backgroundFetch);
+    }
     super.initState();
   }
 
@@ -336,6 +334,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       World.world.reloadProfiles(createNewProfile: true);
                     },
                     label: const Text("New"),
+                  ),
+                  ElevatedButton(
+                    onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () => showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (context) => const DeleteProfileDialog(),
+                    ),
+                    child: const Text("Delete options…"),
                   ),
                 ],
               ),
@@ -410,22 +416,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.refresh),
               onPressed: widget.dashboard.updateProcess?.status == UpdateStatus.running ? null : () {
                 setState(() {
-                  widget.dashboard.updateProcess = UpdateProcess(  // TODO ensure that previous ws was closed
-                    pendingUpdates: widget.dashboard.pendingUpdates,
-                    onFinished: widget.dashboard.onUpdateFinished,
-                    isBackground: false,
-                    importedVariantSelections: widget.dashboard.importedVariantSelections,
-                  );
+                  widget.dashboard.startUpdateProcess(UpdateMode.interactiveUpdate);
                 });
               },
               label: const Text(DashboardScreen.updateAllButtonLabel),
             ),
           ),
-          if (widget.dashboard.updateProcess?.isBackground == false)
+          if (widget.dashboard.updateProcess?.mode == UpdateMode.interactiveUpdate)
             Card.outlined(
               child: UpdateWidget(widget.dashboard.updateProcess!),
             ),
-          if (widget.dashboard.updateProcess?.isBackground == false && widget.dashboard.updateProcess?.status != UpdateStatus.running)
+          if (widget.dashboard.updateProcess?.mode == UpdateMode.interactiveUpdate && widget.dashboard.updateProcess?.status != UpdateStatus.running)
             ElevatedButton(
               onPressed: () => setState(() {
                 widget.dashboard.updateProcess = null;  // TODO ensure that ws was closed
@@ -433,6 +434,212 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: const Text('Clear Log'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class DeleteProfileDialog extends StatefulWidget {
+  const DeleteProfileDialog({super.key});
+  @override State<DeleteProfileDialog> createState() => _DeleteProfileDialogState();
+}
+class _DeleteProfileDialogState extends State<DeleteProfileDialog> {
+  late Future<List<InstalledListItem>> _installedPluginsFuture;
+  late final Future<ExportData> _exportDataFuture;
+  bool _finishedDeleteAllPackages = false;
+  bool _runningDeleteAllPackages = false;
+  bool _runningDeleteProfile = false;
+  late final Profile _profileToDelete;
+
+  @override initState() {
+    super.initState();
+    _profileToDelete = World.world.profile;  // retrieve it only once when opening the dialog to guard against deleting more than one profile accidentally
+    _fetchInstalledPlugins();
+    // We create ExportData directly when opening the dialog, so that Export still works even after uninstalling all packages
+    _exportDataFuture = _installedPluginsFuture.then((installedItems) {
+      final modules = [for (final item in installedItems) if (item.explicit == true) item.package];
+      return MyPlugins.createExportData(modules);
+    });
+  }
+
+  void _fetchInstalledPlugins() {
+    _installedPluginsFuture = World.world.client.installed(profileId: _profileToDelete.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final redTextStyle = TextStyle(color: Theme.of(context).colorScheme.error);
+    final redFilledButtonStyle = FilledButton.styleFrom(
+      foregroundColor: Theme.of(context).colorScheme.onError,
+      backgroundColor: Theme.of(context).colorScheme.error,
+    );
+    final hintStyle = TextStyle(color: Theme.of(context).hintColor);
+    final emphStyle = TextStyle(color: Theme.of(context).colorScheme.secondary);
+    return Dialog(
+      child: ClipRRect(
+        borderRadius: const BorderRadius.all(Radius.circular(32)),
+        child: DefaultTabController(
+          length: 2,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680, maxHeight: 540),
+            child: Scaffold(
+              appBar: AppBar(
+                automaticallyImplyLeading: false,
+                title: Center(child: Text("Danger Zone", style: redTextStyle)),
+                bottom: const TabBar(
+                  tabs: [
+                    Tab(child: TextWithIcon("Uninstall packages", symbol: Symbols.deployed_code_account)),
+                    Tab(child: TextWithIcon("Delete Profile", symbol: Symbols.person_remove)),
+                  ],
+                ),
+              ),
+              body: TabBarView(
+                children: [
+                  Wrap(
+                    direction: Axis.horizontal,
+                    spacing: 15,
+                    runSpacing: 15,
+                    children: [
+                      Text.rich(TextSpan(children: [
+                        const TextSpan(text: "Here you have the option to remove all packages installed by sc4pac for the current Profile "),
+                        TextSpan(text: "“${_profileToDelete.name}”", style: emphStyle),
+                        const TextSpan(text: "."),
+                      ])),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text("Export Mod Set"),
+                        subtitle: Text("Optionally, export the list of installed packages as JSON file for back-up. You can re-import it later to restore the Profile contents.", style: hintStyle),
+                        trailing: OutlinedButton.icon(
+                          icon: const Icon(Symbols.upload),
+                          label: const Text("Export"),
+                          onPressed: () {
+                            ExportDialog.show(context, _exportDataFuture);
+                          },
+                        ),
+                      ),
+                      ListenableBuilder(
+                        listenable: World.world.profile.dashboard,
+                        builder: (context, child) =>
+                          FutureBuilder(
+                            future: _installedPluginsFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.data == null) {
+                                return const SizedBox(height: 0);
+                              } else {
+                                final subtitle =
+                                  snapshot.hasError ? Text("Error: ${snapshot.error}", style: redTextStyle) :
+                                  Text(snapshot.data?.isEmpty != true
+                                    ? "You currently have ${snapshot.data?.length ?? "?"} packages installed in your Plugins folder. They will all be removed. In contrast, other plugin files installed without sc4pac will be left unchanged."
+                                    : _finishedDeleteAllPackages
+                                    ? "All packages have been removed from your Plugins folder."
+                                    : "There are 0 packages installed in your Plugins folder.",
+                                    style: hintStyle,
+                                  );
+                                return ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text("Remove packages from Plugins"),
+                                  subtitle: subtitle,
+                                  trailing: FilledButton.icon(
+                                    style: redFilledButtonStyle,
+                                    icon: _runningDeleteAllPackages || World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? const CircularProgressIcon() : const Icon(Symbols.delete_sweep, weight: 500),
+                                    label: const Text("Uninstall all packages"),
+                                    onPressed: snapshot.data?.isNotEmpty != true || _runningDeleteAllPackages || World.world.profile.dashboard.updateProcess?.status == UpdateStatus.running ? null : () async {
+                                      try {
+                                        setState(() => _runningDeleteAllPackages = true);
+                                        final dashboard = World.world.profile.dashboard;
+                                        assert(dashboard.updateProcess?.status != UpdateStatus.running, "Delete Options dialog should only be visible when regular UpdateProcess is not running.");
+                                        final explicitlyAddedPlugins = await World.world.client.added(profileId: _profileToDelete.id);
+                                        await World.world.client.remove(explicitlyAddedPlugins.map(BareModule.parse).toList(), profileId: _profileToDelete.id);
+                                        final status = await dashboard.startUpdateProcess(UpdateMode.backgroundDeleteAll);
+                                        _fetchInstalledPlugins();
+                                        await _installedPluginsFuture;  // to avoid flashing button disabled-enabled-disabled
+                                        setState(() {
+                                          if (status == UpdateStatus.finished) {
+                                            _finishedDeleteAllPackages = true;
+                                          }
+                                          _runningDeleteAllPackages = false;
+                                        });
+                                        final err = dashboard.updateProcess?.err;
+                                        if (err != null) {
+                                          ApiErrorWidget.dialog(err);
+                                        }
+                                      } catch (err) {
+                                        ApiErrorWidget.dialog(err);
+                                        setState(() => _runningDeleteAllPackages = false);
+                                      }
+                                    },
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    direction: Axis.horizontal,
+                    spacing: 15,
+                    runSpacing: 15,
+                    children: [
+                      Text.rich(TextSpan(children: [
+                        const TextSpan(text: "Here you can delete the entire Profile "),
+                        TextSpan(text: "“${_profileToDelete.name}”", style: emphStyle),
+                        const TextSpan(text: " from the sc4pac GUI."),
+                      ])),
+                      const MarkdownText("This operation will _not_ affect any files in your Plugins folder:"),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: Text(_profileToDelete.paths?.plugins ?? "?", style: emphStyle)),
+                      FutureBuilder(
+                        future: _installedPluginsFuture,
+                        builder: (context, snapshot) =>
+                          snapshot.hasError ? Text("Error: ${snapshot.error}", style: redTextStyle) :
+                          !snapshot.hasData ? const SizedBox(height: 0) :
+                          MarkdownText(snapshot.data!.isEmpty == true
+                            ? "You have 0 installed packages in your Plugins, so the Profile can be safely deleted."
+                            : "**Note:** You still have `${snapshot.data!.length}` installed packages in your Plugins. These will _not_ be removed when deleting the Profile. After deleting the Profile, sc4pac will not be able to update or uninstall these packages anymore."
+                          ),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text("Delete Profile from sc4pac GUI"),
+                        subtitle: Text(
+                          "Delete the Profile “${_profileToDelete.name}”. "
+                          "Files in your Plugins folder will be left unchanged.",
+                          style: hintStyle,
+                        ),
+                        trailing: FilledButton.icon(
+                          style: redFilledButtonStyle,
+                          icon: const Icon(Symbols.delete_forever, fill: 1),
+                          label: const Text("Delete Profile"),
+                          onPressed: _runningDeleteProfile ? null : () async {
+                            try {
+                              setState(() => _runningDeleteProfile = true);
+                              await World.world.client.removeProfile(_profileToDelete.id);
+                              if (context.mounted) Navigator.pop(context, null);
+                              World.world.reloadProfiles(createNewProfile: false);  // TODO avoid hard reload of everything
+                            } catch (err) {
+                              ApiErrorWidget.dialog(err);
+                            } finally {
+                              setState(() => _runningDeleteProfile = false);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ].map((w) => SingleChildScrollView(child: Padding(padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 36), child: w))).toList(),
+              ),
+              bottomNavigationBar: BottomAppBar(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: OutlinedButton(child: const Text("Dismiss"), onPressed: () => Navigator.pop(context, null)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -466,7 +673,7 @@ This detects `.sc4pac` subfolders that are either missing or outdated and not ne
         Padding(
           padding: const EdgeInsets.all(10),
           child: OutlinedButton.icon(
-            icon: _running ? const SizedBox(width: 24, height: 24, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5))) : const Icon(Symbols.troubleshoot),
+            icon: _running ? const CircularProgressIcon() : const Icon(Symbols.troubleshoot),
             label: const Text(RepairWidget.scanAndRepairButtonLabel),
             onPressed: _running ? null : () async {
               setState(() {
@@ -542,6 +749,13 @@ This detects `.sc4pac` subfolders that are either missing or outdated and not ne
       }
     );
   }
+}
+
+// a smaller CircularProgressIndicator for use as icon in buttons
+class CircularProgressIcon extends StatelessWidget {
+  const CircularProgressIcon({super.key});
+  @override Widget build(BuildContext context) =>
+    const SizedBox(width: 24, height: 24, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)));
 }
 
 class PluginsConflictWarning extends StatelessWidget {
@@ -915,10 +1129,8 @@ class _ProfileSelectMenuState extends State<ProfileSelectMenu> {
 
   void _submit(String profileId) {
     World.world.client.switchProfile(profileId)
-      .then(
-        (_) => World.world.reloadProfiles(createNewProfile: false),  // TODO avoid hard reload of everything
-        onError: ApiErrorWidget.dialog,
-      );
+      .then((_) => World.world.reloadProfiles(createNewProfile: false))  // TODO avoid hard reload of everything
+      .catchError(ApiErrorWidget.dialog);
   }
 
   @override
@@ -1068,12 +1280,12 @@ class _UpdateWidgetState extends State<UpdateWidget> {
                 ? ApiErrorWidget(widget.proc.err!)  // if aborted via dialog, we show a different icon via the branch below
                 : ListTile(
                   leading: Icon(
-                    widget.proc.isBackground
+                    widget.proc.mode == UpdateMode.backgroundFetch
                     ? (widget.proc.plan?.nothingToDo ?? false ? Icons.check_circle_outline : Icons.update_outlined)
                     : widget.proc.status == UpdateStatus.finished ? Icons.check_circle_outline : Icons.block_outlined  // canceled or finishedWithError
                   ),
                   title: Text(widget.proc.err?.title ?? (
-                      widget.proc.isBackground ? _pendingUpdatesLabel(widget.proc) : _finishedLabel(widget.proc)
+                      widget.proc.mode == UpdateMode.backgroundFetch ? _pendingUpdatesLabel(widget.proc) : _finishedLabel(widget.proc)
                   )),
                 ),
             ],
@@ -1365,12 +1577,12 @@ class PendingUpdatesWidget extends StatelessWidget {
   const PendingUpdatesWidget(this.dashboard, {super.key});
   @override
   Widget build(BuildContext context) {
-    final bool runningInBackground = dashboard.updateProcess?.status == UpdateStatus.running && dashboard.updateProcess?.isBackground == true;
+    final bool runningInBackground = dashboard.updateProcess?.status == UpdateStatus.running && dashboard.updateProcess?.mode == UpdateMode.backgroundFetch;
     final int? count = runningInBackground ? null : dashboard.pendingUpdates.getCount();
 
     return ExpansionTile(
       leading: runningInBackground
-        ? const SizedBox(width: 20, height: 20, child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)))
+        ? const CircularProgressIcon()
         : const Icon(Symbols.update),
       title: Text(["Pending updates", if (count != null) "($count)"].join(' ')),
       // expandedAlignment: Alignment.centerLeft,
