@@ -390,11 +390,12 @@ class ExportData {
 }
 
 @JsonSerializable()
-class RepairPlan {
-  final List<String> incompletePackages;
-  final List<String> orphanFiles;
-  RepairPlan(this.incompletePackages, this.orphanFiles);
-  factory RepairPlan.fromJson(Map<String, dynamic> json) => _$RepairPlanFromJson(json);
-  Map<String, dynamic> toJson() => _$RepairPlanToJson(this);
-  bool isUpToDate() => incompletePackages.isEmpty && orphanFiles.isEmpty;
+class ConfirmRepairPlan {
+  final ({List<String> incompletePackages, List<String> orphanFiles}) plan;
+  final List<String> choices;
+  final String token;
+  final Map<String, dynamic> responses;
+  ConfirmRepairPlan(this.plan, this.choices, this.token, this.responses);
+  factory ConfirmRepairPlan.fromJson(Map<String, dynamic> json) => _$ConfirmRepairPlanFromJson(json);
+  bool isUpToDate() => plan.incompletePackages.isEmpty && plan.orphanFiles.isEmpty;
 }

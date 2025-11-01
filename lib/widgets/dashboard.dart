@@ -680,19 +680,19 @@ This detects `.sc4pac` subfolders that are either missing or outdated and not ne
                 _running = true;
                 World.world.profile.dashboard.repairProcessResult = null;
               });
-              final plan = await World.world.client.repairScan(profileId: World.world.profile.id);
+              final repairPlanMsg = await World.world.client.repairScan(profileId: World.world.profile.id);
               setState(() => _running = false);
-              if (plan.isUpToDate()) {
+              if (repairPlanMsg.isUpToDate()) {
                 setState(() => World.world.profile.dashboard.repairProcessResult = "Looking good. No issues found in your Plugins folder.");
               } else {
-                final confirmed = await showRepairPlan(plan);
+                final confirmed = await showRepairPlan(repairPlanMsg);
                 if (confirmed == true) {
                   setState(() { _running = true; });
-                  final upToDate = await World.world.client.repair(plan, profileId: World.world.profile.id);
+                  final upToDate = await World.world.client.repair(repairPlanMsg, profileId: World.world.profile.id);
                   setState(() {
                     _running = false;
                     World.world.profile.dashboard.repairProcessResult = upToDate ? "All detected issues have been fixed." : "Press `${DashboardScreen.updateAllButtonLabel}` to complete the repair.";
-                    World.world.profile.dashboard.pendingUpdates.onRepairComplete(plan.incompletePackages.map(BareModule.parse));
+                    World.world.profile.dashboard.pendingUpdates.onRepairComplete(repairPlanMsg.plan.incompletePackages.map(BareModule.parse));
                   });
                 }
               }
@@ -710,7 +710,8 @@ This detects `.sc4pac` subfolders that are either missing or outdated and not ne
     );
   }
 
-  static Future<bool?> showRepairPlan(RepairPlan plan) {
+  static Future<bool?> showRepairPlan(ConfirmRepairPlan msg) {
+    final plan = msg.plan;
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,  // We use global context so that process can show dialog popups even when the current screen is disposed.
       barrierDismissible: true,

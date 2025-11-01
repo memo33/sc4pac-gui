@@ -426,19 +426,19 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
-  Future<RepairPlan> repairScan({required String profileId}) async {
+  Future<ConfirmRepairPlan> repairScan({required String profileId}) async {
     final response = await _get(Uri.http(authority, '/plugins.repair.scan', {'profile': profileId}));
     if (response.statusCode == 200) {
-      return RepairPlan.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
+      return ConfirmRepairPlan.fromJson(jsonUtf8Decode(response.bodyBytes) as Map<String, dynamic>);
     } else {
       throw ApiError(jsonUtf8Decode(response.bodyBytes));
     }
   }
 
   // Returns false if a subsequent Update is needed to complete the repair
-  Future<bool> repair(RepairPlan plan, {required String profileId}) async {
+  Future<bool> repair(ConfirmRepairPlan msg, {required String profileId}) async {
     final response = await _post(Uri.http(authority, '/plugins.repair', {'profile': profileId}),
-      body: jsonUtf8Encode(plan),
+      body: jsonUtf8Encode(msg.responses[msg.choices.first]),
       headers: {'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
