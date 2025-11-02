@@ -330,6 +330,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       snapshot.hasData ? ProfileSelectMenu(profiles: snapshot.data!) : const SizedBox(),
                   ),
                   ElevatedButton.icon(
+                    icon: const Icon(Symbols.edit_location_alt),
+                    onPressed: () => showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (context) => const RenameProfileDialog(),
+                    ),
+                    label: const Text("Rename"),
+                  ),
+                  ElevatedButton.icon(
                     icon: const Icon(Symbols.add_location),
                     onPressed: () {
                       World.world.reloadProfiles(createNewProfile: true);
@@ -436,6 +445,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class RenameProfileDialog extends StatefulWidget {
+  const RenameProfileDialog({super.key});
+  @override State<RenameProfileDialog> createState() => _RenameProfileDialogState();
+}
+class _RenameProfileDialogState extends State<RenameProfileDialog> {
+  final _profileNameController = TextEditingController();
+  @override
+  void dispose() {
+    _profileNameController.dispose();
+    super.dispose();
+  }
+
+  void _submit(BuildContext context, String name) async {
+    name = name.trim();
+    if (name.isNotEmpty) {
+      try {
+        final profileId = World.world.profile.id;
+        await World.world.client.renameProfile(name, profileId: profileId);
+        World.world.reloadProfiles(createNewProfile: false);
+        if (context.mounted) Navigator.pop(context, null);
+      } catch (err) {
+        ApiErrorWidget.dialog(err);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: const Icon(Symbols.edit_location_alt),
+      title: const Text("Rename Profile"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text("Enter a new profile name."),
+          const SizedBox(height: 30),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 500),
+            child: TextField(
+              controller: _profileNameController,
+              decoration: CreateProfileDialog.profileNameInputDecoration(previousName: World.world.profile.name),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (name) => _submit(context, name),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        OutlinedButton(
+          onPressed: switch (_profileNameController.text.trim()) {
+            final name => name.isEmpty ? null : () => _submit(context, name),
+          },
+          child: const Text("OK"),
+        ),
+        OutlinedButton(
+          onPressed: () { Navigator.pop(context, null); },
+          child: const Text("Cancel"),
+        ),
+      ],
     );
   }
 }

@@ -249,6 +249,21 @@ class CreateProfileDialog extends StatefulWidget {
   final World world;
   const CreateProfileDialog(this.world, {super.key});
   @override State<CreateProfileDialog> createState() => _CreateProfileDialogState();
+
+  static InputDecoration profileNameInputDecoration({required String? previousName}) =>
+    previousName == null
+    ? const InputDecoration(
+        icon: Icon(Symbols.person_pin_circle),
+        labelText: "Profile name",
+        helperText: "Each profile corresponds to a Plugins folder. This allows you to manage multiple Plugins folders for different regions.",
+        helperMaxLines: 10,
+        hintText: "Timbuktu, London-with-CAM, Futuristic, …",
+      )
+    : InputDecoration(
+        icon: const Icon(Symbols.person_pin_circle),
+        labelText: "Profile name",
+        hintText: previousName,
+      );
 }
 class _CreateProfileDialogState extends State<CreateProfileDialog> {
   late final TextEditingController _profileNameController = TextEditingController();
@@ -277,13 +292,7 @@ class _CreateProfileDialogState extends State<CreateProfileDialog> {
         children: [
           TextField(
             controller: _profileNameController,
-            decoration: const InputDecoration(
-              icon: Icon(Symbols.person_pin_circle),
-              labelText: "Profile name",
-              helperText: "Each profile corresponds to a Plugins folder. This allows you to manage multiple Plugins folders for different regions.",
-              helperMaxLines: 10,
-              hintText: "Timbuktu, London-with-CAM, Futuristic, …",
-            ),
+            decoration: CreateProfileDialog.profileNameInputDecoration(previousName: null),
             onSubmitted: (String name) {
               if (name.isNotEmpty) {
                 _submit();

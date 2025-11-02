@@ -614,6 +614,16 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
+  Future<void> renameProfile(String name, {required String profileId}) async {
+    final response = await _post(Uri.http(authority, '/profiles.rename'),
+      body: jsonUtf8Encode({'id': profileId, 'name': name}),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
+    }
+  }
+
   Future<SettingsData> getSettings() async {
     final response = await _get(Uri.http(authority, '/settings.all.get'));
     if (response.statusCode == 200) {
