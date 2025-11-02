@@ -194,6 +194,7 @@ class _PackagePageState extends State<PackagePage> {
             bool addedExplicitly = status?.explicit ?? false;
             final installDates = status?.timeLabel2() ?? "Not installed";
             final installedVersion = status?.installed?.version;
+            final dashboard = World.world.profile.dashboard;
 
             final table = Table(
               columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
@@ -212,7 +213,15 @@ class _PackagePageState extends State<PackagePage> {
                           .then((_) => _refresh());
                       },
                     ),
-                    MenuAnchor(
+                  ],
+                  if (installedVersion != null ||
+                    // Allow Redownload in case of extraction failures.
+                    // (TODO These conditions are not fully correct, since Clear-Log will hide the buttons, while even for newly starred packages the buttons will appear.)
+                    dashboard.pendingUpdates.isPending(widget.module) && (
+                      dashboard.updateProcess?.status == UpdateStatus.finishedWithError ||
+                      dashboard.updateProcess?.status == UpdateStatus.canceled
+                    )
+                  ) MenuAnchor(
                       builder: (BuildContext context, MenuController controller, Widget? child) {
                         return IconButton(
                           color: Theme.of(context).colorScheme.primary,
@@ -238,7 +247,6 @@ class _PackagePageState extends State<PackagePage> {
                         ),
                       ],
                     ),
-                  ],
                 ])),
                 packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
                 packageTableRow(const Text("Version"), SelectionArea(child: Text(switch (remote) {
