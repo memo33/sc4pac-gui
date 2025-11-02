@@ -601,7 +601,7 @@ class ImageCarousel extends StatefulWidget {
 }
 class _ImageCarouselState extends State<ImageCarousel> {
   late int currentIndex = widget.initialIndex;
-  late final _controller = CarouselSliderController();
+  late final _controller = CarouselSliderController();  // no dispose
 
   static const double imageHeight = 300;
   static const double imageWidth = 450;

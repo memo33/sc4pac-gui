@@ -123,6 +123,11 @@ class _CredentialsWidgetState extends State<CredentialsWidget> {
     _initFields();
   }
 
+  @override void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
   void _initFields() {
     controller.text = World.world.settings?.stAuth?.token ?? "";
   }

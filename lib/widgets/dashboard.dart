@@ -1128,6 +1128,11 @@ class ProfileSelectMenu extends StatefulWidget {
 class _ProfileSelectMenuState extends State<ProfileSelectMenu> {
   late final TextEditingController _controller = TextEditingController(text: widget.profiles.currentProfile()?.name);
 
+  @override void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   void _submit(String profileId) {
     World.world.client.switchProfile(profileId)
       .then((_) => World.world.reloadProfiles(createNewProfile: false))  // TODO avoid hard reload of everything
@@ -1494,6 +1499,11 @@ class _ChannelsListState extends State<ChannelsList> {
   @override void initState() {
     super.initState();
     _initText();
+  }
+
+  @override void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 
   void _initText() async {
