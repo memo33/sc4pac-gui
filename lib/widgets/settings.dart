@@ -133,69 +133,25 @@ class _CredentialsWidgetState extends State<CredentialsWidget> {
   }
 
   void _submit(String? simtropolisToken) {
-    World.world.client.getSettings()
-      .then((settingsData) async {
-        if (simtropolisToken == null) {
-          return settingsData.withAuth(auth: []);
-        } else {
-          final tokenBytes = await AuthItem.obfuscateToken(simtropolisToken);
-          return settingsData.withAuth(
-            auth: [AuthItem(domain: AuthItem.simtropolisDomain, tokenBytes: tokenBytes)],
-          );
-        }
-      })
-      .then((settingsData) {
-        setState(() => changed = false);
-        World.world.updateSettings(settingsData);
-        return World.world.client.setSettings(settingsData)
-          .then<void>(
-            (_) {
-              setState(() {
-                _initFields();
-                changed = false;
-              });
-            }
-          );
-      })
-      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", e.toString())));
+    World.world.saveSimtropolisToken(simtropolisToken,
+      beforeSave: () => setState(() => changed = false),
+      afterSave: () => setState(() {
+        _initFields();
+        changed = false;
+      }),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: EdgeInsets.only(top: 10, bottom: 20),
-            child: SelectionArea(child: MarkdownText(
-"""Without signing in, Simtropolis limits downloads to a maximum of 20 files per day.
-To avoid this limit:
-- Sign in to Simtropolis.
-- Generate a personal authentication token at https://community.simtropolis.com/sc4pac/my-token/
-- Paste the token here.""",
-            )),
-          ),
-        ),
-        ListenableBuilder(
-          listenable: World.world,
-          builder: (context, child) {
-            return TextField(
-              decoration: const InputDecoration(
-                icon: Icon(Symbols.key),
-                labelText: "Token",
-                hintText: "Paste your Simtropolis token here",
-                floatingLabelBehavior: FloatingLabelBehavior.always,
-              ),
-              style: const TextStyle(fontFamily: "monospace"),
-              controller: controller,
-              maxLines: null,
-              onChanged: (_) {
-                if (!changed) {
-                  setState(() { changed = true; });
-                }
-              },
-            );
+        CredentialsWidgetTextField(
+          controller: controller,
+          onChanged: (_) {
+            if (!changed) {
+              setState(() { changed = true; });
+            }
           },
         ),
         const SizedBox(height: 10),
@@ -218,6 +174,50 @@ To avoid this limit:
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+class CredentialsWidgetTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final void Function(String) onChanged;
+  const CredentialsWidgetTextField({required this.controller, required this.onChanged, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: EdgeInsets.only(top: 10, bottom: 20),
+            child: MarkdownText(  // not wrapped in SelectionArea anymore, as it would prevent clicking in SelectMirrorDialog
+"""Without signing in, Simtropolis limits downloads to a maximum of 20 files per day.
+To avoid this limit:
+- Sign in to Simtropolis.
+- Generate a personal authentication token at https://community.simtropolis.com/sc4pac/my-token/
+- Paste the token here.""",
+            ),
+          ),
+        ),
+        ListenableBuilder(
+          listenable: World.world,
+          builder: (context, child) {
+            return TextField(
+              decoration: const InputDecoration(
+                icon: Icon(Symbols.key),
+                labelText: "Token",
+                hintText: "Paste your Simtropolis token here",
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+              ),
+              style: const TextStyle(fontFamily: "monospace"),
+              controller: controller,
+              maxLines: null,
+              onChanged: onChanged,
+            );
+          },
         ),
       ],
     );

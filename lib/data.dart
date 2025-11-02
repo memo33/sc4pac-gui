@@ -121,10 +121,11 @@ class ChoiceRemoveConflictingPackages {
 class DownloadFailedSelectMirror {
   final String url;
   final Map<String, dynamic> reason;  // ApiError
+  final bool promptForSimtropolisToken;
   final List<String> choices;
   final String token;
   final Map<String, dynamic> responses;
-  const DownloadFailedSelectMirror(this.url, this.reason, this.choices, this.token, this.responses);
+  const DownloadFailedSelectMirror(this.url, this.reason, this.choices, this.token, this.responses, {this.promptForSimtropolisToken = false});
   factory DownloadFailedSelectMirror.fromJson(Map<String, dynamic> json) => _$DownloadFailedSelectMirrorFromJson(json);
 }
 

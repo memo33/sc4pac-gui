@@ -328,6 +328,25 @@ class World extends ChangeNotifier {
       }
     }
   }
+
+  Future<void> saveSimtropolisToken(String? simtropolisToken, {void Function()? beforeSave, void Function()? afterSave}) {
+    return World.world.client.getSettings()
+      .then<void>((settingsData) async {
+        if (simtropolisToken == null) {
+          settingsData = settingsData.withAuth(auth: []);
+        } else {
+          final tokenBytes = await AuthItem.obfuscateToken(simtropolisToken);
+          settingsData = settingsData.withAuth(
+            auth: [AuthItem(domain: AuthItem.simtropolisDomain, tokenBytes: tokenBytes)],
+          );
+        }
+        if (beforeSave != null) beforeSave();
+        World.world.updateSettings(settingsData);
+        await World.world.client.setSettings(settingsData);
+        if (afterSave != null) afterSave();
+      })
+      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", e.toString())));
+  }
 }
 
 class Profile {
@@ -969,7 +988,11 @@ class UpdateProcess extends ChangeNotifier {
                   self._ws.sink.add(jsonEncode({
                     '\$type': '/prompt/response',
                     'token': msg.token,
-                    'body': {'retry': respData.retry, 'localMirror': respData.localMirror},
+                    'body': {
+                      'retry': respData.retry,
+                      'localMirror': respData.localMirror != null ? [respData.localMirror] : <String>[],
+                      'simtropolisToken': respData.simtropolisToken != null ? [respData.simtropolisToken] : <String>[],
+                    },
                   }));
                 }
               });

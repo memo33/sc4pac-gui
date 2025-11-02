@@ -11,6 +11,7 @@ import '../main.dart';
 import 'fragments.dart';
 import 'packagepage.dart' show PackagePage;
 import 'myplugins.dart' show ExportDialog;
+import 'settings.dart' show CredentialsWidgetTextField;
 
 class DashboardScreen extends StatefulWidget {
   final Dashboard dashboard;
@@ -170,7 +171,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
     );
   }
 
-  static Future<({bool retry, List<String> localMirror})?> showSelectMirrorDialog(DownloadFailedSelectMirror msg) {
+  static Future<SelectMirrorDialogRespData?> showSelectMirrorDialog(DownloadFailedSelectMirror msg) {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: true,
@@ -963,29 +964,41 @@ class _VariantChoiceDialogState extends State<VariantChoiceDialog> {
   }
 }
 
+typedef SelectMirrorDialogRespData = ({bool retry, String? localMirror, String? simtropolisToken});
 class SelectMirrorDialog extends StatefulWidget {
   final DownloadFailedSelectMirror msg;
-  final void Function(({bool retry, List<String> localMirror})) onSubmit;
+  final void Function(SelectMirrorDialogRespData) onSubmit;
   const SelectMirrorDialog(this.msg, {super.key, required this.onSubmit});
   @override
   State<SelectMirrorDialog> createState() => _SelectMirrorDialogState();
 }
 class _SelectMirrorDialogState extends State<SelectMirrorDialog> {
-  int _selection = 0;
+  late int _selection = widget.msg.promptForSimtropolisToken ? 2 : 0;
   final _controller = TextEditingController();
+  final _stTokenController = TextEditingController();
 
   @override
   void dispose() {
     _controller.dispose();
+    _stTokenController.dispose();
     super.dispose();
   }
 
-  void _onChanged(int? value) {
+  void _onRadioSelectionChanged(int? value) {
     if (value != null) setState(() => _selection = value);
+  }
+
+  void _submit(SelectMirrorDialogRespData respData) async {
+    if (respData.simtropolisToken != null) {
+      await World.world.saveSimtropolisToken(respData.simtropolisToken);
+    }
+    widget.onSubmit(respData);
   }
 
   @override
   Widget build(BuildContext context) {
+    final promptForSimtropolisToken = widget.msg.promptForSimtropolisToken;
+    final titleStyle = TextStyle(color: Theme.of(context).colorScheme.primary);
     return AlertDialog(
       icon: const Icon(Icons.warning_outlined),
       title: const Text('Download failed'),
@@ -996,26 +1009,41 @@ class _SelectMirrorDialogState extends State<SelectMirrorDialog> {
             const Text("This file could not be downloaded. Choose what to do."),
             TextWithCopyButton(copyableText: widget.msg.url, child: Hyperlink(url: widget.msg.url)),
             ApiErrorWidget(ApiError(widget.msg.reason)),
+            const SizedBox(height: 10),
+            const Divider(),
             RadioListTile<int>(
-              title: const Text("Retry the download"),
-              subtitle: Text(
+              title: Text("Retry the download", style: titleStyle),
+              subtitle: const Text(
                 "This may resolve the problem in case the issue is not persistent.",
-                style: TextStyle(color: Theme.of(context).hintColor),
+                // style: TextStyle(color: Theme.of(context).hintColor),
               ),
               value: 0,
               groupValue: _selection,
-              onChanged: _onChanged,
+              onChanged: _onRadioSelectionChanged,
             ),
+            if (promptForSimtropolisToken) const Divider(),
+            if (promptForSimtropolisToken)
+              RadioListTile<int>(
+                title: Text("Retry with new Simtropolis authentication token (recommended)", style: titleStyle),
+                subtitle: CredentialsWidgetTextField(
+                  controller: _stTokenController,
+                  onChanged: (_) => setState(() => {}),
+                ),
+                value: 2,
+                groupValue: _selection,
+                onChanged: _onRadioSelectionChanged,
+              ),
+            const Divider(),
             RadioListTile<int>(
-              title: const Text("Select a file from disk"),
+              title: Text("Select a file from disk", style: titleStyle),
               subtitle: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  const Text(
                     "If you have obtained a local copy of the file, use it instead of downloading the file."
                     " This is useful if you can still download the file normally in your web browser, possibly from a different URL if the file has been rehosted elsewhere."
                     " Though, this is only practical if just a small number of files is affected.",
-                    style: TextStyle(color: Theme.of(context).hintColor),
+                    // style: TextStyle(color: Theme.of(context).hintColor),
                   ),
                   const SizedBox(height: 10),
                   FolderPathEdit(
@@ -1030,7 +1058,7 @@ class _SelectMirrorDialogState extends State<SelectMirrorDialog> {
               ),
               value: 1,
               groupValue: _selection,
-              onChanged: _onChanged,
+              onChanged: _onRadioSelectionChanged,
             ),
           ],
         ),
@@ -1042,16 +1070,18 @@ class _SelectMirrorDialogState extends State<SelectMirrorDialog> {
             OutlinedButton(
               onPressed:
                 _selection == 0
-                ? () => widget.onSubmit((retry: true, localMirror: <String>[]))
+                ? () => _submit((retry: true, localMirror: null, simtropolisToken: null))
                 : _selection == 1 && _controller.text.isNotEmpty
-                ? () => widget.onSubmit((retry: true, localMirror: [_controller.text]))
+                ? () => _submit((retry: true, localMirror: _controller.text, simtropolisToken: null))
+                : _selection == 2 && _stTokenController.text.isNotEmpty
+                ? () => _submit((retry: true, localMirror: null, simtropolisToken: _stTokenController.text.trim()))
                 : null,
               child: child,
             ),
           child: const Text("OK"),
         ),
         OutlinedButton(
-          onPressed: () => widget.onSubmit((retry: false, localMirror: <String>[])),
+          onPressed: () => _submit((retry: false, localMirror: null, simtropolisToken: null)),
           child: const Text("Cancel"),
         ),
       ],
