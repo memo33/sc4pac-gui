@@ -5,7 +5,7 @@
 ### Installing
 #### Prerequisites
 
-- Java 11+ ([Windows]/[macOS]/[Linux], see [Adoptium] for details)
+- Java 17+ ([Windows]/[macOS]/[Linux], see [Adoptium] for details)
 - Mono ([macOS](https://www.mono-project.com/docs/getting-started/install/)/[Linux](https://repology.org/project/mono/versions), not needed on Windows)
 
 [Adoptium]: https://adoptium.net/installation/
@@ -20,6 +20,3 @@ Simply extract the ZIP file. You can remove the previous application files in fa
 #### Uninstalling
 
 Uninstall all packages for each profile, remove the cache folder, remove the profiles configuration folder, and remove the install directory containing the application files.
-
-#### Checksums (SHA-256)
-

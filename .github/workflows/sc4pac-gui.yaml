@@ -128,12 +128,9 @@ jobs:
           cp -p scripts/launch-GUI-web* dist-web/
           (cd dist-web && zip -r ../sc4pac-gui-webapp-crossplatform.zip .)
 
-      - name: Compute checksums
+      - name: Prefill release description
         run: |
           cp scripts/release-body.part.txt release-body.txt
-          echo '```' >> release-body.txt
-          sha256sum sc4pac-gui-*.zip >> release-body.txt
-          echo '```' >> release-body.txt
 
       - name: Release
         uses: softprops/action-gh-release@v2
