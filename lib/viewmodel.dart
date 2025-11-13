@@ -777,7 +777,7 @@ enum UpdateMode { backgroundFetch, interactiveUpdate, backgroundDeleteAll }
 
 class UpdateProcess extends ChangeNotifier {
   late final WebSocketChannel _ws;
-  late final Stream<Map<String, dynamic>> _stream;
+  late final Stream<dynamic> _stream;
 
   UpdatePlan? plan;
   final downloads = <String>[];
@@ -816,16 +816,14 @@ class UpdateProcess extends ChangeNotifier {
       );
       _stream = _ws.ready
         .then((_) => true, onError: (e) {
-          err = ApiError.unexpected('Failed to open websocket. Make sure the local sc4pac server is running.', e.toString());
+          err = ApiError.unexpected('Failed to open websocket. The local sc4pac server might not be running.', e.toString());
           status = UpdateStatus.finishedWithError;
           return false;
         })
         .asStream()
         .asyncExpand((isReady) => !isReady
-          ? const Stream<Map<String, dynamic>>.empty()
-          : _ws.stream.map((data) {
-            return jsonDecode(data as String) as Map<String, dynamic>;  // TODO jsonDecode could be run on a background thread
-          })
+          ? const Stream<String>.empty()
+          : _ws.stream
         );
       _ws.sink.done.then((_) {
         if (status == UpdateStatus.running) {
@@ -836,6 +834,13 @@ class UpdateProcess extends ChangeNotifier {
             World.world.server?.stderrBuffer.takeRight(5).join("\n") ?? "",
           );
         }
+      }, onError: (e) {
+        status = UpdateStatus.finishedWithError;
+        // should not usually happen
+        err ??= ApiError.unexpected(
+          "Websocket closed unexpectedly. This seems to be a bug in the sc4pac GUI. Please report it.",
+          "$e",
+        );
       });
       _stream.listen(handleMessage);
     }
@@ -1052,7 +1057,31 @@ class UpdateProcess extends ChangeNotifier {
       },
     });
 
-  void handleMessage(Map<String, dynamic> data) {
+  void handleMessage(dynamic rawData) {
+    final Map<String, dynamic> data;
+    if (rawData is String) {
+      try {
+        final dynamic jsonData = jsonDecode(rawData);  // TODO jsonDecode could be run on a background thread
+        if (jsonData is Map<String, dynamic>) {
+          data = jsonData;
+        } else {
+          debugPrint('Unexpected message format: $rawData');
+          err = ApiError.unexpected("Unexpected error: unknown API message format", rawData);
+          cancel();
+          return;
+        }
+      } catch (e) {
+        err = ApiError.unexpected("Failed to decode API message as JSON", rawData);
+        cancel();
+        return;
+      }
+    } else {
+      debugPrint('Unexpected message format: $rawData');
+      err = ApiError.unexpected("Unexpected error: unknown API message format", '$rawData');
+      cancel();
+      return;
+    }
+
     if (data case {'\$type': String type}) {
       if (_extractionFinishedOnNextMsg) {
         extractionFinished = true;
