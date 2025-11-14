@@ -495,7 +495,7 @@ class ExportDialogTextField extends StatelessWidget {
         data = ExportData.fromJson(jsonDecode(text) as Map<String, dynamic>);
       }
     } catch (e) {
-      errMsg = e.toString();
+      errMsg = "$e";
     }
     handleError(errMsg);
     return data;

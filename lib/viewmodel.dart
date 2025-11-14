@@ -219,7 +219,7 @@ class World extends ChangeNotifier {
         await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme, args.profilesDir)
           .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
             """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
-            e.toString(),
+            "$e",
           )));
       }
     }
@@ -345,7 +345,7 @@ class World extends ChangeNotifier {
         await World.world.client.setSettings(settingsData);
         if (afterSave != null) afterSave();
       })
-      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", e.toString())));
+      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", "$e")));
   }
 }
 
@@ -598,8 +598,8 @@ class Dashboard extends ChangeNotifier {
       pendingUpdates: pendingUpdates,
       mode: mode,
       onFinished: (status) {
-        onUpdateFinished(status);
-        completer.complete(status);
+        try { onUpdateFinished(status); }
+        finally { completer.complete(status); }
       },
       importedVariantSelections: mode != UpdateMode.interactiveUpdate ? [] : importedVariantSelections,  // variant selections are not useful for background process
     );
@@ -816,8 +816,8 @@ class UpdateProcess extends ChangeNotifier {
       );
       _stream = _ws.ready
         .then((_) => true, onError: (e) {
-          err = ApiError.unexpected('Failed to open websocket. The local sc4pac server might not be running.', e.toString());
           status = UpdateStatus.finishedWithError;
+          err = ApiError.unexpected('Failed to open websocket. The local sc4pac server might not be running.', "$e");
           return false;
         })
         .asStream()
