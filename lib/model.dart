@@ -81,6 +81,7 @@ class Sc4pacServer {
   ApiError? launchError;
   RingBuffer<String> stderrBuffer = RingBuffer(capacity: 256);
 
+  static const int _javaTooOld = 54;
   static const int _javaNotFound = 55;
   static const int _portOccupied = 56;
   static const unknownLaunchErrorDetail =
@@ -135,16 +136,21 @@ class Sc4pacServer {
             stderrBuffer.add(line);
             stdout.writeln("[SERVER:err] $line");
           }
-          if (!completer.isCompleted && lines.contains("UnsupportedClassVersion")) {
+          if (!completer.isCompleted && lines.contains("UnsupportedClassVersion")) {  // the CLI cannot provide a _javaTooOld exit code for this
             launchError ??= ApiError.unexpected(
               "The Java version installed on your system is too old. Install a more recent version of Java.",
-              lines,
+              "",
             );
           }
         });
         process.exitCode.then((exitCode) async {
           status = ServerStatus.terminated;
-          if (exitCode == _javaNotFound) {
+          if (exitCode == _javaTooOld) {
+            launchError ??= ApiError.unexpected(
+              "The Java version installed on your system might be too old. Try to install a more recent version of Java.",
+              "",
+            );
+          } else if (exitCode == _javaNotFound) {
             const msg = "Java could not be found. Please install a Java Runtime Environment and make sure it is added to your PATH environment variable during the installation.";
             stdout.writeln(msg);
             launchError ??= ApiError.unexpected(msg, "");
