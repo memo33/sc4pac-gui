@@ -598,8 +598,16 @@ class Dashboard extends ChangeNotifier {
       pendingUpdates: pendingUpdates,
       mode: mode,
       onFinished: (status) {
-        try { onUpdateFinished(status); }
-        finally { completer.complete(status); }
+        try {
+          onUpdateFinished(status);
+        } finally {
+          if (completer.isCompleted) {
+            // this could happen e.g. when pressing cancel twice in quick succession
+            debugPrint("Unexpected duplicate completion of update process (status=$status)");
+          } else {
+            completer.complete(status);
+          }
+        }
       },
       importedVariantSelections: mode != UpdateMode.interactiveUpdate ? [] : importedVariantSelections,  // variant selections are not useful for background process
     );
@@ -795,9 +803,11 @@ class UpdateProcess extends ChangeNotifier {
   UpdateStatus _status = UpdateStatus.running;
   UpdateStatus get status => _status;
   set status(UpdateStatus status) {
-    _status = status;
-    if (_status != UpdateStatus.running) {
-      onFinished(_status);
+    if (status != _status) {
+      _status = status;
+      if (_status != UpdateStatus.running) {
+        onFinished(_status);
+      }
     }
   }
 
