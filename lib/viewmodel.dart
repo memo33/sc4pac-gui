@@ -49,6 +49,7 @@ class World extends ChangeNotifier {
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
   late Future<List<ProfilesListItem>> conflictingPluginsPathFuture;
   SettingsData? settings;
+  SettingsData get settingsOrDefault => settings ?? SettingsData.defaultSettings;
   int navRailIndex = 0;
   // themeMode
   // other gui settings
@@ -822,7 +823,7 @@ class UpdateProcess extends ChangeNotifier {
       _ws = World.world.client.update(
         profileId: World.world.profile.id,
         simtropolisToken: stAuth?.token,
-        refreshChannels: World.world.settings?.refreshChannels ?? false,
+        refreshChannels: World.world.settingsOrDefault.refreshChannels,
       );
       _stream = _ws.ready
         .then((_) => true, onError: (e) {

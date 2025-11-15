@@ -298,7 +298,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void initState() {
-    if (widget.dashboard.updateProcess == null) {  // initial check for metadata updates without installing anything
+    if (widget.dashboard.updateProcess == null && World.world.settingsOrDefault.checkUpdatesAtLaunch) {  // initial check for metadata updates without installing anything
       widget.dashboard.startUpdateProcess(UpdateMode.backgroundFetch);
     }
     super.initState();

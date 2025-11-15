@@ -9,6 +9,14 @@ class SettingsScreen extends StatelessWidget {
 
   const SettingsScreen({super.key});
 
+  void _saveSettings(SettingsData? settings) {
+    if (settings != null) {
+      World.world.updateSettings(settings);
+      World.world.client.setSettings(settings)
+        .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to save settings.", "$e")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -41,19 +49,23 @@ class SettingsScreen extends StatelessWidget {
         ListenableBuilder(
           listenable: World.world,
           builder: (context, child) => SwitchListTile(
+            title: const Text("Check for updates at every start"),
+            subtitle: const Text(
+              "If enabled (recommended), the app automatically checks for pending package updates when the app is launched."
+            ),
+            value: World.world.settingsOrDefault.checkUpdatesAtLaunch,
+            onChanged: (checkUpdatesAtLaunch) => _saveSettings(World.world.settings?.withCheckUpdatesAtLaunch(checkUpdatesAtLaunch)),
+          ),
+        ),
+        ListenableBuilder(
+          listenable: World.world,
+          builder: (context, child) => SwitchListTile(
             title: const Text("Refresh channels before every Update"),
             subtitle: const Text(
               "If disabled (recommended), the channels are cached for half an hour to improve efficiency."
             ),
-            value: World.world.settings?.refreshChannels ?? false,
-            onChanged: (refreshChannels) {
-              final settings2 = World.world.settings?.withRefreshChannels(refreshChannels);
-              if (settings2 != null) {
-                World.world.updateSettings(settings2);
-                World.world.client.setSettings(settings2)
-                  .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to save settings.", e.toString())));
-              }
-            },
+            value: World.world.settingsOrDefault.refreshChannels,
+            onChanged: (refreshChannels) => _saveSettings(World.world.settings?.withRefreshChannels(refreshChannels)),
           ),
         ),
         AboutListTile(
