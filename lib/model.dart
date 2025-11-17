@@ -106,18 +106,17 @@ class Sc4pacServer {
       status = ServerStatus.terminated;
       completer.complete(false);
     } else {
-      _process = Process.start(
-        cliExePath,
-        [
-          "server",
-          "--port", port.toString(),
-          if (profilesDir != null)
-            ...["--profiles-dir", profilesDir!],
-          "--auto-shutdown",
-          "--startup-tag", readyTag,
-          "--client-secret-stdin",
-        ],
-      )
+      final serverArgs = [
+        "server",
+        "--port", port.toString(),
+        if (profilesDir != null)
+          ...["--profiles-dir", profilesDir!],
+        "--auto-shutdown",
+        "--startup-tag", readyTag,
+        "--client-secret-stdin",
+      ];
+      stdout.writeln("Launching sc4pac server: $cliExePath ${serverArgs.join(" ")}");
+      _process = Process.start(cliExePath, serverArgs)
       ..then((process) {
         stdout.writeln("Sc4pac server PID: ${process.pid}");
         process.stdin.writeln(clientSecret);
