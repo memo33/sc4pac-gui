@@ -357,12 +357,29 @@ class AuthItem {
 class SettingsData {
   final List<AuthItem> auth;
   final bool refreshChannels;
-  SettingsData({this.auth = const [], this.refreshChannels = false});
+  final bool checkUpdatesAtLaunch;
+  SettingsData({this.auth = const [], this.refreshChannels = false, this.checkUpdatesAtLaunch = true});
+  static final defaultSettings = SettingsData();
   SettingsData withAuth({List<AuthItem>? auth}) {
-    return auth == null ? this : SettingsData(auth: auth, refreshChannels: refreshChannels);
+    return auth == null ? this : SettingsData(
+      auth: auth,
+      refreshChannels: refreshChannels,
+      checkUpdatesAtLaunch: checkUpdatesAtLaunch,
+    );
   }
   SettingsData withRefreshChannels(bool refreshChannels) {
-    return refreshChannels == this.refreshChannels ? this : SettingsData(auth: auth, refreshChannels: refreshChannels);
+    return refreshChannels == this.refreshChannels ? this : SettingsData(
+      auth: auth,
+      refreshChannels: refreshChannels,
+      checkUpdatesAtLaunch: checkUpdatesAtLaunch,
+    );
+  }
+  SettingsData withCheckUpdatesAtLaunch(bool checkUpdatesAtLaunch) {
+    return checkUpdatesAtLaunch == this.checkUpdatesAtLaunch ? this : SettingsData(
+      auth: auth,
+      refreshChannels: refreshChannels,
+      checkUpdatesAtLaunch: checkUpdatesAtLaunch,
+    );
   }
   factory SettingsData.fromJson(Map<String, dynamic> json) => _$SettingsDataFromJson(json);
   Map<String, dynamic> toJson() => _$SettingsDataToJson(this);

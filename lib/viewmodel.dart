@@ -49,6 +49,7 @@ class World extends ChangeNotifier {
   late Future<({bool initialized, Map<String, dynamic> data})> readProfileFuture;
   late Future<List<ProfilesListItem>> conflictingPluginsPathFuture;
   SettingsData? settings;
+  SettingsData get settingsOrDefault => settings ?? SettingsData.defaultSettings;
   int navRailIndex = 0;
   // themeMode
   // other gui settings
@@ -219,7 +220,7 @@ class World extends ChangeNotifier {
         await protocol_handler.registerProtocolScheme(CommandlineArgs.sc4pacProtocolScheme, args.profilesDir)
           .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected(
             """Failed to register "${CommandlineArgs.sc4pacProtocol}" URL scheme in Windows registry.""",
-            e.toString(),
+            "$e",
           )));
       }
     }
@@ -345,7 +346,7 @@ class World extends ChangeNotifier {
         await World.world.client.setSettings(settingsData);
         if (afterSave != null) afterSave();
       })
-      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", e.toString())));
+      .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", "$e")));
   }
 }
 
@@ -598,8 +599,16 @@ class Dashboard extends ChangeNotifier {
       pendingUpdates: pendingUpdates,
       mode: mode,
       onFinished: (status) {
-        onUpdateFinished(status);
-        completer.complete(status);
+        try {
+          onUpdateFinished(status);
+        } finally {
+          if (completer.isCompleted) {
+            // this could happen e.g. when pressing cancel twice in quick succession
+            debugPrint("Unexpected duplicate completion of update process (status=$status)");
+          } else {
+            completer.complete(status);
+          }
+        }
       },
       importedVariantSelections: mode != UpdateMode.interactiveUpdate ? [] : importedVariantSelections,  // variant selections are not useful for background process
     );
@@ -795,9 +804,11 @@ class UpdateProcess extends ChangeNotifier {
   UpdateStatus _status = UpdateStatus.running;
   UpdateStatus get status => _status;
   set status(UpdateStatus status) {
-    _status = status;
-    if (_status != UpdateStatus.running) {
-      onFinished(_status);
+    if (status != _status) {
+      _status = status;
+      if (_status != UpdateStatus.running) {
+        onFinished(_status);
+      }
     }
   }
 
@@ -812,12 +823,12 @@ class UpdateProcess extends ChangeNotifier {
       _ws = World.world.client.update(
         profileId: World.world.profile.id,
         simtropolisToken: stAuth?.token,
-        refreshChannels: World.world.settings?.refreshChannels ?? false,
+        refreshChannels: World.world.settingsOrDefault.refreshChannels,
       );
       _stream = _ws.ready
         .then((_) => true, onError: (e) {
-          err = ApiError.unexpected('Failed to open websocket. The local sc4pac server might not be running.', e.toString());
           status = UpdateStatus.finishedWithError;
+          err = ApiError.unexpected('Failed to open websocket. The local sc4pac server might not be running.', "$e");
           return false;
         })
         .asStream()

@@ -298,7 +298,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void initState() {
-    if (widget.dashboard.updateProcess == null) {  // initial check for metadata updates without installing anything
+    if (widget.dashboard.updateProcess == null && World.world.settingsOrDefault.checkUpdatesAtLaunch) {  // initial check for metadata updates without installing anything
       widget.dashboard.startUpdateProcess(UpdateMode.backgroundFetch);
     }
     super.initState();
@@ -1690,7 +1690,8 @@ class PendingUpdatesWidget extends StatelessWidget {
   const PendingUpdatesWidget(this.dashboard, {super.key});
   @override
   Widget build(BuildContext context) {
-    final bool runningInBackground = dashboard.updateProcess?.status == UpdateStatus.running && dashboard.updateProcess?.mode == UpdateMode.backgroundFetch;
+    final proc = dashboard.updateProcess;
+    final bool runningInBackground = proc?.status == UpdateStatus.running && proc?.mode == UpdateMode.backgroundFetch;
     final int? count = runningInBackground ? null : dashboard.pendingUpdates.getCount();
 
     return ExpansionTile(
@@ -1701,7 +1702,15 @@ class PendingUpdatesWidget extends StatelessWidget {
       // expandedAlignment: Alignment.centerLeft,
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
       children: runningInBackground
-        ? const [Padding(padding: listViewTextPadding, child: Text("Checking for updates..."))]
+        ? [OverflowBar(
+            children: [
+              const Padding(padding: listViewTextPadding, child: Text("Checking for updates...")),
+              Padding(padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 20), child: OutlinedButton(
+                child: const Text("Cancel"),
+                onPressed: () => proc?.cancel(),
+              )),
+            ],
+          )]
         : count == 0
         ? const [Padding(padding: listViewTextPadding, child: Text("No pending updates"))]
         : dashboard.pendingUpdates.sortedEntries().mapIndexed((index, entry) =>
