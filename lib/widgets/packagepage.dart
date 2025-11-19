@@ -216,11 +216,11 @@ class _PackagePageState extends State<PackagePage> {
                   ],
                   if (installedVersion != null ||
                     // Allow Redownload in case of extraction failures.
-                    // (TODO These conditions are not fully correct, since Clear-Log will hide the buttons, while even for newly starred packages the buttons will appear.)
+                    // (TODO These conditions are not fully correct, since Clear-Log will hide the buttons)
                     dashboard.pendingUpdates.isPending(widget.module) && (
                       dashboard.updateProcess?.status == UpdateStatus.finishedWithError ||
                       dashboard.updateProcess?.status == UpdateStatus.canceled
-                    )
+                    ) && dashboard.updateProcess?.plan?.toInstall.any((item) => item.package == moduleStr) == true
                   ) MenuAnchor(
                       builder: (BuildContext context, MenuController controller, Widget? child) {
                         return IconButton(
