@@ -749,25 +749,30 @@ This detects `.sc4pac` subfolders that are either missing or outdated and not ne
             icon: _running ? const CircularProgressIcon() : const Icon(Symbols.troubleshoot),
             label: const Text(RepairWidget.scanAndRepairButtonLabel),
             onPressed: _running ? null : () async {
-              setState(() {
-                _running = true;
-                World.world.profile.dashboard.repairProcessResult = null;
-              });
-              final repairPlanMsg = await World.world.client.repairScan(profileId: World.world.profile.id);
-              setState(() => _running = false);
-              if (repairPlanMsg.isUpToDate()) {
-                setState(() => World.world.profile.dashboard.repairProcessResult = "Looking good. No issues found in your Plugins folder.");
-              } else {
-                final confirmed = await showRepairPlan(repairPlanMsg);
-                if (confirmed == true) {
-                  setState(() { _running = true; });
-                  final upToDate = await World.world.client.repair(repairPlanMsg, profileId: World.world.profile.id);
-                  setState(() {
-                    _running = false;
-                    World.world.profile.dashboard.repairProcessResult = upToDate ? "All detected issues have been fixed." : "Press `${DashboardScreen.updateAllButtonLabel}` to complete the repair.";
-                    World.world.profile.dashboard.pendingUpdates.onRepairComplete(repairPlanMsg.plan.incompletePackages.map(BareModule.parse));
-                  });
+              try {
+                setState(() {
+                  _running = true;
+                  World.world.profile.dashboard.repairProcessResult = null;
+                });
+                final repairPlanMsg = await World.world.client.repairScan(profileId: World.world.profile.id);
+                setState(() => _running = false);
+                if (repairPlanMsg.isUpToDate()) {
+                  setState(() => World.world.profile.dashboard.repairProcessResult = "Looking good. No issues found in your Plugins folder.");
+                } else {
+                  final confirmed = await showRepairPlan(repairPlanMsg);
+                  if (confirmed == true) {
+                    setState(() { _running = true; });
+                    final upToDate = await World.world.client.repair(repairPlanMsg, profileId: World.world.profile.id);
+                    setState(() {
+                      _running = false;
+                      World.world.profile.dashboard.repairProcessResult = upToDate ? "All detected issues have been fixed." : "Press `${DashboardScreen.updateAllButtonLabel}` to complete the repair.";
+                      World.world.profile.dashboard.pendingUpdates.onRepairComplete(repairPlanMsg.plan.incompletePackages.map(BareModule.parse));
+                    });
+                  }
                 }
+              } catch (e) {
+                setState(() => _running = false);
+                ApiErrorWidget.dialog(e);
               }
             },
           ),
