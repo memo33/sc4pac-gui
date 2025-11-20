@@ -357,9 +357,47 @@ class Profile {
   late Dashboard dashboard = Dashboard(this);
   late FindPackages findPackages = FindPackages();
   late MyPlugins myPlugins = MyPlugins();
-  late Future<ChannelStatsAll> channelStatsFuture = World.world.client.channelsStats(profileId: id)
-      ..then<void>((_) {}, onError: ApiErrorWidget.dialog);
-  Profile(this.id, this.name);
+  late ChannelStatsState channelStats;
+  Profile(this.id, this.name) {
+    fetchChannelStats(hideError: true);  // errors on initialization will be displayed later during Update All or in FindPackages screen
+  }
+
+  void fetchChannelStats({bool hideError = false}) {
+    final Future<ChannelStatsAll> future = World.world.client.channelsStats(profileId: id);
+    channelStats = ChannelStatsState(future);
+    future.then<void>((_) {}, onError: (Object e) {
+      if (!hideError) {
+        if (!identical(channelStats.future, future)) {
+          debugPrint("Suppressed channel stats future error: $e");  // there is already a new future in progress
+        } else {
+          ApiErrorWidget.dialog(e);
+        }
+      }
+    });
+  }
+}
+
+class ChannelStatsState extends ChangeNotifier {
+  final Future<ChannelStatsAll> future;
+  ChannelStatsAll? data;
+  Object? error;
+  bool? timedout;
+  ChannelStatsState(this.future) {
+    future.then<void>((_) => {})
+        .timeout(const Duration(seconds: 15), onTimeout: () {
+          timedout = true;
+          notifyListeners();
+        }).ignore();
+    future.then((result) {
+      data = result;
+      timedout = false;
+      notifyListeners();
+    }, onError: (e) {
+      error = e;
+      timedout = false;
+      notifyListeners();
+    });
+  }
 }
 
 enum FindPkgToggleFilter { includeInstalled, includeResources }
@@ -423,7 +461,7 @@ class FindPackages extends ChangeNotifier {
       final Future<List<String>> notCategoriesFuture =
         !includeResourcesFilterEnabled() || selectedToggleFilters.contains(FindPkgToggleFilter.includeResources)
           ? Future.value(const [])
-          : World.world.profile.channelStatsFuture.then((stats) =>
+          : World.world.profile.channelStats.future.then((stats) =>
               stats.combined.categories
                 .map((c) => c.category)
                 .where((c) => c.startsWith("10") || c.startsWith("11")).toList()  // 100-props-textures, 110-resources
@@ -600,7 +638,7 @@ class Dashboard extends ChangeNotifier {
       mode: mode,
       onFinished: (status) {
         try {
-          onUpdateFinished(status);
+          onUpdateFinished(status, mode);
         } finally {
           if (completer.isCompleted) {
             // this could happen e.g. when pressing cancel twice in quick succession
@@ -620,16 +658,14 @@ class Dashboard extends ChangeNotifier {
     notifyListeners();
   }
 
-  void onUpdateFinished(UpdateStatus status) {
+  void onUpdateFinished(UpdateStatus status, UpdateMode mode) {
     if (status == UpdateStatus.finished) {  // no error/no canceled
       pendingUpdates.clear();
       importedVariantSelections.clear();
       repairProcessResult = null;
     }
     fetchVariants();
-    profile.channelStatsFuture = World.world.client.channelsStats(profileId: profile.id)
-        // we ignore errors here (e.g. channel server down) as they will be displayed in the Update process log
-        ..then<void>((_) {}, onError: (_) {});
+    profile.fetchChannelStats(hideError: true);  // we ignore errors here (e.g. channel server down) as they will be displayed in the Update process log or in FindPackages screen
     notifyListeners();
   }
 
@@ -637,8 +673,7 @@ class Dashboard extends ChangeNotifier {
     return World.world.client.channelsSet(urls, profileId: World.world.profile.id).then(
       (_) {
         channelUrls = World.world.client.channelsList(profileId: profile.id);
-        profile.channelStatsFuture = World.world.client.channelsStats(profileId: World.world.profile.id)
-            ..then<void>((_) {}, onError: ApiErrorWidget.dialog);
+        profile.fetchChannelStats();
       },
       onError: (e) => throw ApiError.unexpected("Malformed channel URLs", "Something does not look like a proper URL."),
     );

@@ -37,9 +37,10 @@ class ApiError {
     }
   }
   factory ApiError.unexpected(String title, String detail) => ApiError({'\$type': '/error/unexpected', 'title': title, 'detail': detail});
-  factory ApiError.from(Object err) {
-    return err is ApiError ? err : ApiError.unexpected('Unexpected error', err.toString());
+  factory ApiError.from(Object err, {String? title}) {
+    return err is ApiError ? err : ApiError.unexpected(title ?? 'Unexpected error', err.toString());
   }
+  @override String toString() => "$title\n$detail";
 }
 
 class RingBuffer<A> extends Iterable<A> {

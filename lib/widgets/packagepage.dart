@@ -478,7 +478,7 @@ class PackageNotFoundMessage extends StatelessWidget {
       // If openPackages was called with debugChannelUrls, determine
       // which of the channels are not known yet to show a meaningful error.
       future: debugChannelUrls?.isNotEmpty == true
-        ? World.world.profile.channelStatsFuture
+        ? World.world.profile.channelStats.future
           .then((stats) => debugChannelUrls!.difference(stats.channels.map((item) => item.url).toSet()))
         : Future.value({}),
       builder: (context, snapshot) {

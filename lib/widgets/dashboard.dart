@@ -245,7 +245,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                     childrenPadding: const EdgeInsets.only(left: 72, right: 20),
                     children: [
                       FutureBuilder(
-                        future: World.world.profile.channelStatsFuture,
+                        future: World.world.profile.channelStats.future,
                         builder: (context, snapshot) {
                           final channel1 = snapshot.data?.channels.firstWhereOrNull((c) => dll.packageMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
                           final channel2 = snapshot.data?.channels.firstWhereOrNull((c) => dll.assetMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
