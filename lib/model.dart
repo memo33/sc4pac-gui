@@ -82,6 +82,7 @@ class Sc4pacServer {
   ApiError? launchError;
   RingBuffer<String> stderrBuffer = RingBuffer(capacity: 256);
 
+  static const String minJavaVersion = "17";
   static const int _javaTooOld = 54;
   static const int _javaNotFound = 55;
   static const int _portOccupied = 56;
@@ -138,7 +139,7 @@ class Sc4pacServer {
           }
           if (!completer.isCompleted && lines.contains("UnsupportedClassVersion")) {  // the CLI cannot provide a _javaTooOld exit code for this
             launchError ??= ApiError.unexpected(
-              "The Java version installed on your system is too old. Install a more recent version of Java.",
+              "Unsupported Java version detected. Uninstall Java, restart your computer, and install the latest version of Java available. (The minimum version required for the program to work is Java $minJavaVersion)",
               "",
             );
           }
@@ -147,7 +148,7 @@ class Sc4pacServer {
           status = ServerStatus.terminated;
           if (exitCode == _javaTooOld) {
             launchError ??= ApiError.unexpected(
-              "The Java version installed on your system might be too old. Try to install a more recent version of Java.",
+              "The Java version installed on your system might be too old. Uninstall Java, restart your computer, and install the latest version of Java available. (The minimum version required for the program to work is Java $minJavaVersion)",
               "",
             );
           } else if (exitCode == _javaNotFound) {
