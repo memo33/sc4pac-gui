@@ -25,7 +25,11 @@ class PackagePage extends StatefulWidget {
   static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage, Set<String>? debugChannelUrls}) {
     return Navigator.push(
       context,
-      MaterialPageRoute(barrierDismissible: true, builder: (context1) => PackagePage(module, debugChannelUrls: debugChannelUrls)),
+      MaterialPageRoute(
+        barrierDismissible: true,
+        settings: const RouteSettings(name: World.packageRoute),
+        builder: (context1) => PackagePage(module, debugChannelUrls: debugChannelUrls),
+      ),
     ).then((_) => refreshPreviousPage());
   }
 
@@ -120,7 +124,7 @@ class _PackagePageState extends State<PackagePage> {
         ),
         actions: [
           IconButton(icon: const Icon(Icons.close), tooltip: 'Close all', onPressed: () {
-            Navigator.popUntil(context, ModalRoute.withName('/'));
+            Navigator.popUntil(context, (route) => route.settings.name != World.packageRoute);
           }),
         ],
       ),

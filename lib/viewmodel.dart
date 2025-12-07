@@ -276,10 +276,11 @@ class World extends ChangeNotifier {
 
   static const _clientSecretUrlParameter = 'launch-token';
   static const _supportedSc4pacUrlParameters = {'pkg', 'channel', 'externalIdProvider', 'externalId'};
+  static const packageRoute = '/package';
 
   // routing
   void _handleSc4pacUrl(Uri url) async {
-    if (url.path == "/package") {
+    if (url.path == packageRoute) {
       List<BareModule> packages = url.queryParametersAll['pkg']?.map(BareModule.parse).toList() ?? [];
       Set<String> channelUrls = url.queryParametersAll['channel']?.toSet() ?? {};
       String? externalIdProvider = url.queryParameters['externalIdProvider'];
