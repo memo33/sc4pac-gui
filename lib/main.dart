@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as P;
 import 'package:localstorage/localstorage.dart' show initLocalStorage;
+import 'package:multi_split_view/multi_split_view.dart';
 import 'dart:io' as io;
 import 'model.dart';
 import 'data.dart';
@@ -641,14 +642,28 @@ class _NavRailState extends State<NavRail> {
             ),
             // const VerticalDivider(thickness: 1, width: 1),
             // This is the main content.
-            Expanded(
-              child: switch (widget.world.navRailIndex) {
-                0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
-                1 => FindPackagesScreen(widget.world.profile.findPackages),
-                2 => MyPluginsScreen(widget.world.profile.myPlugins),
-                _ => const SettingsScreen(),
-              },
-            ),
+            Expanded(child: MultiSplitViewTheme(
+              data: MultiSplitViewThemeData(
+                dividerThickness: 24,
+              ),
+              child: MultiSplitView(
+                antiAliasingWorkaround: false,
+                dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) =>
+                  Icon(
+                    Icons.drag_indicator,
+                    color: highlighted ? Theme.of(context).primaryColor : null,
+                  ),
+                initialAreas: [
+                  Area(builder: (context, area) => switch (widget.world.navRailIndex) {
+                    0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
+                    1 => FindPackagesScreen(widget.world.profile.findPackages),
+                    2 => MyPluginsScreen(widget.world.profile.myPlugins),
+                    _ => const SettingsScreen(),
+                  }),
+                  Area(builder: (context, area) => Draft.blue()),
+                ],
+              ),
+            )),
           ],
         ),
       ),
