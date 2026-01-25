@@ -18,10 +18,14 @@ echo "Installing icon:"
 mkdir -p ~/.local/share/icons/
 cp -p --force --verbose ./sc4pac-gui.png ~/.local/share/icons/
 
-echo "Registing new sc4pac MIME type."
+echo "Registering new sc4pac MIME type."
 xdg-mime default sc4pac-gui.desktop x-scheme-handler/sc4pac
 
 echo 'Installation complete. You can test it by running:'
 echo ''
 echo '  xdg-open "sc4pac:///package?pkg=memo:submenus-dll"'
+echo ''
+echo 'or:'
+echo ''
+echo '  sc4pac-gui'
 echo ''
