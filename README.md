@@ -8,25 +8,12 @@ Mod Manager for SimCity 4. Graphical UI for the package manager [sc4pac](https:/
 The sc4pac GUI is built using Flutter, a cross-platform app framework.
 Flutter can be compiled for multiple platforms, such as
 
-- `web` (which runs as web-app in the browser) and
+- `web` (which runs as cross-platform web-app in the browser) and
 - `linux`/`windows`/`macos` (which are native desktop apps).
-
-The current goal is to first only build a functional GUI for `web`, which is fully cross-platform,
-and later on build desktop apps for supported platforms.
 
 The sc4pac GUI app interacts in a client-server fashion with sc4pac, the core package manager functionality,
 using the [sc4pac API](https://memo33.github.io/sc4pac/#/api).
 The API server is bundled with the sc4pac CLI.
-
-
-## State management
-
-- persistent storage: As the `web` frontend does not support persistent storage,
-all state that should outlive the running GUI process needs to be written to disk via the API.
-
-- app state: main state that is kept while the app is running. The GUI builds its widgets from the app state.
-
-- ephemeral state: short-lived state implemented by `StatefulWidget`s, such as animations or button states.
 
 
 ## Repository layout
@@ -63,20 +50,27 @@ vendor/
    (cd ./vendor/sc4pac-tools/ && sbt assembly)          # compiles sc4pac-cli.jar
    ```
 
-3. **Always:** Start the sc4pac server and keep it running. Open a new terminal afterwards.
-   (If you are in a Windows terminal, create a copy of `sc4pac.bat` and edit it to adjust the path to the jar file:
-   `./vendor/sc4pac-tools/target/scala-<x.y.z>/sc4pac-cli.jar`)
-   ```sh
-   ./vendor/sc4pac-tools/sc4pac server --profiles-dir profiles
-   ```
+3. **Once:** If you are on Windows, create a copy of `sc4pac.bat` at `./vendor/sc4pac-tools/sc4pac.bat` and edit it to adjust the path to the jar file:
+   `./vendor/sc4pac-tools/target/scala-<x.y.z>/stripped/sc4pac-cli.jar`.
+
 
 4. **Always:** Finally, build and run the GUI.
    ```sh
-   ./vendor/flutter/bin/flutter run --dart-define=port=51515 --dart-entrypoint-args --launch-server=false    # you can directly choose a device with `--device-id <id>`
+   ./vendor/flutter/bin/flutter run --dart-entrypoint-args --sc4pac-cli-dir,./vendor/sc4pac-tools/  # you can directly choose a device with `--device-id <id>` e.g. linux, windows, chrome
    ```
 
 Flutter supports hot-reloading, so that changes of the source code become visible in an instant.
 Useful Flutter command keys: `R` hot restart, `r` hot reload (unsupported for web), `h` help, `q` quit.
+
+
+## State management
+
+- persistent storage: As the `web` frontend does not support persistent storage,
+all state that should outlive the running GUI process needs to be written to disk via the API.
+
+- app state: main state that is kept while the app is running. The GUI builds its widgets from the app state.
+
+- ephemeral state: short-lived state implemented by `StatefulWidget`s, such as animations or button states.
 
 
 ## Roadmap
