@@ -17,6 +17,7 @@ import 'widgets/findpackages.dart';
 import 'widgets/myplugins.dart';
 import 'widgets/settings.dart';
 import 'widgets/fragments.dart';
+import 'widgets/packagepage.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();  // important if PackageInfo.fromPlatform called before runApp (otherwise causes null check error in release build on web)
@@ -95,6 +96,7 @@ class CommandlineArgs {
 
 class NavigationService {
   static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static GlobalKey<NavigatorState> packageStackPanelNavigatorKey = GlobalKey<NavigatorState>();
 }
 
 class Sc4pacGuiApp extends StatelessWidget {
@@ -595,9 +597,21 @@ class NavRail extends StatefulWidget {
   State<NavRail> createState() => _NavRailState();
 }
 class _NavRailState extends State<NavRail> {
+  final _contentsKeys = [GlobalKey(), GlobalKey(), GlobalKey(), GlobalKey()];  // for some reason, ValueKey(navRailIndex) would trigger rebuilds of `contents`, so we use GlobalKey instead
+  final _splitViewKeys = [GlobalKey(), GlobalKey(), GlobalKey(), GlobalKey()];
 
   @override
   Widget build(BuildContext context) {
+    final Widget contents = KeyedSubtree(  // to preserve widget state when switching on/off the split view
+      key: _contentsKeys[widget.world.navRailIndex],
+      child: switch (widget.world.navRailIndex) {
+        0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
+        1 => FindPackagesScreen(widget.world.profile.findPackages),
+        2 => MyPluginsScreen(widget.world.profile.myPlugins),
+        _ => const SettingsScreen(),
+      },
+    );
+    final bool isSplit = MediaQuery.sizeOf(context).width >= 1200;
     return Scaffold(
       body: SafeArea(
         child: Row(
@@ -642,30 +656,43 @@ class _NavRailState extends State<NavRail> {
             ),
             // const VerticalDivider(thickness: 1, width: 1),
             // This is the main content.
-            Expanded(child: MultiSplitViewTheme(
-              data: MultiSplitViewThemeData(
-                dividerThickness: 24,
+            Expanded(child: !isSplit
+              ? contents
+              : MultiSplitViewTheme(
+                data: MultiSplitViewThemeData(
+                  dividerThickness: 24,
+                ),
+                child: MultiSplitView(
+                  key: _splitViewKeys[widget.world.navRailIndex],  // for some reason, this is necessary to rebuild MultiSplitView when navRailIndex changes
+                  antiAliasingWorkaround: false,
+                  dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) =>
+                    Icon(
+                      Icons.drag_indicator,
+                      color: highlighted ? Theme.of(context).primaryColor : null,
+                    ),
+                  initialAreas: [
+                    Area(builder: (context, area) => contents),
+                    Area(builder: (context, area) => PackageStackPanel()),
+                  ],
+                ),
               ),
-              child: MultiSplitView(
-                antiAliasingWorkaround: false,
-                dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) =>
-                  Icon(
-                    Icons.drag_indicator,
-                    color: highlighted ? Theme.of(context).primaryColor : null,
-                  ),
-                initialAreas: [
-                  Area(builder: (context, area) => switch (widget.world.navRailIndex) {
-                    0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
-                    1 => FindPackagesScreen(widget.world.profile.findPackages),
-                    2 => MyPluginsScreen(widget.world.profile.myPlugins),
-                    _ => const SettingsScreen(),
-                  }),
-                  Area(builder: (context, area) => Draft.blue()),
-                ],
-              ),
-            )),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class PackageStackPanel extends StatelessWidget {
+  const PackageStackPanel({super.key});
+  @override Widget build(BuildContext context) {
+    return Navigator(
+      key: NavigationService.packageStackPanelNavigatorKey,
+      onGenerateRoute: (RouteSettings settings) => MaterialPageRoute(
+        barrierDismissible: false,
+        // settings: const RouteSettings(name: ???),
+        builder: (context1) => Center(child: Text("sc4pac Mod Manager")),  // TODO
       ),
     );
   }

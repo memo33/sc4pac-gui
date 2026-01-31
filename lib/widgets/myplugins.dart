@@ -70,9 +70,11 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   }
 
   void _refresh() {
-    setState(() {
-      _search();
-    });
+    if (mounted) {  // TODO add this kind of check wherever refreshParent calls to
+      setState(() {
+        _search();
+      });
+    }
   }
 
   static const double _toolBarHeight = 100.0;

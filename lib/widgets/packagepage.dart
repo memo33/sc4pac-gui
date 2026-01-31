@@ -24,11 +24,13 @@ class PackagePage extends StatefulWidget {
 
   static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage, Set<String>? debugChannelUrls}) {
     return Navigator.push(
-      context,
-      MaterialPageRoute(
+      NavigationService.packageStackPanelNavigatorKey.currentContext ?? context,  // TODO improve; also use global context when a dialog is open
+      PageRouteBuilder(  // no animation
         barrierDismissible: true,
         settings: const RouteSettings(name: World.packageRoute),
-        builder: (context1) => PackagePage(module, debugChannelUrls: debugChannelUrls),
+        pageBuilder: (context1, animation, secondaryAnimation) => PackagePage(module, debugChannelUrls: debugChannelUrls),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
+        transitionDuration: Duration.zero,
       ),
     ).then((_) => refreshPreviousPage());
   }
