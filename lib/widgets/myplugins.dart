@@ -105,8 +105,8 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       stats: snapshot.data,  // possibly null
                       initialCategory: widget.myPlugins.selectedCategory,
                       menuHeight: max(300,
-                        MediaQuery.of(context).size.height - _toolBarHeight
-                        - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                        MediaQuery.sizeOf(context).height - _toolBarHeight
+                        - MediaQuery.viewInsetsOf(context).bottom,  // e.g. on-screen keyboard height
                       ),
                       onSelected: (s) {
                         setState(() {

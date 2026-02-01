@@ -77,8 +77,8 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       },
                       initialCategory: widget.findPackages.selectedCategory,
                       menuHeight: max(300,
-                        MediaQuery.of(context).size.height - _toolBarHeight
-                        - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                        MediaQuery.sizeOf(context).height - _toolBarHeight
+                        - MediaQuery.viewInsetsOf(context).bottom,  // e.g. on-screen keyboard height
                       ),
                       onSelected: (s) {
                         widget.findPackages.updateCategory(s);
