@@ -633,54 +633,56 @@ class NavRail extends StatefulWidget {
 class _NavRailState extends State<NavRail> {
   @override
   Widget build(BuildContext context) {
-    final navRailBar = LayoutBuilder(builder: (context, constraint) =>
-      SingleChildScrollView(child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: constraint.maxHeight),
-        child: IntrinsicHeight(child:
-          NavigationRail(
-            selectedIndex: World.world.navRailIndex,
-            onDestinationSelected: (int index) {
-              setState(() {
-                World.world.navRailIndex = index;
-              });
-            },
-            labelType: NavigationRailLabelType.all,
-            destinations: <NavigationRailDestination>[
-              NavigationRailDestination(
-                icon: DashboardIcon(World.world.profile.dashboard, selected: false),
-                selectedIcon: DashboardIcon(World.world.profile.dashboard, selected: true),
-                label: const Text('Dashboard'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.travel_explore_outlined),
-                selectedIcon: Icon(Icons.travel_explore),
-                label: Text('Find Packages'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.widgets_outlined),
-                selectedIcon: Icon(Icons.widgets),
-                label: Text('My Plugins'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: Text('Settings'),
-              ),
-            ],
-          )
-        )
-      ))
-    );
-    return Row(
-      children: <Widget>[
-        navRailBar,
-        Expanded(child: switch (World.world.navRailIndex) {
-          0 => DashboardScreen(World.world.profile.dashboard, World.world.client),
-          1 => FindPackagesScreen(World.world.profile.findPackages),
-          2 => MyPluginsScreen(World.world.profile.myPlugins),
-          _ => const SettingsScreen(),
-        }),
-      ],
+    return ListenableBuilder(
+      listenable: World.world,  // only for navRailIndex
+      builder: (context, child) => Row(
+        children: <Widget>[
+          LayoutBuilder(builder: (context, constraint) =>
+            SingleChildScrollView(child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraint.maxHeight),
+              child: IntrinsicHeight(child:
+                NavigationRail(
+                  selectedIndex: World.world.navRailIndex,
+                  onDestinationSelected: (int index) {
+                    setState(() {
+                      World.world.navRailIndex = index;
+                    });
+                  },
+                  labelType: NavigationRailLabelType.all,
+                  destinations: <NavigationRailDestination>[
+                    NavigationRailDestination(
+                      icon: DashboardIcon(World.world.profile.dashboard, selected: false),
+                      selectedIcon: DashboardIcon(World.world.profile.dashboard, selected: true),
+                      label: const Text('Dashboard'),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.travel_explore_outlined),
+                      selectedIcon: Icon(Icons.travel_explore),
+                      label: Text('Find Packages'),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.widgets_outlined),
+                      selectedIcon: Icon(Icons.widgets),
+                      label: Text('My Plugins'),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      selectedIcon: Icon(Icons.settings),
+                      label: Text('Settings'),
+                    ),
+                  ],
+                )
+              )
+            ))
+          ),
+          Expanded(child: switch (World.world.navRailIndex) {
+            0 => DashboardScreen(World.world.profile.dashboard, World.world.client),
+            1 => FindPackagesScreen(World.world.profile.findPackages),
+            2 => MyPluginsScreen(World.world.profile.myPlugins),
+            _ => const SettingsScreen(),
+          }),
+        ],
+      ),
     );
   }
 }
