@@ -610,11 +610,25 @@ class _MainContentsState extends State<MainContents> {
               ),
               child: MultiSplitView(
                 antiAliasingWorkaround: false,
-                dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) =>
-                  Icon(
-                    Icons.drag_indicator,
-                    color: highlighted ? Theme.of(context).primaryColor : null,
-                  ),
+                dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: switch(Expanded(child: VerticalDivider(thickness: 1, width: 1, color: Theme.of(context).colorScheme.outlineVariant))) {
+                    final div => [
+                      div,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: AnimatedCrossFade(
+                          duration: const Duration(milliseconds: 300),
+                          firstChild: Icon(Icons.drag_indicator, color: Theme.of(context).primaryColorDark),
+                          secondChild: Icon(Icons.drag_indicator, color: Theme.of(context).colorScheme.outlineVariant),
+                          crossFadeState: highlighted ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                          firstCurve: Curves.easeIn,
+                        ),
+                      ),
+                      div,
+                    ]
+                  },
+                ),
                 initialAreas: [
                   Area(builder: (context, area) => navRail),
                   Area(builder: (context, area) => const PackageStackPanel()),
