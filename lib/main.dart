@@ -164,7 +164,7 @@ class Sc4pacGuiApp extends StatelessWidget {
       home: ListenableBuilder(
         listenable: _world,
         builder: (context, child) => switch (_world.initPhase) {
-          InitPhase.initialized => NavRail(_world),
+          InitPhase.initialized => const MainContents(),
           InitPhase.connecting => ConnectionScreen(_world),
           InitPhase.loadingProfiles => LoadingProfilesScreen(_world),
           InitPhase.initializingProfile => ReadingProfileScreen(_world),
@@ -589,97 +589,98 @@ class FolderPathEdit extends StatelessWidget {
   }
 }
 
-class NavRail extends StatefulWidget {
-  final World world;
-  const NavRail(this.world, {super.key});
-
-  @override
-  State<NavRail> createState() => _NavRailState();
+class MainContents extends StatefulWidget {
+  const MainContents({super.key});
+  @override State<MainContents> createState() => _MainContentsState();
 }
-class _NavRailState extends State<NavRail> {
-  final _contentsKeys = [GlobalKey(), GlobalKey(), GlobalKey(), GlobalKey()];  // for some reason, ValueKey(navRailIndex) would trigger rebuilds of `contents`, so we use GlobalKey instead
-  final _splitViewKeys = [GlobalKey(), GlobalKey(), GlobalKey(), GlobalKey()];
+class _MainContentsState extends State<MainContents> {
+  final _navRailKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
-    final Widget contents = KeyedSubtree(  // to preserve widget state when switching on/off the split view
-      key: _contentsKeys[widget.world.navRailIndex],
-      child: switch (widget.world.navRailIndex) {
-        0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
-        1 => FindPackagesScreen(widget.world.profile.findPackages),
-        2 => MyPluginsScreen(widget.world.profile.myPlugins),
-        _ => const SettingsScreen(),
-      },
-    );
     final bool isSplit = MediaQuery.sizeOf(context).width >= 1200;
+    final navRail = NavRail(key: _navRailKey);  // key is needed to preserve list state when switching on/off the split view
     return Scaffold(
       body: SafeArea(
-        child: Row(
-          children: <Widget>[
-            LayoutBuilder(builder: (context, constraint) =>
-              SingleChildScrollView(child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraint.maxHeight),
-                child: IntrinsicHeight(child:
-                  NavigationRail(
-                    selectedIndex: widget.world.navRailIndex,
-                    onDestinationSelected: (int index) {
-                      setState(() {
-                        widget.world.navRailIndex = index;
-                      });
-                    },
-                    labelType: NavigationRailLabelType.all,  // or selected,
-                    destinations: <NavigationRailDestination>[
-                      NavigationRailDestination(
-                        icon: DashboardIcon(widget.world.profile.dashboard, selected: false),
-                        selectedIcon: DashboardIcon(widget.world.profile.dashboard, selected: true),
-                        label: const Text('Dashboard'),
-                      ),
-                      const NavigationRailDestination(
-                        icon: Icon(Icons.travel_explore_outlined),
-                        selectedIcon: Icon(Icons.travel_explore),
-                        label: Text('Find Packages'),
-                      ),
-                      const NavigationRailDestination(
-                        icon: Icon(Icons.widgets_outlined),
-                        selectedIcon: Icon(Icons.widgets),
-                        label: Text('My Plugins'),
-                      ),
-                      const NavigationRailDestination(
-                        icon: Icon(Icons.settings_outlined),
-                        selectedIcon: Icon(Icons.settings),
-                        label: Text('Settings'),
-                      ),
-                    ],
-                  )
-                )
-              ))
-            ),
-            // const VerticalDivider(thickness: 1, width: 1),
-            // This is the main content.
-            Expanded(child: !isSplit
-              ? contents
-              : MultiSplitViewTheme(
-                data: MultiSplitViewThemeData(
-                  dividerThickness: 24,
-                ),
-                child: MultiSplitView(
-                  key: _splitViewKeys[widget.world.navRailIndex],  // for some reason, this is necessary to rebuild MultiSplitView when navRailIndex changes
-                  antiAliasingWorkaround: false,
-                  dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) =>
-                    Icon(
-                      Icons.drag_indicator,
-                      color: highlighted ? Theme.of(context).primaryColor : null,
-                    ),
-                  initialAreas: [
-                    Area(builder: (context, area) => contents),
-                    Area(builder: (context, area) => PackageStackPanel()),
-                  ],
-                ),
+        child: !isSplit
+          ? navRail
+          : MultiSplitViewTheme(
+              data: MultiSplitViewThemeData(
+                dividerThickness: 24,
+              ),
+              child: MultiSplitView(
+                antiAliasingWorkaround: false,
+                dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) =>
+                  Icon(
+                    Icons.drag_indicator,
+                    color: highlighted ? Theme.of(context).primaryColor : null,
+                  ),
+                initialAreas: [
+                  Area(builder: (context, area) => navRail),
+                  Area(builder: (context, area) => const PackageStackPanel()),
+                ],
               ),
             ),
-          ],
-        ),
       ),
+    );
+  }
+}
+
+class NavRail extends StatefulWidget {
+  const NavRail({super.key});
+  @override State<NavRail> createState() => _NavRailState();
+}
+class _NavRailState extends State<NavRail> {
+  @override
+  Widget build(BuildContext context) {
+    final navRailBar = LayoutBuilder(builder: (context, constraint) =>
+      SingleChildScrollView(child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraint.maxHeight),
+        child: IntrinsicHeight(child:
+          NavigationRail(
+            selectedIndex: World.world.navRailIndex,
+            onDestinationSelected: (int index) {
+              setState(() {
+                World.world.navRailIndex = index;
+              });
+            },
+            labelType: NavigationRailLabelType.all,
+            destinations: <NavigationRailDestination>[
+              NavigationRailDestination(
+                icon: DashboardIcon(World.world.profile.dashboard, selected: false),
+                selectedIcon: DashboardIcon(World.world.profile.dashboard, selected: true),
+                label: const Text('Dashboard'),
+              ),
+              const NavigationRailDestination(
+                icon: Icon(Icons.travel_explore_outlined),
+                selectedIcon: Icon(Icons.travel_explore),
+                label: Text('Find Packages'),
+              ),
+              const NavigationRailDestination(
+                icon: Icon(Icons.widgets_outlined),
+                selectedIcon: Icon(Icons.widgets),
+                label: Text('My Plugins'),
+              ),
+              const NavigationRailDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: Text('Settings'),
+              ),
+            ],
+          )
+        )
+      ))
+    );
+    return Row(
+      children: <Widget>[
+        navRailBar,
+        Expanded(child: switch (World.world.navRailIndex) {
+          0 => DashboardScreen(World.world.profile.dashboard, World.world.client),
+          1 => FindPackagesScreen(World.world.profile.findPackages),
+          2 => MyPluginsScreen(World.world.profile.myPlugins),
+          _ => const SettingsScreen(),
+        }),
+      ],
     );
   }
 }
@@ -692,7 +693,7 @@ class PackageStackPanel extends StatelessWidget {
       onGenerateRoute: (RouteSettings settings) => MaterialPageRoute(
         barrierDismissible: false,
         // settings: const RouteSettings(name: ???),
-        builder: (context1) => Center(child: Text("sc4pac Mod Manager")),  // TODO
+        builder: (context1) => const Center(child: Text("sc4pac Mod Manager")),  // TODO
       ),
     );
   }
