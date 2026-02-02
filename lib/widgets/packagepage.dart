@@ -31,6 +31,7 @@ class PackagePage extends StatefulWidget {
         pageBuilder: (context1, animation, secondaryAnimation) => PackagePage(module, debugChannelUrls: debugChannelUrls),
         transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
         transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
       ),
     ).then((_) => refreshPreviousPage());
   }
