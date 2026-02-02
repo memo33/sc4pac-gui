@@ -626,15 +626,12 @@ class _MainContentsState extends State<MainContents> {
   }
 }
 
-class NavRail extends StatefulWidget {
+class NavRail extends StatelessWidget {
   const NavRail({super.key});
-  @override State<NavRail> createState() => _NavRailState();
-}
-class _NavRailState extends State<NavRail> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: World.world,  // only for navRailIndex
+      listenable: World.world.navRail,
       builder: (context, child) => Row(
         children: <Widget>[
           LayoutBuilder(builder: (context, constraint) =>
@@ -642,11 +639,9 @@ class _NavRailState extends State<NavRail> {
               constraints: BoxConstraints(minHeight: constraint.maxHeight),
               child: IntrinsicHeight(child:
                 NavigationRail(
-                  selectedIndex: World.world.navRailIndex,
+                  selectedIndex: World.world.navRail.index,
                   onDestinationSelected: (int index) {
-                    setState(() {
-                      World.world.navRailIndex = index;
-                    });
+                    World.world.navRail.index = index;
                   },
                   labelType: NavigationRailLabelType.all,
                   destinations: <NavigationRailDestination>[
@@ -675,7 +670,7 @@ class _NavRailState extends State<NavRail> {
               )
             ))
           ),
-          Expanded(child: switch (World.world.navRailIndex) {
+          Expanded(child: switch (World.world.navRail.index) {
             0 => DashboardScreen(World.world.profile.dashboard, World.world.client),
             1 => FindPackagesScreen(World.world.profile.findPackages),
             2 => MyPluginsScreen(World.world.profile.myPlugins),

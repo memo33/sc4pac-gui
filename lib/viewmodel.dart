@@ -50,7 +50,7 @@ class World extends ChangeNotifier {
   late Future<List<ProfilesListItem>> conflictingPluginsPathFuture;
   SettingsData? settings;
   SettingsData get settingsOrDefault => settings ?? SettingsData.defaultSettings;
-  int navRailIndex = 0;
+  final NavRailState navRail = NavRailState();
   // themeMode
   // other gui settings
 
@@ -321,7 +321,7 @@ class World extends ChangeNotifier {
       } else {  // multiple packages are opened in FindPackages screen
         // TODO ensure channel is known before searching for externalIds
         profile.findPackages.updateCustomFilter((packages: packages, externalIds: externalIds, debugChannelUrls: channelUrls));
-        navRailIndex = 1;  // switch to FindPackages
+        navRail.index = 1;  // switch to FindPackages
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
           Navigator.popUntil(context, ModalRoute.withName('/'));  // close potential package pages
@@ -353,6 +353,15 @@ class World extends ChangeNotifier {
       })
       .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", "$e")));
   }
+}
+
+class NavRailState extends ChangeNotifier {
+  int _index = 0;
+  set index(int idx) {
+    _index = idx;
+    notifyListeners();
+  }
+  int get index => _index;
 }
 
 class Profile {
