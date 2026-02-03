@@ -595,6 +595,7 @@ class MainContents extends StatefulWidget {
 }
 class _MainContentsState extends State<MainContents> {
   final _navRailKey = GlobalKey();
+  static const double dividerHandleBuffer = 5;
 
   @override
   Widget build(BuildContext context) {
@@ -606,31 +607,21 @@ class _MainContentsState extends State<MainContents> {
           ? navRail
           : MultiSplitViewTheme(
               data: MultiSplitViewThemeData(
-                dividerThickness: 24,
+                dividerThickness: 1,
+                dividerHandleBuffer: dividerHandleBuffer,
+                dividerPainter: DividerPainters.background(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  // highlightedColor: Theme.of(context).primaryColorDark,  // too distracting
+                  // animationDuration: Duration(milliseconds: 400),
+                ),
               ),
               child: MultiSplitView(
                 antiAliasingWorkaround: false,
-                dividerBuilder: (axis, index, resizable, dragging, highlighted, themeData) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: switch(Expanded(child: VerticalDivider(thickness: 1, width: 1, color: Theme.of(context).colorScheme.outlineVariant))) {
-                    final div => [
-                      div,
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: AnimatedCrossFade(
-                          duration: const Duration(milliseconds: 300),
-                          firstChild: Icon(Icons.drag_indicator, color: Theme.of(context).primaryColorDark),
-                          secondChild: Icon(Icons.drag_indicator, color: Theme.of(context).colorScheme.outlineVariant),
-                          crossFadeState: highlighted ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-                          firstCurve: Curves.easeIn,
-                        ),
-                      ),
-                      div,
-                    ]
-                  },
-                ),
                 initialAreas: [
-                  Area(builder: (context, area) => navRail),
+                  Area(builder: (context, area) => ScrollbarTheme(
+                      data: const ScrollbarThemeData(crossAxisMargin: dividerHandleBuffer + 3),
+                      child: navRail,
+                    )),
                   Area(builder: (context, area) => const PackageStackPanel()),
                 ],
               ),
