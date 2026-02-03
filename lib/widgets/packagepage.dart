@@ -23,8 +23,15 @@ class PackagePage extends StatefulWidget {
   State<PackagePage> createState() => _PackagePageState();
 
   static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage, Set<String>? debugChannelUrls}) {
+    BuildContext? c = NavigationService.navigatorKey.currentContext;  // (should never be null)
+    if (c != null && !Navigator.canPop(c)) {  // there is no dialog or fullscreen package page shown
+      BuildContext? c2 = NavigationService.packageStackPanelNavigatorKey.currentContext;
+      if (c2 != null && c2.mounted) {  // split-view package stack is available, so use it
+        c = c2;
+      }
+    }
     return Navigator.push(
-      NavigationService.packageStackPanelNavigatorKey.currentContext ?? context,  // TODO improve; also use global context when a dialog is open
+      c ?? context,  // TODO c should always be non-null, so context is unnecessary
       PageRouteBuilder(  // no animation
         barrierDismissible: true,
         settings: const RouteSettings(name: World.packageRoute),
