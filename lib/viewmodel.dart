@@ -742,6 +742,7 @@ class Dashboard extends ChangeNotifier {
 class PendingUpdates extends ChangeNotifier {
 
   final Map<BareModule, PendingUpdateStatus> _overwrites = {};  // these are used as overrides of package installation states in the UI
+  final Map<BareModule, bool> _overwriteToggleState = {};  // forces `explicit`=yes/no
   // Mark the explicit-install state for a package. If the star button is toggled twice, this removes the package from `pendingUpdates` again.
   void setPendingUpdate(BareModule pkg, PendingUpdateStatus status) {
     final previous = _overwrites[pkg];
@@ -762,6 +763,7 @@ class PendingUpdates extends ChangeNotifier {
   }
   void clear() {
     _overwrites.clear();
+    _overwriteToggleState.clear();
     notifyListeners();
   }
 
@@ -769,21 +771,25 @@ class PendingUpdates extends ChangeNotifier {
     setPendingUpdate(module, PendingUpdateStatus.reinstall);
   }
 
+  void _setToggleState(BareModule module, {required bool checked}) {
+    _overwriteToggleState[module] = checked;
+  }
+
   Future<void> onToggledStarButton(BareModule module, bool checked) {
+    World.world.profile.findPackages.enableResetCustomFilter = true;
+    World.world.profile.findPackages.addedAllInCustomFilter = false;
+    _setToggleState(module, checked: checked);
+    setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
     final task = checked ?
         World.world.client.add([module], profileId: World.world.profile.id) :
         World.world.client.remove([module], profileId: World.world.profile.id);
-    return task.then((_) {
-      World.world.profile.findPackages.enableResetCustomFilter = true;
-      World.world.profile.findPackages.addedAllInCustomFilter = false;
-      setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
-    }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+    return task.catchError(ApiErrorWidget.dialog);
   }
 
   Future<void> onReinstallButton(BareModule module, {required bool redownload}) {
     return World.world.client.reinstall([module], redownload: redownload, profileId: World.world.profile.id).then((_) {
       setPendingUpdate(module, PendingUpdateStatus.reinstall);
-    }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+    }, onError: ApiErrorWidget.dialog);
   }
 
   void onRepairComplete(Iterable<BareModule> modules) {
@@ -798,11 +804,13 @@ class PendingUpdates extends ChangeNotifier {
     await World.world.client.add(toAdd.map((item) => item.module).toList(), profileId: World.world.profile.id);
     for (final item in toRemove) {
       if (_shouldSetPendingUpdate(item, removed: reset ? true : false)) {
+        _setToggleState(item.module, checked: false);
         World.world.profile.dashboard.pendingUpdates.setPendingUpdate(item.module, PendingUpdateStatus.remove);
       }
     }
     for (final item in toAdd) {
       if (_shouldSetPendingUpdate(item, removed: reset ? false : true)) {
+        _setToggleState(item.module, checked: true);
         World.world.profile.dashboard.pendingUpdates.setPendingUpdate(item.module, PendingUpdateStatus.add);
       }
     }
@@ -826,6 +834,11 @@ class PendingUpdates extends ChangeNotifier {
     final elems = _overwrites.entries.toList();
     elems.sort((a, b) => BareModule.compareAlphabetically(a.key, b.key));
     return elems;
+  }
+
+  bool isToggleStateFlipped(BareModule module, {required bool checked}) {
+    final bool? b = _overwriteToggleState[module];
+    return b == null ? false : (b != checked);
   }
 }
 

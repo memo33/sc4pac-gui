@@ -216,7 +216,12 @@ class _PackagePageState extends State<PackagePage> {
                 if (images.isNotEmpty)
                   packageTableRow(null, ImageCarousel(images)),
                 packageTableRow(null, Row(children: [
-                  Expanded(child: AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),
+                  Expanded(child: StarIconButton(
+                    addedExplicitly,
+                    module: widget.module,
+                    afterToggled: _refresh,  // TODO maybe not needed anymore?
+                    iconOnly: false,
+                  )),
                   if (installedVersion != null) ...[
                     const SizedBox(width: 10),
                     AnimatedActionButton(
@@ -586,34 +591,6 @@ class DependenciesCard extends StatelessWidget {
             ),
           ),
         );
-  }
-}
-
-class AddPackageButton extends StatefulWidget {
-  final BareModule module;
-  final bool initialAddedExplicitly;
-  final void Function() refreshParent;
-  //bool isInstalled;
-  const AddPackageButton(this.module, this.initialAddedExplicitly, {required this.refreshParent, super.key});
-
-  @override
-  State<AddPackageButton> createState() => _AddPackageButtonState();
-}
-class _AddPackageButtonState extends State<AddPackageButton> {
-  late bool _addedExplicitly = widget.initialAddedExplicitly;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      icon: Icon(Symbols.star, fill: _addedExplicitly ? 1 : 0),
-      label: Text(_addedExplicitly ? "Added to Plugins explicitly" : "Add to Plugins explicitly"),
-      onPressed: () {
-        setState(() {
-          _addedExplicitly = !_addedExplicitly;
-          World.world.profile.dashboard.pendingUpdates.onToggledStarButton(widget.module, _addedExplicitly).then((_) => widget.refreshParent());
-        });
-      },
-    );
   }
 }
 

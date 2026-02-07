@@ -13,7 +13,7 @@ import 'package:flutter_markdown/flutter_markdown.dart' as fmd;
 import 'package:open_file/open_file.dart';
 import '../icomoon_icons.dart' show Icomoon;
 import '../model.dart';
-import '../viewmodel.dart' show PendingUpdateStatus, World;
+import '../viewmodel.dart' show PendingUpdateStatus, PendingUpdates, World;
 import 'packagepage.dart';
 import '../main.dart' show NavigationService;
 import '../data.dart' show ChannelStats, InstalledStatus;
@@ -508,25 +508,47 @@ class InstalledStatusIconDependency extends StatelessWidget {
   }
 }
 
-class StarIconButton extends StatefulWidget {
+class StarIconButton extends StatelessWidget {
   final bool initialCheckedValue;
-  final void Function(bool) onToggled;
-  const StarIconButton(this.initialCheckedValue, {required this.onToggled, super.key});
-  @override State<StarIconButton> createState() => _StarIconButtonState();
-}
-class _StarIconButtonState extends State<StarIconButton> {
-  late bool _checked = widget.initialCheckedValue;
-  @override Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(Symbols.star, fill: _checked ? 1 : 0),
-      color: _checked ? Theme.of(context).colorScheme.secondary : null,
-      tooltip: _checked ? "Remove from explicit Plugins" : "Add to Plugins explicitly",
-      onPressed: () {
-        setState(() {
-          _checked = !_checked;
-          widget.onToggled(_checked);  // finishes quickly, i.e. not awaiting async computation
-        });
+  final void Function()? afterToggled;
+  final BareModule module;
+  final bool iconOnly;
+  const StarIconButton(this.initialCheckedValue, {required this.afterToggled, required this.module, this.iconOnly = true, super.key});
+
+  Widget _buildDefault(BuildContext context, PendingUpdates pendingUpdates, {required bool isFlipped}) {
+    bool b = initialCheckedValue ^ isFlipped;
+    final VoidCallback onPressed = () async {
+      await pendingUpdates.onToggledStarButton(module, !b);
+      if (afterToggled != null) {
+        afterToggled!();
       }
+    };
+    final key = ValueKey((module, b));  // passing a key is important to avoid flicker on hover at rebuilds
+    final icon = Icon(Symbols.star, fill: b ? 1 : 0);
+    return iconOnly
+      ? IconButton(
+        key: key,
+        icon: icon,
+        color: b ? Theme.of(context).colorScheme.secondary : null,
+        tooltip: b ? "Remove from explicit Plugins" : "Add to Plugins explicitly",
+        onPressed: onPressed,
+      )
+      : FilledButton.icon(
+        key: key,
+        icon: icon,
+        label: Text(b ? "Added to Plugins explicitly" : "Add to Plugins explicitly"),
+        onPressed: onPressed,
+      );
+  }
+
+  @override Widget build(BuildContext context) {
+    final pendingUpdates = World.world.profile.dashboard.pendingUpdates;
+    return ListenableBuilder(
+      listenable: pendingUpdates,
+      child: _buildDefault(context, pendingUpdates, isFlipped: false),  // may avoid rebuilds of buttons that have not been toggled since last update
+      builder: (context, child) => pendingUpdates.isToggleStateFlipped(module, checked: initialCheckedValue)
+        ? _buildDefault(context, pendingUpdates, isFlipped: true)
+        : child!,
     );
   }
 }
@@ -585,10 +607,10 @@ class PackageTile extends StatelessWidget {
   final InstalledStatus? status;
   final PendingUpdateStatus? pendingStatus;
   final Set<String>? debugChannelUrls;
-  final void Function(bool)? onToggled;
+  final void Function()? afterToggled;
   final void Function() refreshParent;
   final VisualDensity? visualDensity;
-  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.onToggled, required this.refreshParent, this.visualDensity});
+  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.afterToggled, required this.refreshParent, this.visualDensity});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
@@ -635,8 +657,7 @@ class PackageTile extends StatelessWidget {
       trailing: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // passing a key is important to trigger redraw of button if index of list tile changes (e.g. due to filtering)
-          if (onToggled != null) StarIconButton(explicit, onToggled: onToggled!, key: ValueKey((module, explicit))),
+          if (afterToggled != null) StarIconButton(explicit, afterToggled: afterToggled!, module: module),
           Text((index+1).toString()),
         ],
       ),
