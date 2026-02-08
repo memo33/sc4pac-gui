@@ -476,7 +476,7 @@ class InstalledStatusIcon extends StatelessWidget {
     } else {  // status != null
       if (pendingStatus == PendingUpdateStatus.remove) {
         return _InstalledStatusIconMessage.uninstallPending;
-      } else if (status!.installed?.reinstall == true || pendingStatus == PendingUpdateStatus.reinstall) {
+      } else if (/*status!.installed?.reinstall == true ||*/ pendingStatus == PendingUpdateStatus.reinstall) {  // status.installed.reinstall is commented out so that icon refreshes after Update All
         return _InstalledStatusIconMessage.reinstallPending;
       } else if (status!.explicit && !isFlipped || !(status!.explicit) && isFlipped) {
         if (status!.installed == null) {
