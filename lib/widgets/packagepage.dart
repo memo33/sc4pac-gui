@@ -269,7 +269,10 @@ class _PackagePageState extends State<PackagePage> {
                       ],
                     ),
                 ])),
-                packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
+                packageTableRow(
+                  Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status, module: widget.module, listen: true)),
+                  Text(installDates),
+                ),
                 packageTableRow(const Text("Version"), SelectionArea(child: Text(switch (remote) {
                   {'version': String v} => installedVersion != null && installedVersion != v ? "$v (currently installed: $installedVersion)" : v,
                   _ => 'Unknown'

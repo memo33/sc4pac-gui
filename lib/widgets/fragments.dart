@@ -175,7 +175,7 @@ class PkgNameFragment extends StatelessWidget {
         ? TextButton.icon(
           onPressed: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
           label: text,
-          icon: status == null ? null : InstalledStatusIcon(status),
+          icon: status == null ? null : InstalledStatusIcon(status, module: module, listen: false),  // TODO listen here instead
           iconAlignment: IconAlignment.start,
           style: TextButton.styleFrom(padding: PkgNameFragment.padding),
         )
@@ -453,33 +453,75 @@ class PackageTileChip extends StatelessWidget {
   }
 }
 
+enum _InstalledStatusIconMessage {
+  notInstalled, installedAsDependency, installedExplicitly, updatePending, reinstallPending,
+}
 class InstalledStatusIcon extends StatelessWidget {
   final InstalledStatus? status;
-  const InstalledStatusIcon(this.status, {super.key});
+  final BareModule module;
+  final bool listen;
+  const InstalledStatusIcon(this.status, {required BareModule this.module, required this.listen, super.key});
+
+  static const List<String> _messages = [
+    "Not installed", "Installed as dependency", "Installed explicitly", "Update pending", "Reinstall pending",
+  ];
+
+  static _InstalledStatusIconMessage _categorize(InstalledStatus? status, {required bool isFlipped}) {
+    if (status == null) {
+      if (isFlipped) {
+        return _InstalledStatusIconMessage.updatePending;
+      } else {  // not explicit and not installed
+        return _InstalledStatusIconMessage.notInstalled;
+      }
+    } else {  // status != null
+      if (status!.installed?.reinstall == true) {
+        return _InstalledStatusIconMessage.reinstallPending;
+      } else if (status!.explicit && !isFlipped || !(status!.explicit) && isFlipped) {
+        if (status!.installed == null) {
+          return _InstalledStatusIconMessage.updatePending;
+        } else {
+          return _InstalledStatusIconMessage.installedExplicitly;
+        }
+      } else if (status!.installed != null) {  // installed, but not explicit
+        return _InstalledStatusIconMessage.installedAsDependency;
+      } else {  // not explicit and not installed
+        return _InstalledStatusIconMessage.notInstalled;
+      }
+    }
+  }
+
+  Widget _buildDefault(BuildContext context, {required bool isFlipped}) {
+    final _InstalledStatusIconMessage tooltip = _categorize(status, isFlipped: isFlipped);
+    Widget icon = switch(tooltip) {
+      _InstalledStatusIconMessage.notInstalled => const Icon(Icons.token_outlined),
+      _InstalledStatusIconMessage.installedAsDependency => InstalledStatusIconDependency(color: Theme.of(context).colorScheme.secondary),
+      _InstalledStatusIconMessage.installedExplicitly => InstalledStatusIconExplicit(color: Theme.of(context).colorScheme.secondary),
+      _InstalledStatusIconMessage.updatePending => Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary),
+      // _InstalledStatusIconMessage.uninstallPending => Icon(Symbols.auto_delete, color: Theme.of(context).colorScheme.secondary),
+      _InstalledStatusIconMessage.reinstallPending => Icon(Symbols.settings_backup_restore, color: Theme.of(context).colorScheme.secondary),
+    };
+    return Tooltip(message: _messages[tooltip.index], child: icon);
+  }
+
   @override
   Widget build(BuildContext context) {
-    String tooltip = "Not installed";
-    Widget? icon;
-    if (status != null) {
-      if (status!.installed?.reinstall == true) {
-        tooltip = "Reinstall pending";
-        icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
-      } else if (status!.explicit) {
-        if (status!.installed == null) {
-          tooltip = "Update pending";
-          icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
-        } else {
-          tooltip = "Installed explicitly";
-          icon = InstalledStatusIconExplicit(color: Theme.of(context).colorScheme.secondary);
-        }
-      } else if (status!.installed != null) {
-        tooltip = "Installed as dependency";
-        icon = InstalledStatusIconDependency(color: Theme.of(context).colorScheme.secondary);
-      } // else not explicit and not installed
+    final child = _buildDefault(context, isFlipped: false);
+    if (!listen) {
+      return child;
+    } else {
+      final pendingUpdates = World.world.profile.dashboard.pendingUpdates;
+      final initialCheckedValue = status?.explicit ?? false;
+      return ListenableBuilder(
+        listenable: pendingUpdates,
+        child: child,
+        builder: (context, child) => pendingUpdates.isToggleStateFlipped(module, checked: initialCheckedValue)
+          ? _buildDefault(context, isFlipped: true)
+          : child!,
+      );
     }
-    return Tooltip(message: tooltip, child: icon ?? const Icon(Icons.token_outlined));
   }
 }
+
 class InstalledStatusIconExplicit extends StatelessWidget {
   final Color? color;
   final Color? badgeColor;
@@ -627,7 +669,7 @@ class PackageTile extends StatelessWidget {
       children: tags,
     );
     return ListTile(
-      leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status),
+      leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status, module: module, listen: true),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
       subtitle: summary?.isEmpty == true && tagsWidget == null ? null : LayoutBuilder(builder: (context, constraints) {
         final summaryWidget = summary != null ? MarkdownText(summary!, refreshParent: refreshParent) : null;
