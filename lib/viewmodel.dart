@@ -830,6 +830,8 @@ class PendingUpdates extends ChangeNotifier {
 
   bool isPending(BareModule module) => _overwrites.containsKey(module);
 
+  PendingUpdateStatus? getPendingStatus(BareModule module) => _overwrites[module];
+
   List<MapEntry<BareModule, PendingUpdateStatus>> sortedEntries() {
     final elems = _overwrites.entries.toList();
     elems.sort((a, b) => BareModule.compareAlphabetically(a.key, b.key));

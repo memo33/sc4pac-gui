@@ -454,7 +454,7 @@ class PackageTileChip extends StatelessWidget {
 }
 
 enum _InstalledStatusIconMessage {
-  notInstalled, installedAsDependency, installedExplicitly, updatePending, reinstallPending,
+  notInstalled, installedAsDependency, installedExplicitly, updatePending, reinstallPending, uninstallPending,
 }
 class InstalledStatusIcon extends StatelessWidget {
   final InstalledStatus? status;
@@ -463,10 +463,10 @@ class InstalledStatusIcon extends StatelessWidget {
   const InstalledStatusIcon(this.status, {required BareModule this.module, required this.listen, super.key});
 
   static const List<String> _messages = [
-    "Not installed", "Installed as dependency", "Installed explicitly", "Update pending", "Reinstall pending",
+    "Not installed", "Installed as dependency", "Installed explicitly", "Update pending", "Reinstall pending", "Uninstall pending",
   ];
 
-  static _InstalledStatusIconMessage _categorize(InstalledStatus? status, {required bool isFlipped}) {
+  static _InstalledStatusIconMessage _categorize(InstalledStatus? status, {required bool isFlipped, required PendingUpdateStatus? pendingStatus}) {
     if (status == null) {
       if (isFlipped) {
         return _InstalledStatusIconMessage.updatePending;
@@ -474,7 +474,9 @@ class InstalledStatusIcon extends StatelessWidget {
         return _InstalledStatusIconMessage.notInstalled;
       }
     } else {  // status != null
-      if (status!.installed?.reinstall == true) {
+      if (pendingStatus == PendingUpdateStatus.remove) {
+        return _InstalledStatusIconMessage.uninstallPending;
+      } else if (status!.installed?.reinstall == true || pendingStatus == PendingUpdateStatus.reinstall) {
         return _InstalledStatusIconMessage.reinstallPending;
       } else if (status!.explicit && !isFlipped || !(status!.explicit) && isFlipped) {
         if (status!.installed == null) {
@@ -490,14 +492,14 @@ class InstalledStatusIcon extends StatelessWidget {
     }
   }
 
-  Widget _buildDefault(BuildContext context, {required bool isFlipped}) {
-    final _InstalledStatusIconMessage tooltip = _categorize(status, isFlipped: isFlipped);
+  Widget _buildDefault(BuildContext context, {required bool isFlipped, required PendingUpdateStatus? pendingStatus}) {
+    final _InstalledStatusIconMessage tooltip = _categorize(status, isFlipped: isFlipped, pendingStatus: pendingStatus);
     Widget icon = switch(tooltip) {
       _InstalledStatusIconMessage.notInstalled => const InstalledStatusIconOther(Icons.token_outlined, colored: false),
       _InstalledStatusIconMessage.installedAsDependency => const InstalledStatusIconDependency(colored: true),
       _InstalledStatusIconMessage.installedExplicitly => const InstalledStatusIconExplicit(colored: true),
       _InstalledStatusIconMessage.updatePending => const InstalledStatusIconOther(Symbols.deployed_code_history),
-      // _InstalledStatusIconMessage.uninstallPending => const InstalledStatusIconOther(Symbols.auto_delete),
+      _InstalledStatusIconMessage.uninstallPending => const InstalledStatusIconOther(Symbols.auto_delete),
       _InstalledStatusIconMessage.reinstallPending => const InstalledStatusIconOther(Symbols.settings_backup_restore),
     };
     return Tooltip(message: _messages[tooltip.index], child: icon);
@@ -505,7 +507,7 @@ class InstalledStatusIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = _buildDefault(context, isFlipped: false);
+    final child = _buildDefault(context, isFlipped: false, pendingStatus: null);
     if (!listen) {
       return child;
     } else {
@@ -514,9 +516,13 @@ class InstalledStatusIcon extends StatelessWidget {
       return ListenableBuilder(
         listenable: pendingUpdates,
         child: child,
-        builder: (context, child) => pendingUpdates.isToggleStateFlipped(module, checked: initialCheckedValue)
-          ? _buildDefault(context, isFlipped: true)
-          : child!,
+        builder: (context, child) =>
+          pendingUpdates.isToggleStateFlipped(module, checked: initialCheckedValue)
+          ? _buildDefault(context, isFlipped: true, pendingStatus: pendingUpdates.getPendingStatus(module))
+          : switch (pendingUpdates.getPendingStatus(module)) {
+            null => child!,
+            final pendingStatus => _buildDefault(context, isFlipped: false, pendingStatus: pendingStatus),
+          },
       );
     }
   }
