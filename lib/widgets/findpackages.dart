@@ -236,6 +236,7 @@ class CustomFilterBar extends StatelessWidget {
         ),
         switch (OutlinedButton.icon(
           icon: InstalledStatusIconExplicit(  // TODO try using Icon.blendMode with Flutter 3.27+ for correct background coloring on hover
+            colored: false,
             badgeScale: 1.1,
             fill: 0,
             child: Transform.rotate(angle: -2.3, child: const Icon(Symbols.replay)),

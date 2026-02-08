@@ -493,12 +493,12 @@ class InstalledStatusIcon extends StatelessWidget {
   Widget _buildDefault(BuildContext context, {required bool isFlipped}) {
     final _InstalledStatusIconMessage tooltip = _categorize(status, isFlipped: isFlipped);
     Widget icon = switch(tooltip) {
-      _InstalledStatusIconMessage.notInstalled => const Icon(Icons.token_outlined),
-      _InstalledStatusIconMessage.installedAsDependency => InstalledStatusIconDependency(color: Theme.of(context).colorScheme.secondary),
-      _InstalledStatusIconMessage.installedExplicitly => InstalledStatusIconExplicit(color: Theme.of(context).colorScheme.secondary),
-      _InstalledStatusIconMessage.updatePending => Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary),
-      // _InstalledStatusIconMessage.uninstallPending => Icon(Symbols.auto_delete, color: Theme.of(context).colorScheme.secondary),
-      _InstalledStatusIconMessage.reinstallPending => Icon(Symbols.settings_backup_restore, color: Theme.of(context).colorScheme.secondary),
+      _InstalledStatusIconMessage.notInstalled => const InstalledStatusIconOther(Icons.token_outlined, colored: false),
+      _InstalledStatusIconMessage.installedAsDependency => const InstalledStatusIconDependency(colored: true),
+      _InstalledStatusIconMessage.installedExplicitly => const InstalledStatusIconExplicit(colored: true),
+      _InstalledStatusIconMessage.updatePending => const InstalledStatusIconOther(Symbols.deployed_code_history),
+      // _InstalledStatusIconMessage.uninstallPending => const InstalledStatusIconOther(Symbols.auto_delete),
+      _InstalledStatusIconMessage.reinstallPending => const InstalledStatusIconOther(Symbols.settings_backup_restore),
     };
     return Tooltip(message: _messages[tooltip.index], child: icon);
   }
@@ -523,13 +523,14 @@ class InstalledStatusIcon extends StatelessWidget {
 }
 
 class InstalledStatusIconExplicit extends StatelessWidget {
-  final Color? color;
+  final bool colored;
   final Color? badgeColor;
   final double badgeScale;
   final Widget? child;
   final double fill;
-  const InstalledStatusIconExplicit({this.color, this.badgeColor, this.badgeScale = 1.0, this.child, this.fill = 1.0, super.key});
+  const InstalledStatusIconExplicit({required this.colored, this.badgeColor, this.badgeScale = 1.0, this.child, this.fill = 1.0, super.key});
   @override Widget build(BuildContext context) {
+    final Color? color = colored ? Theme.of(context).colorScheme.secondary : null;
     return badges.Badge(
       badgeContent: Icon(Symbols.star, size: 13 * badgeScale, color: color, fill: fill),
       position: badges.BadgePosition.bottomEnd(bottom: -3 * badgeScale, end: -2 * badgeScale),
@@ -543,10 +544,18 @@ class InstalledStatusIconExplicit extends StatelessWidget {
   }
 }
 class InstalledStatusIconDependency extends StatelessWidget {
-  final Color? color;
-  const InstalledStatusIconDependency({this.color, super.key});
+  final bool colored;
+  const InstalledStatusIconDependency({required this.colored, super.key});
   @override Widget build(BuildContext context) {
-    return Icon(Symbols.package_2, color: color);
+    return Icon(Symbols.package_2, color: colored ? Theme.of(context).colorScheme.secondary : null);
+  }
+}
+class InstalledStatusIconOther extends StatelessWidget {
+  final bool colored;
+  final IconData symbol;
+  const InstalledStatusIconOther(this.symbol, {this.colored = true, super.key});
+  @override Widget build(BuildContext context) {
+    return Icon(symbol, color: colored ? Theme.of(context).colorScheme.secondary : null);
   }
 }
 

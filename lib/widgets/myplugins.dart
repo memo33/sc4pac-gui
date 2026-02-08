@@ -147,6 +147,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       label: const Text("Stars"),
                       tooltip: "Explicitly installed packages",
                       icon: InstalledStatusIconExplicit(
+                        colored: false,
                         badgeColor: Theme.of(context).segmentedButtonTheme.style?.backgroundColor?.resolve(
                           widget.myPlugins.installStateSelection.contains(InstallStateType.explicitlyInstalled) ? {WidgetState.selected} : {}
                         ),
@@ -157,7 +158,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       value: InstallStateType.installedAsDependency,
                       label: Text("Dependencies"),
                       tooltip: "Packages installed as dependency",
-                      icon: InstalledStatusIconDependency(),
+                      icon: InstalledStatusIconDependency(colored: false),
                     ),
                   ],
                   showSelectedIcon: false,
