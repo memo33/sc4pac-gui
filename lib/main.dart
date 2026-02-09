@@ -622,7 +622,9 @@ class _MainContentsState extends State<MainContents> {
                       data: const ScrollbarThemeData(crossAxisMargin: dividerHandleBuffer + 3),
                       child: navRail,
                     )),
-                  Area(builder: (context, area) => const PackageStackPanel()),
+                  Area(builder: (context, area) => PackageStackPanel(
+                      key: NavigationService.packageStackPanelNavigatorKey,
+                    )),
                 ],
               ),
             ),
@@ -689,14 +691,22 @@ class NavRail extends StatelessWidget {
 
 class PackageStackPanel extends StatelessWidget {
   const PackageStackPanel({super.key});
+
   @override Widget build(BuildContext context) {
-    return Navigator(
-      key: NavigationService.packageStackPanelNavigatorKey,
-      onGenerateRoute: (RouteSettings settings) => MaterialPageRoute(
-        barrierDismissible: false,
-        // settings: const RouteSettings(name: ???),
-        builder: (context1) => const Center(child: Text("sc4pac Mod Manager")),  // TODO
-      ),
+    final packageStack = World.world.profile.dashboard.packageStack;
+    return ListenableBuilder(
+      listenable: packageStack,
+      child: Center(child: Text("sc4pac Mod Manager")),  // TODO
+      builder: (context, child) => switch (packageStack.peek()) {
+        null => child!,
+        final item => PackagePage(
+          item.module,
+          infoResult: item.infoResult,
+          isSplitView: true,
+          key: ObjectKey(item.infoResult),  // TODO key ensures that whole page reloads instantly on module change
+          // key: ValueKey(item.module),  // key ensures that whole page reloads instantly on module change
+        ),
+      },
     );
   }
 }

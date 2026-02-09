@@ -14,20 +14,21 @@ import 'fragments.dart';
 import '../data.dart';
 import '../main.dart' show NavigationService;
 
-class PackagePage extends StatefulWidget {
+class PackagePage extends StatelessWidget {
   final BareModule module;
   final Set<String>? debugChannelUrls;  // for messaging purposes on 404 error
-  const PackagePage(this.module, {super.key, this.debugChannelUrls});
-
-  @override
-  State<PackagePage> createState() => _PackagePageState();
+  final Future<PackageInfoResult> infoResult;
+  final bool isSplitView;
+  const PackagePage(this.module, {super.key, required this.infoResult, required this.isSplitView, this.debugChannelUrls});
 
   static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage, Set<String>? debugChannelUrls}) {
-    BuildContext? c = NavigationService.navigatorKey.currentContext;  // (should never be null)
+    final BuildContext? c = NavigationService.navigatorKey.currentContext;  // (should never be null)
     if (c != null && !Navigator.canPop(c)) {  // there is no dialog or fullscreen package page shown
-      BuildContext? c2 = NavigationService.packageStackPanelNavigatorKey.currentContext;
+      final BuildContext? c2 = NavigationService.packageStackPanelNavigatorKey.currentContext;
       if (c2 != null && c2.mounted) {  // split-view package stack is available, so use it
-        c = c2;
+        // TODO preserve scroll state of previous package page somehow?
+        World.world.profile.dashboard.packageStack.push(module, debugChannelUrls: debugChannelUrls);
+        return Future<void>.value(null);
       }
     }
     return Navigator.push(
@@ -35,12 +36,17 @@ class PackagePage extends StatefulWidget {
       PageRouteBuilder(  // no animation
         barrierDismissible: true,
         settings: const RouteSettings(name: World.packageRoute),
-        pageBuilder: (context1, animation, secondaryAnimation) => PackagePage(module, debugChannelUrls: debugChannelUrls),
+        pageBuilder: (context1, animation, secondaryAnimation) => PackagePage(
+          module,
+          infoResult: PackageStack.fetchInfo(module, debugChannelUrls: debugChannelUrls),
+          isSplitView: false,
+          debugChannelUrls: debugChannelUrls,
+        ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
-    ).then((_) => refreshPreviousPage());
+    ).then((_) => refreshPreviousPage());  // TODO remove
   }
 
   static const tableLabelPadding = EdgeInsets.fromLTRB(10, 5, 20, 5);
@@ -77,10 +83,6 @@ class PackagePage extends StatefulWidget {
     );
   }
 
-}
-class _PackagePageState extends State<PackagePage> {
-  late Future<PackageInfoResult> futureJson;
-
   static TableRow packageTableRow(Widget? label, Widget child) {
     return TableRow(
       children: [
@@ -96,57 +98,40 @@ class _PackagePageState extends State<PackagePage> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchInfo();
-  }
-
-  void _fetchInfo() {
-    futureJson = World.world.client.info(widget.module, profileId: World.world.profile.id)
-      .then((PackageInfoResult data) async {
-        final debugChannelUrls = widget.debugChannelUrls;
-        if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
-          return World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls)
-            .then((channelsAdded) =>
-              !channelsAdded ? data :
-                // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
-                World.world.client.info(widget.module, profileId: World.world.profile.id)
-            );
-        } else {
-          return data;
-        }
-      });
-  }
-
   void _refresh() {
-    setState(_fetchInfo);
+    // TODO remove
+    debugPrint("----------------> PackagePage._refresh");
   }
 
   @override
   Widget build(BuildContext context) {
-    final moduleStr = widget.module.toString();
+    final moduleStr = module.toString();
     return Scaffold(
       appBar: AppBar(
+        leading: isSplitView ? BackButton(onPressed: () => World.world.profile.dashboard.packageStack.pop()) : const BackButton(),
         title: TextWithCopyButton(
           copyableText: moduleStr,
-          child: PkgNameFragment(widget.module, asButton: false, colored: false, refreshParent: _refresh),
+          child: PkgNameFragment(module, asButton: false, colored: false, refreshParent: _refresh),
         ),
         actions: [
           IconButton(icon: const Icon(Icons.close), tooltip: 'Close all', onPressed: () {
-            Navigator.popUntil(context, (route) => route.settings.name != World.packageRoute);
+            if (isSplitView) {
+              World.world.profile.dashboard.packageStack.clear();
+            } else {
+              Navigator.popUntil(context, (route) => route.settings.name != World.packageRoute);
+            }
           }),
         ],
       ),
       body: FutureBuilder<PackageInfoResult>(
-        future: futureJson,
+        future: infoResult,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: ApiErrorWidget.scroll(ApiError.from(snapshot.error!)));
           } else if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.data == PackageInfoResult.notFound) {
-            return Center(child: PackageNotFoundMessage(widget.module, widget.debugChannelUrls));
+            return Center(child: PackageNotFoundMessage(module, debugChannelUrls));
           } else {
             final remote = snapshot.data!.remote;
             final statuses = snapshot.data!.local.statuses;
@@ -218,7 +203,7 @@ class _PackagePageState extends State<PackagePage> {
                 packageTableRow(null, Row(children: [
                   Expanded(child: StarIconButton(
                     addedExplicitly,
-                    module: widget.module,
+                    module: module,
                     afterToggled: _refresh,  // TODO maybe not needed anymore?
                     iconOnly: false,
                   )),
@@ -228,17 +213,17 @@ class _PackagePageState extends State<PackagePage> {
                       builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed),
                       symbol: Symbols.restart_alt,
                       action: () {
-                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module, redownload: false)
+                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: false)
                           .then((_) => _refresh());
                       },
                     ),
                     const SizedBox(width: 10),
-                    OpenPluginsFolderButton(module: widget.module, iconOnly: true, color: Theme.of(context).colorScheme.primary),
+                    OpenPluginsFolderButton(module: module, iconOnly: true, color: Theme.of(context).colorScheme.primary),
                   ],
                   if (installedVersion != null ||
                     // Allow Redownload in case of extraction failures.
                     // (TODO These conditions are not fully correct, since Clear-Log will hide the buttons)
-                    dashboard.pendingUpdates.isPending(widget.module) && (
+                    dashboard.pendingUpdates.isPending(module) && (
                       dashboard.updateProcess?.status == UpdateStatus.finishedWithError ||
                       dashboard.updateProcess?.status == UpdateStatus.canceled
                     ) && dashboard.updateProcess?.plan?.toInstall.any((item) => item.package == moduleStr) == true
@@ -262,7 +247,7 @@ class _PackagePageState extends State<PackagePage> {
                           leadingIcon: const Icon(Symbols.cloud_sync),
                           child: const Text("Redownload & Reinstall"),
                           onPressed: () {
-                            World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module, redownload: true)
+                            World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: true)
                               .then((_) => _refresh());
                           },
                         ),
@@ -270,7 +255,7 @@ class _PackagePageState extends State<PackagePage> {
                     ),
                 ])),
                 packageTableRow(
-                  Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status, module: widget.module, listen: true)),
+                  Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status, module: module, listen: true)),
                   Text(installDates),
                 ),
                 packageTableRow(const Text("Version"), SelectionArea(child: Text(switch (remote) {
@@ -296,7 +281,7 @@ class _PackagePageState extends State<PackagePage> {
                     variantChoices: variantChoices,
                     installedStatus: status,
                     descriptions: descriptions,
-                    module: widget.module,
+                    module: module,
                   ),
                 ),
                 if (remote case {'info': dynamic info})

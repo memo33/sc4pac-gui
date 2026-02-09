@@ -66,6 +66,16 @@ class RingBuffer<A> extends Iterable<A> {
     return buffer.getRange(buffer.length - l2, buffer.length).followedBy(buffer.getRange(start - l1, start));
   }
   @override Iterator<A> get iterator => takeRight(length).iterator;
+  // get A last {
+  //   if (isEmpty) {
+  //     throw IterableElementError.noElement();
+  //   } else {
+  //     return takeRight(1).first;  // TODO make more efficient
+  //   }
+  // }
+  // void removeLast() {
+  //   ???
+  // }
 }
 
 enum ServerStatus { launching, listening, terminated }

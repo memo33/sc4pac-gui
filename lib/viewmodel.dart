@@ -637,6 +637,7 @@ class Dashboard extends ChangeNotifier {
   }
   final Profile profile;
   final pendingUpdates = PendingUpdates();
+  final packageStack = PackageStack();
   String? repairProcessResult;
   final List<Map<String, String>> importedVariantSelections = [];  // FIFO, newest at the back
   late Future<VariantsList> variantsFuture;
@@ -676,6 +677,7 @@ class Dashboard extends ChangeNotifier {
     if (status == UpdateStatus.finished) {  // no error/no canceled
       pendingUpdates.clear();
       importedVariantSelections.clear();
+      packageStack.markAllStale();
       repairProcessResult = null;
     }
     fetchVariants();
@@ -737,6 +739,83 @@ class Dashboard extends ChangeNotifier {
     });
   }
 
+}
+
+// mutable!
+class PackageStackItem {
+  final BareModule module;
+  Future<PackageInfoResult> infoResult;
+  bool isStale = false;
+  PackageStackItem(this.module, this.infoResult);
+}
+class PackageStack extends ChangeNotifier {
+  final _stack = <PackageStackItem>[];  // TODO use RingBuffer with bounded capacity and reuse infoResults for same module
+
+  static Future<PackageInfoResult> fetchInfo(BareModule module, {Set<String>? debugChannelUrls}) {
+    debugPrint("--------> fetchInfo ${module}");
+    return World.world.client.info(module, profileId: World.world.profile.id)
+      .then((PackageInfoResult data) async {
+        if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
+          return World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls)
+            .then((channelsAdded) =>
+              !channelsAdded ? data :
+                // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
+                World.world.client.info(module, profileId: World.world.profile.id)
+            );
+        } else {
+          return data;
+        }
+      });
+  }
+
+  void push(BareModule module, {Set<String>? debugChannelUrls}) {
+    final infoResult = fetchInfo(module, debugChannelUrls: debugChannelUrls);
+    _stack.add(PackageStackItem(module, infoResult));
+    notifyListeners();
+  }
+
+  void markAllStale() {
+    for (final item in _stack) {
+      item.isStale = true;
+    }
+    notifyListeners();
+  }
+
+  PackageStackItem? peek() {
+    if (_stack.isEmpty) {
+      return null;
+    } else {
+      final item = _stack.last;
+      if (item.isStale) {
+        item.infoResult = fetchInfo(item.module);
+        item.isStale = false;
+        notifyListeners();  // TODO needed or not?
+      }
+      return item;
+    }
+  }
+
+  // PackageStackItem? popAndPeek() {
+  //   if (_stack.isEmpty) {
+  //     return null;
+  //   } else {
+  //     _stack.removeLast();
+  //     notifyListeners();  // TODO needed or not?
+  //     return _stack.isEmpty ? null : _stack.last;
+  //   }
+  // }
+
+  void pop() {
+    if (_stack.isNotEmpty) {
+      _stack.removeLast();
+      notifyListeners();
+    }
+  }
+
+  void clear() {
+    _stack.clear();
+    notifyListeners();
+  }
 }
 
 class PendingUpdates extends ChangeNotifier {
