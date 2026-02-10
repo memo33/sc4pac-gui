@@ -146,10 +146,9 @@ class PkgNameFragment extends StatelessWidget {
   final InstalledStatus? status;
   final bool colored;
   final String? localVariant;
-  final void Function()? refreshParent;  // required if asButton
   final String? prefix, suffix;
   final bool asInlineButton;
-  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.asInlineButton = false, this.status, this.colored = true, this.localVariant, this.refreshParent, this.prefix, this.suffix});
+  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.asInlineButton = false, this.status, this.colored = true, this.localVariant, this.prefix, this.suffix});
 
   static const EdgeInsets padding = EdgeInsets.all(10);
 
@@ -173,7 +172,7 @@ class PkgNameFragment extends StatelessWidget {
     );
     return asButton
         ? TextButton.icon(
-          onPressed: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
+          onPressed: () => PackagePage.pushPkg(context, module),
           label: text,
           icon: status == null ? null : InstalledStatusIcon(status, module: module, listen: false),  // TODO listen here instead
           iconAlignment: IconAlignment.start,
@@ -181,7 +180,7 @@ class PkgNameFragment extends StatelessWidget {
         )
         : asInlineButton
         ? InkWell(
-          onTap: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
+          onTap: () => PackagePage.pushPkg(context, module),
           child: text,
         )
         : text;
@@ -344,8 +343,7 @@ class PkgLinkSyntax extends md.InlineSyntax {
 }
 
 class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
-  final void Function()? refreshParent;
-  PkgLinkElementBuilder({required this.refreshParent});
+  PkgLinkElementBuilder();
 
   @override
   Widget? visitElementAfterWithContext(BuildContext context, md.Element element, TextStyle? preferredStyle, TextStyle? parentStyle) {
@@ -357,7 +355,6 @@ class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
           prefix: element.prefix,
           suffix: element.suffix,
           asInlineButton: true,
-          refreshParent: refreshParent,
         ),
       ));
     } else {
@@ -369,8 +366,7 @@ class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
 class MarkdownText extends StatelessWidget {
   final String text;
   final TextStyle? style;
-  final void Function()? refreshParent;
-  const MarkdownText(this.text, {this.refreshParent, this.style, super.key});
+  const MarkdownText(this.text, {this.style, super.key});
 
   static final _extensionSet = md.ExtensionSet(
     md.ExtensionSet.gitHubFlavored.blockSyntaxes,
@@ -385,7 +381,7 @@ class MarkdownText extends StatelessWidget {
     return fmd.MarkdownBody(
       data: text,
       extensionSet: _extensionSet,
-      builders: {PkgLinkNode.pkgNodeTag: PkgLinkElementBuilder(refreshParent: refreshParent)},
+      builders: {PkgLinkNode.pkgNodeTag: PkgLinkElementBuilder()},
       softLineBreak: false,
       styleSheet: fmd.MarkdownStyleSheet(
         p: style,
@@ -665,9 +661,8 @@ class PackageTile extends StatelessWidget {
   final PendingUpdateStatus? pendingStatus;
   final Set<String>? debugChannelUrls;
   final void Function()? afterToggled;
-  final void Function() refreshParent;
   final VisualDensity? visualDensity;
-  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.afterToggled, required this.refreshParent, this.visualDensity});
+  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.afterToggled, this.visualDensity});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
@@ -687,7 +682,7 @@ class PackageTile extends StatelessWidget {
       leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status, module: module, listen: true),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
       subtitle: summary?.isEmpty == true && tagsWidget == null ? null : LayoutBuilder(builder: (context, constraints) {
-        final summaryWidget = summary != null ? MarkdownText(summary!, refreshParent: refreshParent) : null;
+        final summaryWidget = summary != null ? MarkdownText(summary!) : null;
         if (constraints.maxWidth < 400) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -718,7 +713,7 @@ class PackageTile extends StatelessWidget {
           Text((index+1).toString()),
         ],
       ),
-      onTap: () => PackagePage.pushPkg(context, module, debugChannelUrls: debugChannelUrls, refreshPreviousPage: refreshParent),
+      onTap: () => PackagePage.pushPkg(context, module, debugChannelUrls: debugChannelUrls),
     );
   }
 }

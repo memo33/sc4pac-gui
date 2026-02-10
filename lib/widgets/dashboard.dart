@@ -230,7 +230,6 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                                 child: PkgNameFragment(
                                   BareModule.parse(dll.package),
                                   asInlineButton: true,
-                                  refreshParent: null,
                                 ),
                               ),
                               const TextSpan(text: ' and has been downloaded from'),
@@ -1878,7 +1877,6 @@ class _VariantsTableState extends State<VariantsTable> {
                   child: PkgNameFragment(BareModule(e.keyParts[0], e.keyParts[1]),
                     asButton: true,
                     localVariant: e.keyParts.sublist(2).join(':'),
-                    refreshParent: null,  // for now, we do not pass a refresh callback, as package page just toggles explicit packages which currenty are not relevant for dashboard
                   ),
                 ) : Padding(padding: PkgNameFragment.padding, child: Text(e.key)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_right_alt)),
@@ -2048,7 +2046,6 @@ class PendingUpdatesWidget extends StatelessWidget {
         : dashboard.pendingUpdates.sortedEntries().mapIndexed((index, entry) =>
           PackageTile(entry.key, index,
             pendingStatus: entry.value,
-            refreshParent: () {},  // no refresh needed without toggle button
             visualDensity: const VisualDensity(vertical: VisualDensity.minimumDensity),
           )
         ).toList(),

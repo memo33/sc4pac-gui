@@ -316,7 +316,7 @@ class World extends ChangeNotifier {
         final module = packages.first;
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
-          PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
+          PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls);
         }
       } else {  // multiple packages are opened in FindPackages screen
         // TODO ensure channel is known before searching for externalIds

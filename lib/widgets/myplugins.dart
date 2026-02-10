@@ -70,7 +70,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   }
 
   void _refresh() {
-    if (mounted) {  // TODO add this kind of check wherever refreshParent calls to
+    if (mounted) {
       setState(() {
         _search();
       });
@@ -248,7 +248,6 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       index,
                       summary: pkg.summary,
                       status: pkg.status,
-                      refreshParent: _refresh,
                       afterToggled: _refresh,
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!, pkg.module)),

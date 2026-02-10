@@ -21,7 +21,7 @@ class PackagePage extends StatelessWidget {
   final bool isSplitView;
   const PackagePage(this.module, {super.key, required this.infoResult, required this.isSplitView, this.debugChannelUrls});
 
-  static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage, Set<String>? debugChannelUrls}) {
+  static Future<dynamic> pushPkg(BuildContext context, BareModule module, {Set<String>? debugChannelUrls}) {
     final BuildContext? c = NavigationService.navigatorKey.currentContext;  // (should never be null)
     if (c != null && !Navigator.canPop(c)) {  // there is no dialog or fullscreen package page shown
       final BuildContext? c2 = NavigationService.packageStackPanelNavigatorKey.currentContext;
@@ -46,7 +46,7 @@ class PackagePage extends StatelessWidget {
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
-    ).then((_) => refreshPreviousPage());  // TODO remove
+    );
   }
 
   static const tableLabelPadding = EdgeInsets.fromLTRB(10, 5, 20, 5);
@@ -98,11 +98,6 @@ class PackagePage extends StatelessWidget {
     );
   }
 
-  void _refresh() {
-    // TODO remove
-    debugPrint("----------------> PackagePage._refresh");
-  }
-
   @override
   Widget build(BuildContext context) {
     final moduleStr = module.toString();
@@ -111,7 +106,7 @@ class PackagePage extends StatelessWidget {
         leading: isSplitView ? BackButton(onPressed: () => World.world.profile.dashboard.packageStack.pop()) : const BackButton(),
         title: TextWithCopyButton(
           copyableText: moduleStr,
-          child: PkgNameFragment(module, asButton: false, colored: false, refreshParent: _refresh),
+          child: PkgNameFragment(module, asButton: false, colored: false),
         ),
         actions: [
           IconButton(icon: const Icon(Icons.close), tooltip: 'Close all', onPressed: () {
@@ -204,7 +199,7 @@ class PackagePage extends StatelessWidget {
                   Expanded(child: StarIconButton(
                     addedExplicitly,
                     module: module,
-                    afterToggled: _refresh,  // TODO maybe not needed anymore?
+                    afterToggled: null,
                     iconOnly: false,
                   )),
                   if (installedVersion != null) ...[
@@ -213,8 +208,7 @@ class PackagePage extends StatelessWidget {
                       builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed),
                       symbol: Symbols.restart_alt,
                       action: () {
-                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: false)
-                          .then((_) => _refresh());
+                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: false);
                       },
                     ),
                     const SizedBox(width: 10),
@@ -247,8 +241,7 @@ class PackagePage extends StatelessWidget {
                           leadingIcon: const Icon(Symbols.cloud_sync),
                           child: const Text("Redownload & Reinstall"),
                           onPressed: () {
-                            World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: true)
-                              .then((_) => _refresh());
+                            World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: true);
                           },
                         ),
                       ],
@@ -263,11 +256,11 @@ class PackagePage extends StatelessWidget {
                   _ => 'Unknown'
                 }))),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => SelectionArea(child: MarkdownText(text, refreshParent: _refresh)), _ => const Text('-') }),
+                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => SelectionArea(child: MarkdownText(text)), _ => const Text('-') }),
                 if (remote case {'info': {'description': String text}})
-                  packageTableRow(const Text("Description"), SelectionArea(child: MarkdownText(text, refreshParent: _refresh))),
+                  packageTableRow(const Text("Description"), SelectionArea(child: MarkdownText(text))),
                 if (remote case {'info': {'warning': String text}})
-                  packageTableRow(const Text("Warning"), SelectionArea(child: MarkdownText(text, refreshParent: _refresh))),
+                  packageTableRow(const Text("Warning"), SelectionArea(child: MarkdownText(text))),
                 if (remote case {'info': {'author': String text}})
                   packageTableRow(const Text("Author"), SelectionArea(child: Text(text))),
                 if (remote case {'info': {'websites': List<dynamic> urls}})
@@ -285,7 +278,7 @@ class PackagePage extends StatelessWidget {
                   ),
                 ),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Incompatibilities"), SelectionArea(child: switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') })),
+                  packageTableRow(const Text("Incompatibilities"), SelectionArea(child: switch (info) { {'conflicts': String text} => MarkdownText(text), _ => const Text('None') })),
               ],
             );
 
@@ -309,19 +302,16 @@ class PackagePage extends StatelessWidget {
                             conflicting,
                             title: "Conflicts With",
                             statuses: statuses,
-                            refreshParent: _refresh,
                             icon: Icon(Symbols.multiple_stop, color: Theme.of(context).hintColor)
                           ),
                         DependenciesCard(dependencies,
                           title: "Dependencies",
                           statuses: statuses,
-                          refreshParent: _refresh,
                           icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
                         ),
                         DependenciesCard(requiredBy,
                           title: "Required By",
                           statuses: statuses,
-                          refreshParent: _refresh,
                           icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
                         ),
                       ]) {
@@ -416,7 +406,6 @@ class VariantsPanel extends StatelessWidget {
                                 BareModule(parts[0], parts[1]),
                                 localVariant: parts.sublist(2).join(":"),
                                 asInlineButton: true,
-                                refreshParent: null,  // for now, we do not pass a refresh callback, as we listen to dashboard
                               )
                             : Text(variantIdShort),
                         },
@@ -543,9 +532,8 @@ class DependenciesCard extends StatelessWidget {
   final Iterable<BareModule> dependencies;
   final String title;
   final Map<String, InstalledStatus> statuses;
-  final void Function() refreshParent;
   final Widget icon;
-  const DependenciesCard(this.dependencies, {required this.title, required this.statuses, required this.refreshParent, required this.icon, super.key});
+  const DependenciesCard(this.dependencies, {required this.title, required this.statuses, required this.icon, super.key});
   static const double _left = 10;
   @override
   Widget build(BuildContext context) {
@@ -573,7 +561,7 @@ class DependenciesCard extends StatelessWidget {
                     child: Text("None"),
                   ),
                 ...dependencies.map((module) =>
-                  PkgNameFragment(module, asButton: true, refreshParent: refreshParent, status: statuses[module.toString()])
+                  PkgNameFragment(module, asButton: true, status: statuses[module.toString()])
                 ),
               ],
             ),

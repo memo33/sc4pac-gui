@@ -196,7 +196,6 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       summary: item.summary,
                       status: item.status,
                       debugChannelUrls: widget.findPackages.customFilter?.debugChannelUrls,
-                      refreshParent: widget.findPackages.refreshSearchResult,
                       afterToggled: () {},
                     );
                   },
