@@ -751,21 +751,16 @@ class PackageStackItem {
 class PackageStack extends ChangeNotifier {
   final _stack = <PackageStackItem>[];  // TODO use RingBuffer with bounded capacity and reuse infoResults for same module
 
-  static Future<PackageInfoResult> fetchInfo(BareModule module, {Set<String>? debugChannelUrls}) {
-    debugPrint("--------> fetchInfo ${module}");
-    return World.world.client.info(module, profileId: World.world.profile.id)
-      .then((PackageInfoResult data) async {
-        if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
-          return World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls)
-            .then((channelsAdded) =>
-              !channelsAdded ? data :
-                // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
-                World.world.client.info(module, profileId: World.world.profile.id)
-            );
-        } else {
-          return data;
-        }
-      });
+  static Future<PackageInfoResult> fetchInfo(BareModule module, {Set<String>? debugChannelUrls}) async {
+    final data = await World.world.client.info(module, profileId: World.world.profile.id);
+    if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
+      final channelsAdded = await World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls);
+      return !channelsAdded ? data :
+          // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
+          World.world.client.info(module, profileId: World.world.profile.id);
+    } else {
+      return data;
+    }
   }
 
   void push(BareModule module, {Set<String>? debugChannelUrls}) {

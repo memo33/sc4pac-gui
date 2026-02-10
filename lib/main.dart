@@ -696,15 +696,15 @@ class PackageStackPanel extends StatelessWidget {
     final packageStack = World.world.profile.dashboard.packageStack;
     return ListenableBuilder(
       listenable: packageStack,
-      child: Center(child: Text("sc4pac Mod Manager")),  // TODO
+      child: const Center(child: Text("sc4pac Mod Manager")),  // TODO
       builder: (context, child) => switch (packageStack.peek()) {
         null => child!,
         final item => PackagePage(
           item.module,
           infoResult: item.infoResult,
           isSplitView: true,
-          key: ObjectKey(item.infoResult),  // TODO key ensures that whole page reloads instantly on module change
-          // key: ValueKey(item.module),  // key ensures that whole page reloads instantly on module change
+          key: ObjectKey(item.infoResult),  // key ensures that whole page reloads instantly on module change
+          // key: ValueKey(item.module),  // TODO key ensures that whole page reloads instantly on module change (requires some synchronization with PendingUpdates state to avoid flicker at Add-to-Plugins/Reinstall buttons)
         ),
       },
     );
