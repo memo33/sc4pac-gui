@@ -861,9 +861,9 @@ class PendingUpdates extends ChangeNotifier {
   }
 
   Future<void> onReinstallButton(BareModule module, {required bool redownload}) {
-    return World.world.client.reinstall([module], redownload: redownload, profileId: World.world.profile.id).then((_) {
-      setPendingUpdate(module, PendingUpdateStatus.reinstall);
-    }, onError: ApiErrorWidget.dialog);
+    setPendingUpdate(module, PendingUpdateStatus.reinstall);
+    final task = World.world.client.reinstall([module], redownload: redownload, profileId: World.world.profile.id);
+    return task.catchError(ApiErrorWidget.dialog);
   }
 
   void onRepairComplete(Iterable<BareModule> modules) {
