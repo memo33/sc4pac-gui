@@ -19,7 +19,8 @@ class PackagePage extends StatelessWidget {
   final Set<String>? debugChannelUrls;  // for messaging purposes on 404 error
   final Future<PackageInfoResult> infoResult;
   final bool isSplitView;
-  const PackagePage(this.module, {super.key, required this.infoResult, required this.isSplitView, this.debugChannelUrls});
+  final ScrollController? scrollController;
+  const PackagePage(this.module, {super.key, required this.infoResult, required this.isSplitView, this.scrollController, this.debugChannelUrls});
 
   static Future<dynamic> pushPkg(BuildContext context, BareModule module, {Set<String>? debugChannelUrls}) {
     final BuildContext? c = NavigationService.navigatorKey.currentContext;  // (should never be null)
@@ -284,6 +285,8 @@ class PackagePage extends StatelessWidget {
 
             return LayoutBuilder(builder: (context, constraint) =>
               SingleChildScrollView(
+                key: scrollController == null ? null : PageStorageKey(scrollController),  // needed for SingleChildScrollView to store scroll offset
+                controller: scrollController,
                 child: Column(
                   children: [
                     const SizedBox(height: 8),

@@ -746,6 +746,7 @@ class PackageStackItem {
   final BareModule module;
   Future<PackageInfoResult> infoResult;
   bool isStale = false;
+  final scrollController = ScrollController();  // for scroll-offset (SingleChildScrollView.restorationId did not seem to work)
   PackageStackItem(this.module, this.infoResult);
 }
 class PackageStack extends ChangeNotifier {
@@ -802,12 +803,16 @@ class PackageStack extends ChangeNotifier {
 
   void pop() {
     if (_stack.isNotEmpty) {
+      _stack.last.scrollController.dispose();
       _stack.removeLast();
       notifyListeners();
     }
   }
 
   void clear() {
+    for (final item in _stack) {
+      item.scrollController.dispose();
+    }
     _stack.clear();
     notifyListeners();
   }
