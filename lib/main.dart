@@ -696,7 +696,7 @@ class PackageStackPanel extends StatelessWidget {
     final packageStack = World.world.profile.dashboard.packageStack;
     return ListenableBuilder(
       listenable: packageStack,
-      child: const Center(child: Text("sc4pac Mod Manager")),  // TODO
+      child: const Center(child: BackgroundArtwork()),
       builder: (context, child) => switch (packageStack.peek()) {
         null => child!,
         final item => PackagePage(
@@ -708,5 +708,25 @@ class PackageStackPanel extends StatelessWidget {
         ),
       },
     );
+  }
+}
+
+class BackgroundArtwork extends StatelessWidget {
+  const BackgroundArtwork({super.key});
+  @override Widget build(BuildContext context) {
+    return ColorFiltered(
+      colorFilter: _monochromeFilter(Theme.of(context).scaffoldBackgroundColor, scale: 2.25),
+      child: Image.asset("assets/sc4pac-gui.png"),
+    );
+  }
+  static ColorFilter _monochromeFilter(Color color, {double scale = 1.0}) {
+    const u = 0.2126, v = 0.7152, w = 0.0722;
+    final r = color.red, b = color.blue, g = color.green;
+    return ColorFilter.matrix(<double>[
+        u*scale*r/255, v*scale*r/255, w*scale*r/255, 0, 0,
+        u*scale*g/255, v*scale*g/255, w*scale*g/255, 0, 0,
+        u*scale*b/255, v*scale*b/255, w*scale*b/255, 0, 0,
+        0, 0, 0, 1, 0,
+      ]);
   }
 }
