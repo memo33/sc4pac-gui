@@ -1073,6 +1073,26 @@ class UpdateProcess extends ChangeNotifier {
             });
         }
       },
+      '/prompt/confirmation/update/installing-scripts': (self, data) {
+        final msg = ConfirmationInstallingScripts.fromJson(data);
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            self.cancel();  // we cannot make this selection without user interaction
+          case UpdateMode.backgroundDeleteAll:
+            self.err = ApiError.unexpected("Unexpected error: Did not expect to install scripts during ${self.mode}", '$data');
+            self.cancel();
+          case UpdateMode.interactiveUpdate:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DashboardScreen.showInstallingScriptsDialog(msg).then((choice) {
+                if (choice == null) {
+                  self.cancel();
+                } else {
+                  self._ws.sink.add(jsonEncode(msg.responses[choice]));
+                }
+              });
+            });
+        }
+      },
       '/progress/download/started': (self, data) {
         final msg = ProgressDownloadStarted.fromJson(data);
         self.downloads.add(msg.url);

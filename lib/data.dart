@@ -180,6 +180,26 @@ class ConfirmationInstallingDlls {
   factory ConfirmationInstallingDlls.fromJson(Map<String, dynamic> json) => _$ConfirmationInstallingDllsFromJson(json);
 }
 
+typedef ConfirmationInstallingScriptsItem = ({
+  String file,
+  String url,
+  String package,
+  String packageVersion,
+  String assetMetadataUrl,
+  String packageMetadataUrl,
+  List<String> tgis,
+});
+
+@JsonSerializable()
+class ConfirmationInstallingScripts {
+  final String description;
+  final List<ConfirmationInstallingScriptsItem> scriptsInstalled;
+  final List<String> choices;
+  final Map<String, dynamic> responses;
+  const ConfirmationInstallingScripts(this.description, this.scriptsInstalled, this.choices, this.responses);
+  factory ConfirmationInstallingScripts.fromJson(Map<String, dynamic> json) => _$ConfirmationInstallingScriptsFromJson(json);
+}
+
 @JsonSerializable()
 class PromptOpenPackage {
   final List<({String package, String channelUrl})> packages;
