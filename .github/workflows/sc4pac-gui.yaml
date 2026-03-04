@@ -31,7 +31,7 @@ jobs:
         run: cd vendor/sc4pac-tools && make dist && ./sc4pac --version && cp -p target/dist/sc4pac-*.zip sc4pac-cli.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: sc4pac-cli-artifact
+          name: sc4pac-cli-artifact.zip.zip
           path: vendor/sc4pac-tools/sc4pac-cli.zip
           retention-days: 7
 
@@ -89,7 +89,7 @@ jobs:
         run: tar -cvf ${{ matrix.artifact_name }}.tar --directory ${{ matrix.build_output_path }} .
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
+          name: ${{ matrix.artifact_name }}.tar.zip
           path: ${{ matrix.artifact_name }}.tar
           retention-days: 7
 
