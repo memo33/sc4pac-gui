@@ -97,6 +97,8 @@ class Sc4pacServer {
     return base64.encode(bytes);
   }
 
+  static String _quote(String path) => Platform.isWindows && !path.contains('"') ? "\"$path\"" : path;
+
   Sc4pacServer({required this.cliDir, required this.profilesDir, required this.port, required this.clientSecret}) {
     const readyTag = "[LISTENING]";
     final completer = Completer<bool>();
@@ -112,13 +114,13 @@ class Sc4pacServer {
         "server",
         "--port", port.toString(),
         if (profilesDir != null)
-          ...["--profiles-dir", profilesDir!],
+          ...["--profiles-dir", _quote(profilesDir!)],
         "--auto-shutdown",
         "--startup-tag", readyTag,
         "--client-secret-stdin",
       ];
       stdout.writeln("Launching sc4pac server: $cliExePath ${serverArgs.join(" ")}");
-      _process = Process.start(cliExePath, serverArgs)
+      _process = Process.start(_quote(cliExePath), serverArgs)  // additional quotes needed for calling .bat files, see #48 and https://api.dart.dev/dart-io/Process/start.html
       ..then((process) {
         stdout.writeln("Sc4pac server PID: ${process.pid}");
         process.stdin.writeln(clientSecret);
