@@ -202,7 +202,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                   const SizedBox(height: 10),
                   ...msg.dllsInstalled.map((dll) => ExpansionTile(
                     title: ListTile(
-                      leading: const Tooltip(message: "DLL file", child: Icon(Symbols.api)),
+                      leading: const Tooltip(message: "DLL file", child: FileTypeIcon("DLL")),
                       title: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -331,7 +331,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                   const SizedBox(height: 10),
                   ...sortedEntries.map((entry) => ExpansionTile(
                     title: ListTile(
-                      leading: const Tooltip(message: "Script file", child: Icon(Symbols.api)),
+                      leading: const Tooltip(message: "Script file", child: FileTypeIcon("Lua")),
                       title: Align(alignment: Alignment.centerLeft, child: PkgNameFragment(BareModule.parse(entry.key), asInlineButton: true)),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,6 +603,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+}
+
+class FileTypeIcon extends StatelessWidget {
+  final String label;
+  const FileTypeIcon(this.label, {super.key});
+  // static const badgeScale = 1.0;
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(height: 42, width: 25, child: FittedBox(fit: BoxFit.none, child: Stack(
+      alignment: Alignment.topCenter,
+      // fit: StackFit.passthrough,
+      children: [
+        const Align(alignment: Alignment.center, child: Icon(Symbols.api)),
+        Padding(
+          padding: const EdgeInsets.only(top: 22),
+          child: Align(alignment: Alignment.center, child: Text(label, style: Theme.of(context).textTheme.labelSmall)),  // TODO text color does not adapt when expansion tile is expanded (use ExpansibleController.of with flutter 3.31+)
+        ),
+      ],
+    )));
+    // return badges.Badge(
+    //   badgeContent: Text(label, style: Theme.of(context).textTheme.labelSmall),
+    //   position: badges.BadgePosition.bottomEnd(bottom: -15 * badgeScale, end: 1.5 * badgeScale),  // not correctly centered
+    //   badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
+    //   badgeStyle: badges.BadgeStyle(
+    //     shape: badges.BadgeShape.square,
+    //     borderRadius: BorderRadius.circular(4),
+    //     padding: const EdgeInsets.all(0.2 * badgeScale),
+    //     badgeColor: Theme.of(context).colorScheme.surface,
+    //   ),
+    //   child: const Icon(Symbols.api),
+    // );
   }
 }
 
