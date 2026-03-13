@@ -11,7 +11,7 @@ import '../main.dart';
 import 'fragments.dart';
 import 'packagepage.dart' show PackagePage;
 import 'myplugins.dart' show ExportDialog;
-import 'settings.dart' show CredentialsWidgetTextField;
+import 'settings.dart' show CredentialsWidgetTextField, SettingsScreen;
 
 class DashboardScreen extends StatefulWidget {
   final Dashboard dashboard;
@@ -311,8 +311,9 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: true,
       builder: (context) {
-        final color2 = Theme.of(context).colorScheme.secondary;
-        final channelStyle = TextStyle(/*fontWeight: FontWeight.bold,*/ color: Theme.of(context).hintColor);
+        final theme = Theme.of(context);
+        final color2 = theme.colorScheme.secondary;
+        final channelStyle = TextStyle(/*fontWeight: FontWeight.bold,*/ color: theme.hintColor);
         const linkPad = EdgeInsets.symmetric(horizontal: 10);
         return AlertDialog(
           icon: const Icon(Symbols.security),
@@ -323,6 +324,10 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
               child: Column(
                 children: [
                   Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: MarkdownText(msg.description)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 36),
+                    child: HideLuaScriptCheckbox(msg: msg, initialHideLuaScriptWarning: World.world.settingsOrDefault.hideLuaScriptWarning),
+                  ),
                   const SizedBox(height: 10),
                   ...sortedEntries.map((entry) => ExpansionTile(
                     title: ListTile(
@@ -597,6 +602,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class HideLuaScriptCheckbox extends StatelessWidget {
+  final ConfirmationInstallingScripts msg;
+  final bool initialHideLuaScriptWarning;
+  const HideLuaScriptCheckbox({required this.msg, required this.initialHideLuaScriptWarning, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: World.world,
+      builder: (context, child) {
+        if (msg.luaSandboxInstalled && !initialHideLuaScriptWarning) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: CheckboxListTile(
+              value: World.world.settingsOrDefault.hideLuaScriptWarning,
+              onChanged: (value) => SettingsScreen.saveSettings(World.world.settingsOrDefault.copyWith(hideLuaScriptWarning: value)),
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text("Do not show this warning again.", style: Theme.of(context).textTheme.labelLarge),
+            ),
+          );
+        } else {
+          return const SizedBox(height: 0);
+        }
+      }
     );
   }
 }

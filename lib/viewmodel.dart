@@ -335,10 +335,10 @@ class World extends ChangeNotifier {
     return World.world.client.getSettings()
       .then<void>((settingsData) async {
         if (simtropolisToken == null) {
-          settingsData = settingsData.withAuth(auth: []);
+          settingsData = settingsData.copyWith(auth: []);
         } else {
           final tokenBytes = await AuthItem.obfuscateToken(simtropolisToken);
-          settingsData = settingsData.withAuth(
+          settingsData = settingsData.copyWith(
             auth: [AuthItem(domain: AuthItem.simtropolisDomain, tokenBytes: tokenBytes)],
           );
         }
@@ -1082,15 +1082,20 @@ class UpdateProcess extends ChangeNotifier {
             self.err = ApiError.unexpected("Unexpected error: Did not expect to install scripts during ${self.mode}", '$data');
             self.cancel();
           case UpdateMode.interactiveUpdate:
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              DashboardScreen.showInstallingScriptsDialog(msg).then((choice) {
-                if (choice == null) {
-                  self.cancel();
-                } else {
-                  self._ws.sink.add(jsonEncode(msg.responses[choice]));
-                }
+            if (msg.luaSandboxInstalled && World.world.settingsOrDefault.hideLuaScriptWarning) {
+              debugPrint("Skipping Lua script warning.");
+              self._ws.sink.add(jsonEncode(msg.responses['Yes']));  // skip Lua warning
+            } else {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                DashboardScreen.showInstallingScriptsDialog(msg).then((choice) {
+                  if (choice == null) {
+                    self.cancel();
+                  } else {
+                    self._ws.sink.add(jsonEncode(msg.responses[choice]));
+                  }
+                });
               });
-            });
+            }
         }
       },
       '/progress/download/started': (self, data) {
