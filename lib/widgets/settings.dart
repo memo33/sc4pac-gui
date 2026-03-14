@@ -9,7 +9,7 @@ class SettingsScreen extends StatelessWidget {
 
   const SettingsScreen({super.key});
 
-  void _saveSettings(SettingsData? settings) {
+  static void saveSettings(SettingsData? settings) {
     if (settings != null) {
       World.world.updateSettings(settings);
       World.world.client.setSettings(settings)
@@ -54,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
               "If enabled (recommended), the app automatically checks for pending package updates when the app is launched."
             ),
             value: World.world.settingsOrDefault.checkUpdatesAtLaunch,
-            onChanged: (checkUpdatesAtLaunch) => _saveSettings(World.world.settings?.withCheckUpdatesAtLaunch(checkUpdatesAtLaunch)),
+            onChanged: (checkUpdatesAtLaunch) => saveSettings(World.world.settings?.copyWith(checkUpdatesAtLaunch: checkUpdatesAtLaunch)),
           ),
         ),
         ListenableBuilder(
@@ -65,7 +65,18 @@ class SettingsScreen extends StatelessWidget {
               "If disabled (recommended), the channels are cached for half an hour to improve efficiency."
             ),
             value: World.world.settingsOrDefault.refreshChannels,
-            onChanged: (refreshChannels) => _saveSettings(World.world.settings?.withRefreshChannels(refreshChannels)),
+            onChanged: (refreshChannels) => saveSettings(World.world.settings?.copyWith(refreshChannels: refreshChannels)),
+          ),
+        ),
+        ListenableBuilder(
+          listenable: World.world,
+          builder: (context, child) => SwitchListTile(
+            title: const Text("Show Lua script warning"),
+            subtitle: const MarkdownText(
+              "If enabled, the app shows a warning when installing plugins containing Lua scripts. If disabled, the warning is hidden if `pkg=memo:lua-sandbox-dll` is installed."
+            ),
+            value: !World.world.settingsOrDefault.hideLuaScriptWarning,
+            onChanged: (showLuaScriptWarning) => saveSettings(World.world.settings?.copyWith(hideLuaScriptWarning: !showLuaScriptWarning)),
           ),
         ),
         AboutListTile(

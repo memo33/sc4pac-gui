@@ -11,7 +11,7 @@ import '../main.dart';
 import 'fragments.dart';
 import 'packagepage.dart' show PackagePage;
 import 'myplugins.dart' show ExportDialog;
-import 'settings.dart' show CredentialsWidgetTextField;
+import 'settings.dart' show CredentialsWidgetTextField, SettingsScreen;
 
 class DashboardScreen extends StatefulWidget {
   final Dashboard dashboard;
@@ -189,7 +189,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
       builder: (context) {
         final color2 = Theme.of(context).colorScheme.secondary;
         final channelStyle = TextStyle(/*fontWeight: FontWeight.bold,*/ color: Theme.of(context).hintColor);
-        const linkPad = EdgeInsets.symmetric(vertical: 20, horizontal: 10);
+        const linkPad = EdgeInsets.symmetric(horizontal: 10);
         return AlertDialog(
           icon: const Icon(Symbols.security),
           title: const Text('Installation of DLL files'),
@@ -200,11 +200,9 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                 children: [
                   Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: MarkdownText(msg.description)),
                   const SizedBox(height: 10),
-                  ...msg.dllsInstalled.map((dll) =>
-                    ExpansionTile(
-                      title:
-                    ListTile(
-                      leading: const Tooltip(message: "DLL file", child: Icon(Symbols.api)),
+                  ...msg.dllsInstalled.map((dll) => ExpansionTile(
+                    title: ListTile(
+                      leading: const Tooltip(message: "DLL file", child: FileTypeIcon("DLL")),
                       title: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -262,7 +260,9 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                                   const TextSpan(text: ":"),
                                 ],
                               )),
+                              const SizedBox(height: 20),
                               Padding(padding: linkPad, child: Hyperlink(url: dll.packageMetadataUrl)),
+                              const SizedBox(height: 20),
                               Text.rich(TextSpan(
                                 children: [
                                   const TextSpan(text: "The download URL of the DLL is defined in the following metadata file of the channel "),
@@ -270,7 +270,9 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                                   const TextSpan(text: ":"),
                                 ],
                               )),
+                              const SizedBox(height: 20),
                               Padding(padding: linkPad, child: Hyperlink(url: dll.assetMetadataUrl)),
+                              const SizedBox(height: 20),
                             ],
                           );
                         }
@@ -288,6 +290,161 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
               Navigator.pop(context, choice);
             },
           )).toList(),
+        );
+      }
+    );
+  }
+
+  static Future<String?> showInstallingScriptsDialog(ConfirmationInstallingScripts msg) {
+    final groupedByPkg = <String, List<ConfirmationInstallingScriptsItem>>{};
+    for (final lua in msg.scriptsInstalled) {
+      final items = groupedByPkg[lua.package];
+      if (items == null) {
+        groupedByPkg[lua.package] = [lua];
+      } else {
+        items.add(lua);
+      }
+    }
+    final sortedEntries = groupedByPkg.entries.toList();
+    sortedEntries.sort((x, y) => x.key.compareTo(y.key));
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      barrierDismissible: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final color2 = theme.colorScheme.secondary;
+        final channelStyle = TextStyle(/*fontWeight: FontWeight.bold,*/ color: theme.hintColor);
+        const linkPad = EdgeInsets.symmetric(horizontal: 10);
+        return AlertDialog(
+          icon: const Icon(Symbols.security),
+          title: const Text('Installation of Lua script files'),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Column(
+                children: [
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: MarkdownText(msg.description)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 36),
+                    child: HideLuaScriptCheckbox(msg: msg, initialHideLuaScriptWarning: World.world.settingsOrDefault.hideLuaScriptWarning),
+                  ),
+                  const SizedBox(height: 10),
+                  ...sortedEntries.map((entry) => ExpansionTile(
+                    title: ListTile(
+                      leading: const Tooltip(message: "Script file", child: FileTypeIcon("Lua")),
+                      title: Align(alignment: Alignment.centerLeft, child: PkgNameFragment(BareModule.parse(entry.key), asInlineButton: true)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('The files have been downloaded from'),
+                          ...entry.value.map((lua) => lua.url).toSet().map((url) => Hyperlink(url: url)),
+                        ],
+                      ),
+                    ),
+                    childrenPadding: const EdgeInsets.only(left: 72, right: 20),
+                    children: [
+                      FutureBuilder(
+                        future: World.world.profile.channelStats.future,
+                        builder: (context, snapshot) {
+                          final channel1 = snapshot.data?.channels.firstWhereOrNull((c) => entry.value.first.packageMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
+                          final channel2 = entry.value.map((lua) => snapshot.data?.channels.firstWhereOrNull((c) => lua.assetMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN").toSet();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 10),
+                              const Text("Files containing potential Lua scripts:"),
+                              const SizedBox(height: 10),
+                              ...entry.value.map((lua) =>
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  child: Text(lua.file, style: TextStyle(color: color2)),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    child: const Text("Show TGIs"),
+                                    onPressed: () => showTgisDialog(entry.value),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text.rich(TextSpan(
+                                children: [
+                                  const TextSpan(text: "The package is defined in the following metadata file of the channel "),
+                                  TextSpan(text: channel1, style: channelStyle),
+                                  const TextSpan(text: ":"),
+                                ],
+                              )),
+                              const SizedBox(height: 20),
+                              Padding(padding: linkPad, child: Hyperlink(url: entry.value.first.packageMetadataUrl)),
+                              const SizedBox(height: 20),
+                              Text.rich(TextSpan(
+                                children: [
+                                  const TextSpan(text: "The download URL of the file is defined in the following metadata file of the channel "),
+                                  TextSpan(text: channel2.join(","), style: channelStyle),
+                                  const TextSpan(text: ":"),
+                                ],
+                              )),
+                              const SizedBox(height: 20),
+                              ...entry.value.map((lua) => lua.assetMetadataUrl).toSet().map((url) => Padding(padding: linkPad, child: Hyperlink(url: url))),
+                              const SizedBox(height: 20),
+                            ],
+                          );
+                        }
+                      ),
+                    ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: msg.choices.map((choice) => OutlinedButton(
+            child: Text(okCancelFromYesNo(choice)),
+            onPressed: () {
+              Navigator.pop(context, choice);
+            },
+          )).toList(),
+        );
+      }
+    );
+  }
+
+  static Future<void> showTgisDialog(List<ConfirmationInstallingScriptsItem> items) {
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      barrierDismissible: true,
+      builder: (context) {
+        final color2 = Theme.of(context).colorScheme.secondary;
+        return AlertDialog(
+          icon: const Icon(Symbols.info),
+          title: const Text('Script TGI identifiers'),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Column(
+                children: [
+                  const MarkdownText("You can inspect these files using tools such as _ilive's Reader_."),
+                  const SizedBox(height: 20),
+                  ...items.expand((lua) => [
+                    Text(lua.file, style: TextStyle(color: color2)),
+                    const SizedBox(height: 10),
+                    ...lua.tgis.map((tgi) => Text(tgi, style: const TextStyle(fontFamily: "monospace"))),
+                    const SizedBox(height: 20),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            OutlinedButton(
+              child: const Text("Dismiss"),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
         );
       }
     );
@@ -445,6 +602,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class FileTypeIcon extends StatelessWidget {
+  final String label;
+  const FileTypeIcon(this.label, {super.key});
+  // static const badgeScale = 1.0;
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(height: 42, width: 25, child: FittedBox(fit: BoxFit.none, child: Stack(
+      alignment: Alignment.topCenter,
+      // fit: StackFit.passthrough,
+      children: [
+        const Align(alignment: Alignment.center, child: Icon(Symbols.api)),
+        Padding(
+          padding: const EdgeInsets.only(top: 22),
+          child: Align(alignment: Alignment.center, child: Text(label, style: Theme.of(context).textTheme.labelSmall)),  // TODO text color does not adapt when expansion tile is expanded (use ExpansibleController.of with flutter 3.31+)
+        ),
+      ],
+    )));
+    // return badges.Badge(
+    //   badgeContent: Text(label, style: Theme.of(context).textTheme.labelSmall),
+    //   position: badges.BadgePosition.bottomEnd(bottom: -15 * badgeScale, end: 1.5 * badgeScale),  // not correctly centered
+    //   badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
+    //   badgeStyle: badges.BadgeStyle(
+    //     shape: badges.BadgeShape.square,
+    //     borderRadius: BorderRadius.circular(4),
+    //     padding: const EdgeInsets.all(0.2 * badgeScale),
+    //     badgeColor: Theme.of(context).colorScheme.surface,
+    //   ),
+    //   child: const Icon(Symbols.api),
+    // );
+  }
+}
+
+class HideLuaScriptCheckbox extends StatelessWidget {
+  final ConfirmationInstallingScripts msg;
+  final bool initialHideLuaScriptWarning;
+  const HideLuaScriptCheckbox({required this.msg, required this.initialHideLuaScriptWarning, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: World.world,
+      builder: (context, child) {
+        if (msg.luaSandboxInstalled && !initialHideLuaScriptWarning) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: CheckboxListTile(
+              value: World.world.settingsOrDefault.hideLuaScriptWarning,
+              onChanged: (value) => SettingsScreen.saveSettings(World.world.settingsOrDefault.copyWith(hideLuaScriptWarning: value)),
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text("Do not show this warning again.", style: Theme.of(context).textTheme.labelLarge),
+            ),
+          );
+        } else {
+          return const SizedBox(height: 0);
+        }
+      }
     );
   }
 }

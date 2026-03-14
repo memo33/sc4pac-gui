@@ -180,6 +180,27 @@ class ConfirmationInstallingDlls {
   factory ConfirmationInstallingDlls.fromJson(Map<String, dynamic> json) => _$ConfirmationInstallingDllsFromJson(json);
 }
 
+typedef ConfirmationInstallingScriptsItem = ({
+  String file,
+  String url,
+  String package,
+  String packageVersion,
+  String assetMetadataUrl,
+  String packageMetadataUrl,
+  List<String> tgis,
+});
+
+@JsonSerializable()
+class ConfirmationInstallingScripts {
+  final String description;
+  final List<ConfirmationInstallingScriptsItem> scriptsInstalled;
+  final bool luaSandboxInstalled;
+  final List<String> choices;
+  final Map<String, dynamic> responses;
+  const ConfirmationInstallingScripts(this.description, this.scriptsInstalled, this.luaSandboxInstalled, this.choices, this.responses);
+  factory ConfirmationInstallingScripts.fromJson(Map<String, dynamic> json) => _$ConfirmationInstallingScriptsFromJson(json);
+}
+
 @JsonSerializable()
 class PromptOpenPackage {
   final List<({String package, String channelUrl})> packages;
@@ -358,27 +379,15 @@ class SettingsData {
   final List<AuthItem> auth;
   final bool refreshChannels;
   final bool checkUpdatesAtLaunch;
-  SettingsData({this.auth = const [], this.refreshChannels = false, this.checkUpdatesAtLaunch = true});
+  final bool hideLuaScriptWarning;
+  SettingsData({this.auth = const [], this.refreshChannels = false, this.checkUpdatesAtLaunch = true, this.hideLuaScriptWarning = false});
   static final defaultSettings = SettingsData();
-  SettingsData withAuth({List<AuthItem>? auth}) {
-    return auth == null ? this : SettingsData(
-      auth: auth,
-      refreshChannels: refreshChannels,
-      checkUpdatesAtLaunch: checkUpdatesAtLaunch,
-    );
-  }
-  SettingsData withRefreshChannels(bool refreshChannels) {
-    return refreshChannels == this.refreshChannels ? this : SettingsData(
-      auth: auth,
-      refreshChannels: refreshChannels,
-      checkUpdatesAtLaunch: checkUpdatesAtLaunch,
-    );
-  }
-  SettingsData withCheckUpdatesAtLaunch(bool checkUpdatesAtLaunch) {
-    return checkUpdatesAtLaunch == this.checkUpdatesAtLaunch ? this : SettingsData(
-      auth: auth,
-      refreshChannels: refreshChannels,
-      checkUpdatesAtLaunch: checkUpdatesAtLaunch,
+  SettingsData copyWith({List<AuthItem>? auth, bool? refreshChannels, bool? checkUpdatesAtLaunch, bool? hideLuaScriptWarning}) {
+    return SettingsData(
+      auth: auth ?? this.auth,
+      refreshChannels: refreshChannels ?? this.refreshChannels,
+      checkUpdatesAtLaunch: checkUpdatesAtLaunch ?? this.checkUpdatesAtLaunch,
+      hideLuaScriptWarning: hideLuaScriptWarning ?? this.hideLuaScriptWarning,
     );
   }
   factory SettingsData.fromJson(Map<String, dynamic> json) => _$SettingsDataFromJson(json);
