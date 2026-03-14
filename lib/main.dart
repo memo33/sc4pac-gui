@@ -374,15 +374,17 @@ class InitProfileDialog extends StatefulWidget {
   State<InitProfileDialog> createState() => _InitProfileDialogState();
 }
 class _InitProfileDialogState extends State<InitProfileDialog> {
-  late final TextEditingController _pluginsPathController = TextEditingController(text: widget.initialPluginsPath);
+  late final TextEditingController _pluginsPathController = TextEditingController(/*text: widget.initialPluginsPath*/);
   late final TextEditingController _cachePathController = TextEditingController(text: widget.initialCachePath);
   late final Future<Profiles> _profilesFuture = World.world.client.profiles(includePlugins: true);
   late Future<List<Widget>> _conflictWarningsFuture;
+  bool showPluginsEmptyWarning = false;
+  bool showCacheEmptyWarning = false;
 
   @override
   void initState() {
     super.initState();
-    _updateConflictWarnings();
+    _updateConflictWarnings(isInitial: true);
   }
 
   @override
@@ -393,18 +395,31 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
   }
 
   void _submit() {
-    widget.world.client.profileInit(
-      profileId: widget.world.profile.id,
-      paths: (plugins: _pluginsPathController.text.trim(), cache: _cachePathController.text.trim()),
-    ).then(
-      (data) => widget.world.updatePaths((plugins: data['pluginsRoot'], cache: data['cacheRoot'])),  // switches to next initPhase
-      onError: ApiErrorWidget.dialog,
-    );
+    final pluginsPath = _pluginsPathController.text.trim();
+    final cachePath = _cachePathController.text.trim();
+    if (pluginsPath.isEmpty || cachePath.isEmpty) {
+      setState(() {
+        showPluginsEmptyWarning = pluginsPath.isEmpty;
+        showCacheEmptyWarning = cachePath.isEmpty;
+      });
+    } else {
+      widget.world.client.profileInit(
+        profileId: widget.world.profile.id,
+        paths: (plugins: pluginsPath, cache: cachePath),
+      ).then(
+        (data) => widget.world.updatePaths((plugins: data['pluginsRoot'], cache: data['cacheRoot'])),  // switches to next initPhase
+        onError: ApiErrorWidget.dialog,
+      );
+    }
   }
 
-  void _updateConflictWarnings() {
+  void _updateConflictWarnings({bool isInitial = false}) {
     final pluginsPath = _pluginsPathController.text.trim();
-    _conflictWarningsFuture = _profilesFuture
+    if (!isInitial) {
+      showPluginsEmptyWarning = pluginsPath.isEmpty;
+      showCacheEmptyWarning = _cachePathController.text.trim().isEmpty;
+    }
+    _conflictWarningsFuture = pluginsPath.isEmpty ? Future.value([]) : _profilesFuture
       .then((profiles) => World.world.conflictingPluginsPaths(profiles, currentPluginsRoot: pluginsPath))
       .catchError((e) {
         debugPrint("Unexpected error while reading all profiles: $e");
@@ -435,7 +450,8 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
             ],
           ),
           const SizedBox(height: 15),
-          FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", onChanged: _updateConflictWarnings, onSelected: _updateConflictWarnings),
+          FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", hintText: "e.g. ${widget.initialPluginsPath}", onChanged: _updateConflictWarnings, onSelected: _updateConflictWarnings),
+          if (showPluginsEmptyWarning) const SelectFolderWarning(),
           FutureBuilder(
             future: _conflictWarningsFuture,
             builder: (context, snapshot) =>
@@ -453,6 +469,7 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
           ),
           const SizedBox(height: 15),
           FolderPathEdit(_cachePathController, labelText: "Cache folder path", onSelected: () => setState(() {})),
+          if (showCacheEmptyWarning) const SelectFolderWarning(),
           const SizedBox(height: 30),
           FilledButton(
             onPressed: _submit,
@@ -461,6 +478,17 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
           const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+}
+
+class SelectFolderWarning extends StatelessWidget {
+  const SelectFolderWarning({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Text("Select a folder.", style: TextStyle(color: Theme.of(context).colorScheme.error)),
     );
   }
 }
@@ -487,12 +515,13 @@ class PluginsSymlinkWarning extends StatelessWidget {
 class FolderPathEdit extends StatelessWidget {
   final TextEditingController controller;
   final String? labelText;
+  final String? hintText;
   final void Function()? beforeSelected;
   final void Function() onSelected;
   final void Function()? onChanged;
   final bool pickFile;
   final bool enabled;
-  const FolderPathEdit(this.controller, {this.labelText, this.beforeSelected, required this.onSelected, this.pickFile = false, this.enabled = true, this.onChanged, super.key});
+  const FolderPathEdit(this.controller, {this.labelText, this.hintText, this.beforeSelected, required this.onSelected, this.pickFile = false, this.enabled = true, this.onChanged, super.key});
   static const supportsDirectoryPicker = !kIsWeb;
 
   @override
@@ -504,6 +533,8 @@ class FolderPathEdit extends StatelessWidget {
             controller: controller,
             decoration: InputDecoration(
               labelText: labelText,
+              hintText: hintText,
+              floatingLabelBehavior: hintText != null ? FloatingLabelBehavior.always : null,
               helperMaxLines: 10,
               helperText: supportsDirectoryPicker ? null :
                 "To change this, open your file explorer and copy the full path of ${pickFile ? "the file" : "a directory"} to paste it in here.",
@@ -521,7 +552,9 @@ class FolderPathEdit extends StatelessWidget {
             if (beforeSelected != null) beforeSelected!();
             // we attempt to open the directory picker in an existing directory (might otherwise cause problems on Windows)
             String? initialDirectory = controller.text.trim();
-            if (!io.Directory(initialDirectory).existsSync() && !io.Link(initialDirectory).existsSync()) {
+            if (initialDirectory.isEmpty) {
+              initialDirectory = null;
+            } else if (!io.Directory(initialDirectory).existsSync() && !io.Link(initialDirectory).existsSync()) {
               initialDirectory = io.FileSystemEntity.parentOf(initialDirectory);
               if (!io.Directory(initialDirectory).existsSync() && !io.Link(initialDirectory).existsSync()) {
                 initialDirectory = null;
