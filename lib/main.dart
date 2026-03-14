@@ -440,17 +440,16 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
       title: Text('Select folders for profile "${widget.world.profile.name}"'),
       child: Column(
         children: [
-          const ExpansionTile(
-            trailing: Icon(Icons.info_outlined),
+          const ListTile(
             title: Text("Plugins folder"),
-            children: [
+            subtitle: Padding(padding: EdgeInsets.symmetric(vertical: 10), child:
               Text("Choose a different folder for each new profile you create."
-              " This folder is going to contain all the SimCity 4 mods and assets you choose to install."
+              " This folder is going to contain all the SimCity 4 mods and assets you install."
               " If your Plugins folder is not empty, check the documentation on how to migrate your existing plugin files before continuing."),
-            ],
+            ),
           ),
           const SizedBox(height: 15),
-          FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", hintText: "e.g. ${widget.initialPluginsPath}", onChanged: _updateConflictWarnings, onSelected: _updateConflictWarnings),
+          FolderPathEdit(_pluginsPathController, labelText: "Plugins folder path", hintText: "e.g.  ${widget.initialPluginsPath}", onChanged: _updateConflictWarnings, onSelected: _updateConflictWarnings),
           if (showPluginsEmptyWarning) const SelectFolderWarning(),
           FutureBuilder(
             future: _conflictWarningsFuture,
@@ -460,12 +459,13 @@ class _InitProfileDialogState extends State<InitProfileDialog> {
                   .map((w) => Padding(padding: const EdgeInsets.only(top: 15), child: w)).toList()),
           ),
           const SizedBox(height: 30),
-          const ExpansionTile(
-            trailing: Icon(Icons.info_outlined),
+          const ListTile(
             title: Text("Download cache folder"),
-            children: [Text("The Cache folder stores all the files that are downloaded."
+            subtitle: Padding(padding: EdgeInsets.symmetric(vertical: 10), child:
+              Text("The Cache folder stores all the files that are downloaded."
               " It requires several gigabytes of space."
-              " To avoid unnecessary downloads, it is best to keep the default location for the cache, so that all your profiles share the same Cache folder.")],
+              " To avoid unnecessary downloads, it is best to keep the default location for the cache, so that all your profiles share the same Cache folder."),
+            ),
           ),
           const SizedBox(height: 15),
           FolderPathEdit(_cachePathController, labelText: "Cache folder path", onSelected: () => setState(() {})),
