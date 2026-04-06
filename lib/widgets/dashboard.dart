@@ -189,7 +189,6 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
       builder: (context) {
         final color2 = Theme.of(context).colorScheme.secondary;
         final channelStyle = TextStyle(/*fontWeight: FontWeight.bold,*/ color: Theme.of(context).hintColor);
-        const linkPad = EdgeInsets.symmetric(horizontal: 10);
         return AlertDialog(
           icon: const Icon(Symbols.security),
           title: const Text('Installation of DLL files'),
@@ -240,18 +239,19 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                         ],
                       ),
                     ),
-                    childrenPadding: const EdgeInsets.only(left: 72, right: 20),
+                    childrenPadding: const EdgeInsets.only(left: 72 - OutlinedDisplayBlock.inset, right: 20, bottom: 10),
                     children: [
                       FutureBuilder(
                         future: World.world.profile.channelStats.future,
                         builder: (context, snapshot) {
                           final channel1 = snapshot.data?.channels.firstWhereOrNull((c) => dll.packageMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
                           final channel2 = snapshot.data?.channels.firstWhereOrNull((c) => dll.assetMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
-                          return Column(
+                          return OutlinedDisplayBlock(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 10),
-                              MarkdownText("The DLL file has a valid checksum:\n```\nSHA-256 = ${dll.checksum.sha256}\n```"),
+                              const Text("The DLL file has a valid checksum:"),
+                              DisplayBlock(elevation: 1, child: Text("SHA-256 = ${dll.checksum.sha256}", style: TextStyle(fontFamily: "monospace", color: color2))),
                               const SizedBox(height: 10),
                               Text.rich(TextSpan(
                                 children: [
@@ -260,9 +260,8 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                                   const TextSpan(text: ":"),
                                 ],
                               )),
-                              const SizedBox(height: 20),
-                              Padding(padding: linkPad, child: Hyperlink(url: dll.packageMetadataUrl)),
-                              const SizedBox(height: 20),
+                              DisplayBlock(elevation: 1, child: Hyperlink(url: dll.packageMetadataUrl)),
+                              const SizedBox(height: 10),
                               Text.rich(TextSpan(
                                 children: [
                                   const TextSpan(text: "The download URL of the DLL is defined in the following metadata file of the channel "),
@@ -270,11 +269,9 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                                   const TextSpan(text: ":"),
                                 ],
                               )),
-                              const SizedBox(height: 20),
-                              Padding(padding: linkPad, child: Hyperlink(url: dll.assetMetadataUrl)),
-                              const SizedBox(height: 20),
+                              DisplayBlock(elevation: 1, child: Hyperlink(url: dll.assetMetadataUrl)),
                             ],
-                          );
+                          ));
                         }
                       ),
                     ],
@@ -314,7 +311,6 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
         final theme = Theme.of(context);
         final color2 = theme.colorScheme.secondary;
         final channelStyle = TextStyle(/*fontWeight: FontWeight.bold,*/ color: theme.hintColor);
-        const linkPad = EdgeInsets.symmetric(horizontal: 10);
         return AlertDialog(
           icon: const Icon(Symbols.security),
           title: const Text('Installation of Lua script files'),
@@ -341,27 +337,24 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                         ],
                       ),
                     ),
-                    childrenPadding: const EdgeInsets.only(left: 72, right: 20),
+                    childrenPadding: const EdgeInsets.only(left: 72 - OutlinedDisplayBlock.inset, right: 20, bottom: 10),
                     children: [
                       FutureBuilder(
                         future: World.world.profile.channelStats.future,
                         builder: (context, snapshot) {
                           final channel1 = snapshot.data?.channels.firstWhereOrNull((c) => entry.value.first.packageMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN";
                           final channel2 = entry.value.map((lua) => snapshot.data?.channels.firstWhereOrNull((c) => lua.assetMetadataUrl.startsWith(c.url))?.channelLabel ?? "UNKNOWN").toSet();
-                          return Column(
+                          return OutlinedDisplayBlock(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 10),
                               const Text("Files containing potential Lua scripts:"),
-                              const SizedBox(height: 10),
-                              ...entry.value.map((lua) =>
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                                  child: Text(lua.file, style: TextStyle(color: color2)),
-                                ),
-                              ),
+                              DisplayBlock(elevation: 1, child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: entry.value.map((lua) => Text(lua.file, style: TextStyle(color: color2))).toList(),
+                              )),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
                                 child: Align(
                                   alignment: Alignment.centerRight,
                                   child: TextButton(
@@ -378,9 +371,8 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                                   const TextSpan(text: ":"),
                                 ],
                               )),
-                              const SizedBox(height: 20),
-                              Padding(padding: linkPad, child: Hyperlink(url: entry.value.first.packageMetadataUrl)),
-                              const SizedBox(height: 20),
+                              DisplayBlock(elevation: 1, child: Hyperlink(url: entry.value.first.packageMetadataUrl)),
+                              const SizedBox(height: 10),
                               Text.rich(TextSpan(
                                 children: [
                                   const TextSpan(text: "The download URL of the file is defined in the following metadata file of the channel "),
@@ -388,11 +380,12 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                                   const TextSpan(text: ":"),
                                 ],
                               )),
-                              const SizedBox(height: 20),
-                              ...entry.value.map((lua) => lua.assetMetadataUrl).toSet().map((url) => Padding(padding: linkPad, child: Hyperlink(url: url))),
-                              const SizedBox(height: 20),
+                              DisplayBlock(elevation: 1, child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: entry.value.map((lua) => lua.assetMetadataUrl).toSet().map((url) => Hyperlink(url: url)).toList(),
+                              )),
                             ],
-                          );
+                          ));
                         }
                       ),
                     ],
@@ -489,13 +482,14 @@ The following INI configuration files have been installed in your Plugins folder
               child: Column(
                 children: [
                   const MarkdownText("You can inspect these files using tools such as _ilive's Reader_."),
-                  const SizedBox(height: 20),
-                  ...items.expand((lua) => [
-                    Text(lua.file, style: TextStyle(color: color2)),
-                    const SizedBox(height: 10),
-                    ...lua.tgis.map((tgi) => Text(tgi, style: const TextStyle(fontFamily: "monospace"))),
-                    const SizedBox(height: 20),
-                  ]),
+                  const SizedBox(height: 10),
+                  OutlinedDisplayBlock(child: Column(
+                    children: items.expand((lua) => [
+                      Text(lua.file, style: TextStyle(color: color2)),
+                      DisplayBlock(elevation: 1, child: Text(lua.tgis.join("\n"), style: const TextStyle(fontFamily: "monospace"))),
+                      const SizedBox(height: 10),
+                    ]).toList(),
+                  )),
                 ],
               ),
             ),

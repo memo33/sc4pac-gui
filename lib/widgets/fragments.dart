@@ -851,11 +851,12 @@ class PathField extends StatelessWidget {
 }
 
 class OutlinedDisplayBlock extends StatelessWidget {
+  static const double inset = 20;
   final Widget child;
   const OutlinedDisplayBlock({required this.child, super.key});
   @override Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: inset, vertical: 5),
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).dividerColor.withAlpha(0x1c), width: 1),
         borderRadius: BorderRadius.circular(20),
