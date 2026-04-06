@@ -849,3 +849,35 @@ class PathField extends StatelessWidget {
     );
   }
 }
+
+class OutlinedDisplayBlock extends StatelessWidget {
+  final Widget child;
+  const OutlinedDisplayBlock({required this.child, super.key});
+  @override Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor.withAlpha(0x1c), width: 1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: child,
+    );
+  }
+}
+
+class DisplayBlock extends StatelessWidget {
+  final double elevation;
+  final Widget child;
+  const DisplayBlock({required this.child, this.elevation = 2, super.key});
+  @override Widget build(BuildContext context) {
+    return Card.filled(
+      elevation: elevation,
+      surfaceTintColor: Theme.of(context).colorScheme.primary,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 20),
+        child: child,
+      ),
+    );
+  }
+}

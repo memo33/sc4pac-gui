@@ -201,6 +201,21 @@ class ConfirmationInstallingScripts {
   factory ConfirmationInstallingScripts.fromJson(Map<String, dynamic> json) => _$ConfirmationInstallingScriptsFromJson(json);
 }
 
+typedef ConfirmationIniManualEditItem = ({
+  String tmpIni,
+  String finalName,
+  String package,
+});
+
+@JsonSerializable()
+class ConfirmationIniManualEdit {
+  final List<ConfirmationIniManualEditItem> iniFiles;
+  final List<String> choices;
+  final Map<String, dynamic> responses;
+  const ConfirmationIniManualEdit(this.iniFiles, this.choices, this.responses);
+  factory ConfirmationIniManualEdit.fromJson(Map<String, dynamic> json) => _$ConfirmationIniManualEditFromJson(json);
+}
+
 @JsonSerializable()
 class PromptOpenPackage {
   final List<({String package, String channelUrl})> packages;

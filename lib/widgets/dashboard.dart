@@ -413,6 +413,67 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
     );
   }
 
+  static Future<String?> showIniManualEditDialog(ConfirmationIniManualEdit msg) {
+    return showDialog(
+      context: NavigationService.navigatorKey.currentContext!,
+      barrierDismissible: false,  // updated plugins have already been installed at this point, so there's no going back
+      builder: (context) => AlertDialog(
+        icon: const Icon(Symbols.engineering),
+        title: const Text('Installation of INI files'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const MarkdownText("""
+The following INI configuration files have been installed in your Plugins folder.
+1. To activate these INI files, manually rename each file by removing `_sc4pacnew` from its name.
+2. Review and edit the INI files to set your preferences."""),
+              const SizedBox(height: 20),
+              OutlinedDisplayBlock(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: msg.iniFiles.expand((item) {
+                    final m = RegExp(r"(.*)_sc4pacnew(.*)").firstMatch(item.tmpIni);
+                    return [
+                      PkgNameFragment(BareModule.parse(item.package), asButton: true),
+                      DisplayBlock(child: Text.rich(
+                        TextSpan(
+                          style: const TextStyle(fontFamily: "monospace"),
+                          children: [
+                            if (m != null) ...[
+                              TextSpan(text: m.group(1)),
+                              TextSpan(text: "_sc4pacnew", style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                              TextSpan(text: m.group(2)),
+                            ] else TextSpan(text: item.tmpIni),
+                            const WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Icon(Symbols.arrow_right_alt),
+                              ),
+                            ),
+                            TextSpan(text: item.finalName),
+                          ],
+                        ),
+                      )),
+                      const SizedBox(height: 10),
+                    ];
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: msg.choices.map((choice) => OutlinedButton(
+          child: Text(choice == "Yes" ? "OK, I have done that" : okCancelFromYesNo(choice)),
+          onPressed: () {
+            Navigator.pop(context, choice);
+          },
+        )).toList(),
+      )
+    );
+  }
+
   static Future<void> showTgisDialog(List<ConfirmationInstallingScriptsItem> items) {
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,

@@ -1073,6 +1073,26 @@ class UpdateProcess extends ChangeNotifier {
             });
         }
       },
+      '/prompt/confirmation/update/ini-manual-edit': (self, data) {
+        final msg = ConfirmationIniManualEdit.fromJson(data);
+        switch (self.mode) {
+          case UpdateMode.backgroundFetch:
+            self.cancel();  // we cannot make this selection without user interaction
+          case UpdateMode.backgroundDeleteAll:
+            self.err = ApiError.unexpected("Unexpected error: Did not expect INI manual edit during ${self.mode}", '$data');
+            self.cancel();
+          case UpdateMode.interactiveUpdate:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DashboardScreen.showIniManualEditDialog(msg).then((choice) {
+                if (choice == null) {
+                  self.cancel();
+                } else {
+                  self._ws.sink.add(jsonEncode(msg.responses[choice]));
+                }
+              });
+            });
+        }
+      },
       '/prompt/confirmation/update/installing-scripts': (self, data) {
         final msg = ConfirmationInstallingScripts.fromJson(data);
         switch (self.mode) {
