@@ -457,12 +457,16 @@ The following INI configuration files have been installed in your Plugins folder
             ],
           ),
         ),
-        actions: msg.choices.map((choice) => OutlinedButton(
-          child: Text(choice == "Yes" ? "OK, I have done that" : okCancelFromYesNo(choice)),
-          onPressed: () {
-            Navigator.pop(context, choice);
-          },
-        )).toList(),
+        actions: [
+          const OpenPluginsFolderButton(iconOnly: false),
+          const SizedBox(width: ExportDialog.secondaryButtonsSeparation),
+          ...msg.choices.map((choice) => OutlinedButton(
+            child: Text(choice == "Yes" ? "OK, I have done that" : okCancelFromYesNo(choice)),
+            onPressed: () {
+              Navigator.pop(context, choice);
+            },
+          )),
+        ],
       )
     );
   }
@@ -604,7 +608,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                   ),
-                  PathField(path: path),
+                  PathField(path: path, isPlugins: true),
                 ],
               },
               ...switch (widget.dashboard.profile.paths?.cache) {

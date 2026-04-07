@@ -818,7 +818,8 @@ class CategoryIcon extends StatelessWidget {
 
 class PathField extends StatelessWidget {
   final String path;
-  const PathField({required this.path, super.key});
+  final bool isPlugins;
+  const PathField({required this.path, this.isPlugins = false, super.key});
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -835,7 +836,8 @@ class PathField extends StatelessWidget {
             ),
           ),
         ),
-        if (!kIsWeb)
+        if (isPlugins) const OpenPluginsFolderButton(iconOnly: true),  // works in web as well
+        if (!isPlugins && !kIsWeb)  // TODO deduplicate with OpenPluginsFolderButton
           Tooltip(message: 'Open in file browser', child: IconButton(
             icon: const Icon(Symbols.open_in_new_down),
             onPressed: () async {
@@ -880,5 +882,26 @@ class DisplayBlock extends StatelessWidget {
         child: child,
       ),
     );
+  }
+}
+
+class OpenPluginsFolderButton extends StatelessWidget {
+  // final BareModule? module;  // not implemented yet
+  final bool iconOnly;
+  const OpenPluginsFolderButton({required this.iconOnly, /*this.module,*/ super.key});
+  static Future<void> _onPressed() => World.world.openPluginsFolder().catchError(ApiErrorWidget.dialog);
+  @override Widget build(BuildContext context) {
+    if (iconOnly) {
+      return const Tooltip(
+        message: 'Open in file browser',
+        child: IconButton(icon: Icon(Symbols.open_in_new_down), onPressed: _onPressed),
+      );
+    } else {
+      return TextButton.icon(
+        icon: const Icon(Symbols.folder_open),
+        label: const Text("Open Plugins folder"),
+        onPressed: _onPressed,
+      );
+    }
   }
 }

@@ -267,6 +267,7 @@ class ExportDialog extends StatefulWidget {
   final Future<ExportData> dataFuture;
   const ExportDialog(this.dataFuture, {super.key});
   @override State<ExportDialog> createState() => _ExportDialogState();
+  static const double secondaryButtonsSeparation = 80;
 
   static Future<T?> show<T>(BuildContext context, Future<ExportData> dataFuture) =>
     showDialog<T>(
@@ -351,7 +352,7 @@ class _ExportDialogState extends State<ExportDialog> {
               },
             ),
         ),
-        const SizedBox(width: 80),
+        const SizedBox(width: ExportDialog.secondaryButtonsSeparation),
         OutlinedButton(
           onPressed: () { Navigator.pop(context, null); },
           child: const Text("Dismiss"),

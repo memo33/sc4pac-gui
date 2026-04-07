@@ -476,6 +476,16 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     }
   }
 
+  Future<void> openFolder({required String profileId, BareModule? module}) async {
+    final response = await _post(Uri.http(authority, '/plugins.folder.open', {
+      if (module != null) 'pkg': module.toString(),
+      'profile': profileId
+    }));
+    if (response.statusCode != 200) {
+      throw ApiError(jsonUtf8Decode(response.bodyBytes));
+    }
+  }
+
   // TODO use BareModule instead of String
   Future<ExportData> export(List<String> modules, {required String profileId}) async {
     final response = await _post(Uri.http(authority, '/plugins.export', {'profile': profileId}),

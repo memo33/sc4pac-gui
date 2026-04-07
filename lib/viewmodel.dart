@@ -331,6 +331,10 @@ class World extends ChangeNotifier {
     }
   }
 
+  Future<void> openPluginsFolder({BareModule? module}) async {
+    return client.openFolder(profileId: profile.id, module: module);
+  }
+
   Future<void> saveSimtropolisToken(String? simtropolisToken, {void Function()? beforeSave, void Function()? afterSave}) {
     return World.world.client.getSettings()
       .then<void>((settingsData) async {
