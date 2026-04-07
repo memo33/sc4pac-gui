@@ -836,7 +836,7 @@ class PathField extends StatelessWidget {
             ),
           ),
         ),
-        if (isPlugins) const OpenPluginsFolderButton(iconOnly: true),  // works in web as well
+        if (isPlugins) const OpenPluginsFolderButton(iconOnly: true, symbol: Symbols.open_in_new_down),  // works in web as well
         if (!isPlugins && !kIsWeb)  // TODO deduplicate with OpenPluginsFolderButton
           Tooltip(message: 'Open in file browser', child: IconButton(
             icon: const Icon(Symbols.open_in_new_down),
@@ -885,20 +885,41 @@ class DisplayBlock extends StatelessWidget {
   }
 }
 
-class OpenPluginsFolderButton extends StatelessWidget {
-  // final BareModule? module;  // not implemented yet
-  final bool iconOnly;
-  const OpenPluginsFolderButton({required this.iconOnly, /*this.module,*/ super.key});
-  static Future<void> _onPressed() => World.world.openPluginsFolder().catchError(ApiErrorWidget.dialog);
+class OpenFolderIcon extends StatelessWidget {
+  final Color? color;
+  const OpenFolderIcon({this.color, super.key});
   @override Widget build(BuildContext context) {
+    return badges.Badge(
+      badgeContent: RotatedBox(quarterTurns: 1, child: Icon(Symbols.arrow_outward, size: 12, color: color, weight: 600)),
+      position: badges.BadgePosition.bottomEnd(bottom: -3, end: -3),
+      badgeAnimation: const badges.BadgeAnimation.scale(toAnimate: false),
+      badgeStyle: badges.BadgeStyle(
+        padding: const EdgeInsets.all(1),
+        badgeColor: Theme.of(context).colorScheme.surface,
+      ),
+      child: Icon(Symbols.folder_open, color: color),
+    );
+  }
+}
+
+
+class OpenPluginsFolderButton extends StatelessWidget {
+  final BareModule? module;
+  final bool iconOnly;
+  final IconData? symbol;
+  final Color? color;
+  const OpenPluginsFolderButton({required this.iconOnly, this.module, this.symbol, this.color, super.key});
+  Future<void> _onPressed() => World.world.openPluginsFolder(module: module).catchError(ApiErrorWidget.dialog);
+  @override Widget build(BuildContext context) {
+    final icon = symbol != null ? Icon(symbol, color: color) : OpenFolderIcon(color: color);
     if (iconOnly) {
-      return const Tooltip(
+      return Tooltip(
         message: 'Open in file browser',
-        child: IconButton(icon: Icon(Symbols.open_in_new_down), onPressed: _onPressed),
+        child: IconButton(icon: icon, onPressed: _onPressed),
       );
     } else {
       return TextButton.icon(
-        icon: const Icon(Symbols.folder_open),
+        icon: icon,
         label: const Text("Open Plugins folder"),
         onPressed: _onPressed,
       );

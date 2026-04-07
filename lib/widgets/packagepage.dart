@@ -217,6 +217,8 @@ class _PackagePageState extends State<PackagePage> {
                           .then((_) => _refresh());
                       },
                     ),
+                    const SizedBox(width: 10),
+                    OpenPluginsFolderButton(module: widget.module, iconOnly: true, color: Theme.of(context).colorScheme.primary),
                   ],
                   if (installedVersion != null ||
                     // Allow Redownload in case of extraction failures.
