@@ -294,7 +294,7 @@ class _PackagePageState extends State<PackagePage> {
                     Align(
                       alignment: const Alignment(-0.75, 0),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(/*minHeight: constraint.maxHeight,*/ maxWidth: 600),
+                        constraints: const BoxConstraints(/*minHeight: constraint.maxHeight,*/ maxWidth: 640),
                         child: table,
                       ),
                     ),
