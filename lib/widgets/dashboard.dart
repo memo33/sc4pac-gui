@@ -226,6 +226,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
                             children: <InlineSpan>[
                               const TextSpan(text: 'This DLL is part of '),
                               WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
                                 child: PkgNameFragment(
                                   BareModule.parse(dll.package),
                                   asInlineButton: true,

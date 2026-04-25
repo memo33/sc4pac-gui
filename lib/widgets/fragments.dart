@@ -914,7 +914,7 @@ class OpenPluginsFolderButton extends StatelessWidget {
     final icon = symbol != null ? Icon(symbol, color: color) : OpenFolderIcon(color: color);
     if (iconOnly) {
       return Tooltip(
-        message: 'Open in file browser',
+        message: 'Open Plugins folder',
         child: IconButton(icon: icon, onPressed: _onPressed),
       );
     } else {
