@@ -411,64 +411,7 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
     return showDialog(
       context: NavigationService.navigatorKey.currentContext!,
       barrierDismissible: false,  // updated plugins have already been installed at this point, so there's no going back
-      builder: (context) => AlertDialog(
-        icon: const Icon(Symbols.engineering),
-        title: const Text('Installation of INI files'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const MarkdownText("""
-The following INI configuration files have been installed in your Plugins folder.
-1. To activate these INI files, manually rename each file by removing `_sc4pacnew` from its name.
-2. Review and edit the INI files to set your preferences."""),
-              const SizedBox(height: 20),
-              OutlinedDisplayBlock(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: msg.iniFiles.expand((item) {
-                    final m = RegExp(r"(.*)_sc4pacnew(.*)").firstMatch(item.tmpIni);
-                    return [
-                      PkgNameFragment(BareModule.parse(item.package), asButton: true),
-                      DisplayBlock(child: Text.rich(
-                        TextSpan(
-                          style: const TextStyle(fontFamily: "monospace"),
-                          children: [
-                            if (m != null) ...[
-                              TextSpan(text: m.group(1)),
-                              TextSpan(text: "_sc4pacnew", style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
-                              TextSpan(text: m.group(2)),
-                            ] else TextSpan(text: item.tmpIni),
-                            const WidgetSpan(
-                              alignment: PlaceholderAlignment.middle,
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10),
-                                child: Icon(Symbols.arrow_right_alt),
-                              ),
-                            ),
-                            TextSpan(text: item.finalName),
-                          ],
-                        ),
-                      )),
-                      const SizedBox(height: 10),
-                    ];
-                  }).toList(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          const OpenPluginsFolderButton(iconOnly: false),
-          const SizedBox(width: ExportDialog.secondaryButtonsSeparation),
-          ...msg.choices.map((choice) => OutlinedButton(
-            child: Text(choice == "Yes" ? "OK, I have done that" : okCancelFromYesNo(choice)),
-            onPressed: () {
-              Navigator.pop(context, choice);
-            },
-          )),
-        ],
-      )
+      builder: (context) => IniManualEditDialog(msg, confirmEach: msg.iniFiles.length > 1),
     );
   }
 
@@ -662,6 +605,115 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class IniManualEditDialog extends StatefulWidget {
+  final ConfirmationIniManualEdit msg;
+  final bool confirmEach;
+  const IniManualEditDialog(this.msg, {required this.confirmEach, super.key});
+  @override State<IniManualEditDialog> createState() => _IniManualEditDialogState();
+}
+class _IniManualEditDialogState extends State<IniManualEditDialog> {
+  late final _nSteps = widget.msg.iniFiles.length;
+  late final List<bool> _checked = List<bool>.filled(_nSteps, false);
+
+  @override Widget build(BuildContext context) {
+    final completedSteps = _checked.where((v) => v).length;
+    return AlertDialog(
+      icon: const Icon(Symbols.engineering),
+      title: const Text('Installation of INI files'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const MarkdownText("""
+The following INI configuration files have been installed in your Plugins folder.
+1. To activate these INI files, manually rename each file by removing `_sc4pacnew` from its name.
+2. Review and edit the INI files to set your preferences."""),
+                const SizedBox(height: 20),
+                OutlinedDisplayBlock(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: Iterable<int>.generate(_nSteps).expand((idx) {
+                      final item = widget.msg.iniFiles[idx];
+                      final m = RegExp(r"(.*)_sc4pacnew(.*)").firstMatch(item.tmpIni);
+                      return [
+                        PkgNameFragment(BareModule.parse(item.package), asButton: true),
+                        DisplayBlock(child: Text.rich(
+                          TextSpan(
+                            style: const TextStyle(fontFamily: "monospace"),
+                            children: [
+                              if (m != null) ...[
+                                TextSpan(text: m.group(1)),
+                                TextSpan(text: "_sc4pacnew", style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                                TextSpan(text: m.group(2)),
+                              ] else TextSpan(text: item.tmpIni),
+                              const WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                  child: Icon(Symbols.arrow_right_alt),
+                                ),
+                              ),
+                              TextSpan(text: item.finalName),
+                            ],
+                          ),
+                        )),
+                        if (widget.confirmEach)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: LabeledCheckbox(
+                              label: "I have done that",
+                              value: _checked[idx],
+                              color: Theme.of(context).colorScheme.primary,
+                              onChanged: (val) {
+                                if (val != null) setState(() => _checked[idx] = val);
+                              },
+                            ),
+                          ),
+                        const SizedBox(height: 5),
+                        if (idx != _nSteps - 1 && widget.confirmEach) const Divider(),
+                        const SizedBox(height: 5),
+                      ];
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          )),
+          if (widget.confirmEach)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8, top: 16),
+                child: Text(
+                  "$completedSteps/$_nSteps steps completed",
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        const OpenPluginsFolderButton(iconOnly: false),
+        const SizedBox(width: ExportDialog.secondaryButtonsSeparation),
+        ...widget.msg.choices.map((choice) => switch (widget.confirmEach && completedSteps < _nSteps) {
+          bool disabled => Tooltip(
+            message: disabled ? "Check the checkboxes to continue" : "",
+            child: OutlinedButton(
+              onPressed: disabled ? null : () => Navigator.pop(context, choice),
+              child: Text(choice == "Yes"
+                ? (widget.confirmEach ? "OK, continue" : "OK, I have done that")
+                : DashboardScreen.okCancelFromYesNo(choice)),
+            ),
+          )
+        }),
+      ],
     );
   }
 }

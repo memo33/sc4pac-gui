@@ -902,7 +902,6 @@ class OpenFolderIcon extends StatelessWidget {
   }
 }
 
-
 class OpenPluginsFolderButton extends StatelessWidget {
   final BareModule? module;
   final bool iconOnly;
@@ -924,5 +923,34 @@ class OpenPluginsFolderButton extends StatelessWidget {
         onPressed: _onPressed,
       );
     }
+  }
+}
+
+class LabeledCheckbox extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+  final Color? color;
+  const LabeledCheckbox({required this.label, required this.value, required this.onChanged, this.color, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      onTap: () => onChanged(!value),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Checkbox(
+            value: value,
+            onChanged: onChanged,
+            side: color != null ? BorderSide(color: color!, width: 2) : null,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, right: 8),
+            child: Text(label, style: color != null ? TextStyle(color: color) : null),
+          ),
+        ],
+      ),
+    );
   }
 }
