@@ -321,10 +321,6 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
               child: Column(
                 children: [
                   Padding(padding: const EdgeInsets.symmetric(horizontal: 36), child: MarkdownText(msg.description)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 36),
-                    child: HideLuaScriptCheckbox(msg: msg, initialHideLuaScriptWarning: World.world.settingsOrDefault.hideLuaScriptWarning),
-                  ),
                   const SizedBox(height: 10),
                   ...sortedEntries.map((entry) => ExpansionTile(
                     title: ListTile(
@@ -396,12 +392,16 @@ Maybe they have been renamed or deleted from the corresponding channel, so the m
               ),
             ),
           ),
-          actions: msg.choices.map((choice) => OutlinedButton(
-            child: Text(okCancelFromYesNo(choice)),
-            onPressed: () {
-              Navigator.pop(context, choice);
-            },
-          )).toList(),
+          actions: [
+            HideLuaScriptCheckbox(msg: msg, initialHideLuaScriptWarning: World.world.settingsOrDefault.hideLuaScriptWarning),
+            const SizedBox(width: ExportDialog.secondaryButtonsSeparation),
+            ...msg.choices.map((choice) => OutlinedButton(
+              child: Text(okCancelFromYesNo(choice)),
+              onPressed: () {
+                Navigator.pop(context, choice);
+              },
+            )),
+          ],
         );
       }
     );
@@ -762,15 +762,14 @@ class HideLuaScriptCheckbox extends StatelessWidget {
         if (msg.luaSandboxInstalled && !initialHideLuaScriptWarning) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
-            child: CheckboxListTile(
+            child: LabeledCheckbox(
               value: World.world.settingsOrDefault.hideLuaScriptWarning,
               onChanged: (value) => SettingsScreen.saveSettings(World.world.settingsOrDefault.copyWith(hideLuaScriptWarning: value)),
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text("Do not show this warning again.", style: Theme.of(context).textTheme.labelLarge),
+              label: "Do not show this warning again.",
             ),
           );
         } else {
-          return const SizedBox(height: 0);
+          return const SizedBox();
         }
       }
     );
