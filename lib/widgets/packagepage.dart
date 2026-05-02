@@ -299,35 +299,13 @@ class PackagePage extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 20, left: 15, right: 15),
-                      child: switch ([
-                        if (conflicting.isNotEmpty)
-                          DependenciesCard(
-                            conflicting,
-                            title: "Conflicts With",
-                            statuses: statuses,
-                            icon: Icon(Symbols.multiple_stop, color: Theme.of(context).hintColor)
-                          ),
-                        DependenciesCard(dependencies,
-                          title: "Dependencies",
-                          statuses: statuses,
-                          icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
-                        ),
-                        DependenciesCard(requiredBy,
-                          title: "Required By",
-                          statuses: statuses,
-                          icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
-                        ),
-                      ]) {
-                        final pkgLists => switch (290 * pkgLists.length > constraint.maxWidth) {
-                          bool vertical =>
-                            Flex(
-                              direction: vertical ? Axis.vertical : Axis.horizontal,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              // spacing: 15,  // TODO requires Flutter 3.27+
-                              children: vertical ? pkgLists : pkgLists.map((c) => Expanded(child: c)).toList(),
-                            ),
-                        },
-                      },
+                      child: DependenciesCardGrid(
+                        conflicting: conflicting,
+                        dependencies: dependencies,
+                        requiredBy: requiredBy,
+                        statuses: statuses,
+                        maxWidth: constraint.maxWidth - 30,  // padding
+                      ),
                     ),
                     Wrap(
                       spacing: 50,
@@ -527,6 +505,57 @@ class MetadataUrlButton extends StatelessWidget {
           }
         ),
       ),
+    );
+  }
+}
+
+class DependenciesCardGrid extends StatelessWidget {
+  final Iterable<BareModule> conflicting;
+  final Iterable<BareModule> dependencies;
+  final Iterable<BareModule> requiredBy;
+  final Map<String, InstalledStatus> statuses;
+  final double maxWidth;
+  const DependenciesCardGrid({required this.conflicting, required this.dependencies, required this.requiredBy, required this.statuses, required this.maxWidth, super.key});
+  static const double _minColumnWidth = 280;
+  @override
+  Widget build(BuildContext context) {
+    final pkgLists = [
+      if (conflicting.isNotEmpty)
+        DependenciesCard(
+          conflicting,
+          title: "Conflicts With",
+          statuses: statuses,
+          icon: Icon(Symbols.multiple_stop, color: Theme.of(context).hintColor)
+        ),
+      DependenciesCard(dependencies,
+        title: "Dependencies",
+        statuses: statuses,
+        icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
+      ),
+      DependenciesCard(requiredBy,
+        title: "Required By",
+        statuses: statuses,
+        icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
+      ),
+    ];
+    final horizontal = _minColumnWidth * pkgLists.length <= maxWidth;
+    if (!horizontal) {
+      final mixed = pkgLists.length == 3 && _minColumnWidth * 2 <= maxWidth;
+      if (mixed) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: pkgLists[0]),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Flexible(child: pkgLists[1]), Flexible(child: pkgLists[2])]),
+          ],
+        );
+      }
+    }
+    return Flex(
+      direction: horizontal ? Axis.horizontal : Axis.vertical,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      // spacing: 15,  // TODO requires Flutter 3.27+
+      children: !horizontal ? pkgLists : pkgLists.map((c) => Flexible(child: c)).toList(),
     );
   }
 }
