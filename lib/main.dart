@@ -596,10 +596,11 @@ class MainContents extends StatefulWidget {
 class _MainContentsState extends State<MainContents> {
   final _navRailKey = GlobalKey();
   static const double dividerHandleBuffer = 5;
+  static const _splitWidthThreshold = 1200;
 
   @override
   Widget build(BuildContext context) {
-    final bool isSplit = MediaQuery.sizeOf(context).width >= 1200;
+    final bool isSplit = MediaQuery.sizeOf(context).width >= _splitWidthThreshold;
     final navRail = NavRail(key: _navRailKey);  // key is needed to preserve list state when switching on/off the split view
     return Scaffold(
       body: SafeArea(
@@ -617,14 +618,24 @@ class _MainContentsState extends State<MainContents> {
               ),
               child: MultiSplitView(
                 antiAliasingWorkaround: false,
+                resizable: true,
+                sizeUnderflowPolicy: SizeUnderflowPolicy.stretchAll,
                 initialAreas: [
-                  Area(builder: (context, area) => ScrollbarTheme(
+                  Area(
+                    flex: .50,
+                    min: .30,
+                    builder: (context, area) => ScrollbarTheme(
                       data: const ScrollbarThemeData(crossAxisMargin: dividerHandleBuffer + 3),
                       child: navRail,
-                    )),
-                  Area(builder: (context, area) => PackageStackPanel(
+                    ),
+                  ),
+                  Area(
+                    flex: .50,
+                    min: .35,  // not perfect, but it is difficult to set the minimum width in terms of absolute pixels
+                    builder: (context, area) => PackageStackPanel(
                       key: NavigationService.packageStackPanelNavigatorKey,
-                    )),
+                    ),
+                  ),
                 ],
               ),
             ),
