@@ -45,37 +45,61 @@ class ApiError {
 
 class RingBuffer<A> extends Iterable<A> {
   final int capacity;
-  final List<A> buffer = [];
-  int start = 0;
-  RingBuffer({required this.capacity});
+  final List<A?> _buffer;
+  int _end = 0;
+  int remaining;
+  RingBuffer({required this.capacity}) : _buffer = List.filled(capacity, null, growable: false), remaining = capacity;
   void add(A value) {
-    if (buffer.length < capacity) {
-      buffer.add(value);
-    } else {
-      buffer[start] = value;
-      start = (start + 1) % capacity;
+    _buffer[_end] = value;
+    _end = (_end + 1) % capacity;
+    if (remaining > 0) {
+      remaining--;
     }
   }
-  @override int get length => buffer.length < capacity ? buffer.length - start : capacity;
-  @override bool get isEmpty => length == 0;
-  @override bool get isNotEmpty => length != 0;
+  @override int get length => capacity - remaining;
+  @override bool get isEmpty => remaining == capacity;
+  @override bool get isNotEmpty => remaining != capacity;
+  A? get lastOrNull {
+    if (isEmpty) {
+      return null;
+    } else {
+      final lastIndex = (_end - 1 + capacity) % capacity;
+      return _buffer[lastIndex] as A;
+    }
+  }
+  @override A get last {
+    final value = lastOrNull;
+    if (value == null) {
+      throw StateError("no element");
+    } else {
+      return value;
+    }
+  }
   Iterable<A> takeRight(int count) {
     count = math.max(0, math.min(count, length));
-    final l1 = math.min(count, start);
+    final l1 = math.min(count, _end);
     final l2 = count - l1;
-    return buffer.getRange(buffer.length - l2, buffer.length).followedBy(buffer.getRange(start - l1, start));
+    return _buffer.getRange(capacity - l2, capacity).followedBy(_buffer.getRange(_end - l1, _end)).cast<A>();
   }
   @override Iterator<A> get iterator => takeRight(length).iterator;
-  // get A last {
-  //   if (isEmpty) {
-  //     throw IterableElementError.noElement();
-  //   } else {
-  //     return takeRight(1).first;  // TODO make more efficient
-  //   }
-  // }
-  // void removeLast() {
-  //   ???
-  // }
+  A removeLast() {
+    if (isEmpty) {
+      throw StateError("no element");
+    } else {
+      _end = (_end - 1 + capacity) % capacity;
+      final A value = _buffer[_end] as A;
+      _buffer[_end] = null;
+      remaining++;
+      return value;
+    }
+  }
+  void clear() {
+    for (int i = 0; i < capacity; i++) {
+      _buffer[i] = null;
+    }
+    _end = 0;
+    remaining = capacity;
+  }
 }
 
 enum ServerStatus { launching, listening, terminated }

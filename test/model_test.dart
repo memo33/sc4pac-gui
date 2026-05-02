@@ -25,5 +25,19 @@ void main() {
     expect(b.length, equals(5));
     expect(b.takeRight(10), equals([6,7,8,9,10]));
     expect(b.takeRight(3), equals([8,9,10]));
+    b.clear();
+    expect(b.length, equals(0));
+    b.add(11);
+    b.add(12);
+    b.add(13);
+    b.add(14);
+    b.add(15);
+    b.add(16);
+    expect(b.removeLast(), equals(16));
+    expect(b.removeLast(), equals(15));
+    expect(b.removeLast(), equals(14));
+    expect(b.last, equals(13));
+    expect(b.takeRight(10), equals([12,13]));
+    expect(b.remaining, equals(3));
   });
 }

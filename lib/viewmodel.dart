@@ -750,7 +750,7 @@ class PackageStackItem {
   PackageStackItem(this.module, this.infoResult);
 }
 class PackageStack extends ChangeNotifier {
-  final _stack = <PackageStackItem>[];  // TODO use RingBuffer with bounded capacity and reuse infoResults for same module
+  final _stack = RingBuffer<PackageStackItem>(capacity: 48);  // TODO use RingBuffer with bounded capacity and reuse infoResults for same module
 
   static Future<PackageInfoResult> fetchInfo(BareModule module, {Set<String>? debugChannelUrls}) async {
     final data = await World.world.client.info(module, profileId: World.world.profile.id);
