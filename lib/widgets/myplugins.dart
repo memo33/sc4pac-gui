@@ -25,6 +25,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   late Future<List<PluginsSearchResultItem>> filteredList;
   // late Future<List<InstalledListItem>> searchResultFuture;
   // late Future<List<InstalledListItem>> filteredList;
+  BareModule? _lastSelectedModule;
 
   static int _compareDates(DateTime? t1, DateTime? t2) {
     // null dates are sorted to the front, recent dates to the back
@@ -249,6 +250,8 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       summary: pkg.summary,
                       status: pkg.status,
                       afterToggled: _refresh,
+                      onSelected: () => setState(() => _lastSelectedModule = pkg.module),
+                      selected: pkg.module == _lastSelectedModule,
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!, pkg.module)),
                       ],

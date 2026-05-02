@@ -12,6 +12,7 @@ class FindPackagesScreen extends StatefulWidget {
   @override State<FindPackagesScreen> createState() => _FindPackagesScreenState();
 }
 class _FindPackagesScreenState extends State<FindPackagesScreen> {
+  BareModule? _lastSelectedModule;
 
   static const double _toolBarHeight = 100.0;
   static const double _toolbarBottomHeight = 40.0;
@@ -192,11 +193,15 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final item = searchResult.packages[index];
-                    return PackageTile(item.module, index,
+                    return PackageTile(
+                      item.module,
+                      index,
                       summary: item.summary,
                       status: item.status,
                       debugChannelUrls: widget.findPackages.customFilter?.debugChannelUrls,
                       afterToggled: () {},
+                      onSelected: () => setState(() => _lastSelectedModule = item.module),
+                      selected: item.module == _lastSelectedModule,
                     );
                   },
                   childCount: searchResult.packages.length,

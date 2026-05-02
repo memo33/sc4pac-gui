@@ -662,7 +662,9 @@ class PackageTile extends StatelessWidget {
   final Set<String>? debugChannelUrls;
   final void Function()? afterToggled;
   final VisualDensity? visualDensity;
-  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.afterToggled, this.visualDensity});
+  final bool selected;
+  final void Function()? onSelected;
+  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.afterToggled, this.visualDensity, this.selected = false, this.onSelected});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
@@ -706,6 +708,8 @@ class PackageTile extends StatelessWidget {
         }
       }),
       visualDensity: visualDensity,
+      // selected: selected,  // commented out to avoid colored icon
+      tileColor: selected ? Theme.of(context).focusColor.withOpacity(0.12) : null,  // instead of selectedTileColor
       trailing: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
@@ -713,7 +717,12 @@ class PackageTile extends StatelessWidget {
           Text((index+1).toString()),
         ],
       ),
-      onTap: () => PackagePage.pushPkg(context, module, debugChannelUrls: debugChannelUrls),
+      onTap: () {
+        if (onSelected != null) {
+          onSelected!();
+        }
+        PackagePage.pushPkg(context, module, debugChannelUrls: debugChannelUrls);
+      },
     );
   }
 }
