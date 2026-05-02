@@ -765,9 +765,13 @@ class PackageStack extends ChangeNotifier {
   }
 
   void push(BareModule module, {Set<String>? debugChannelUrls}) {
-    final infoResult = fetchInfo(module, debugChannelUrls: debugChannelUrls);
-    _stack.add(PackageStackItem(module, infoResult));
-    notifyListeners();
+    if (_stack.isNotEmpty && _stack.last.module == module) {
+      return;  // already on top, do not push again
+    } else {
+      final infoResult = fetchInfo(module, debugChannelUrls: debugChannelUrls);
+      _stack.add(PackageStackItem(module, infoResult));
+      notifyListeners();
+    }
   }
 
   void markAllStale() {
