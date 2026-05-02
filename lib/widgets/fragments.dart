@@ -148,7 +148,8 @@ class PkgNameFragment extends StatelessWidget {
   final String? localVariant;
   final String? prefix, suffix;
   final bool asInlineButton;
-  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.asInlineButton = false, this.status, this.colored = true, this.localVariant, this.prefix, this.suffix});
+  final int? maxLines;
+  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.asInlineButton = false, this.status, this.colored = true, this.localVariant, this.prefix, this.suffix, this.maxLines});
 
   static const EdgeInsets padding = EdgeInsets.all(10);
 
@@ -159,6 +160,8 @@ class PkgNameFragment extends StatelessWidget {
     final style1 = colored ? style.copyWith(color: theme.primaryColorLight) : style.copyWith(color: theme.hintColor);
     final style2 = colored ? style.copyWith(color: theme.primaryColor) : style;
     final text = RichText(
+      overflow: maxLines != null ? TextOverflow.ellipsis : TextOverflow.clip,
+      maxLines: maxLines,  // needed for overflow
       text: TextSpan(
         style: style,
         children: [
@@ -192,12 +195,12 @@ class TextWithCopyButton extends StatelessWidget {
   final Widget child;
   const TextWithCopyButton({required this.copyableText, required this.child, super.key});
   @override Widget build(BuildContext context) {
-    return Wrap(
-      direction: Axis.horizontal,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 10,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        child,
+        Flexible(child: child),
+        const SizedBox(width: 10),
         AnimatedCopyButton(
           getCopyableText: () => copyableText,
         ),

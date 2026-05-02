@@ -106,8 +106,9 @@ class PackagePage extends StatelessWidget {
         leading: isSplitView ? BackButton(onPressed: () => World.world.profile.dashboard.packageStack.pop()) : const BackButton(),
         title: TextWithCopyButton(
           copyableText: moduleStr,
-          child: PkgNameFragment(module, asButton: false, colored: false),
+          child: PkgNameFragment(module, asButton: false, colored: false, maxLines: 1),
         ),
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20) ?? TextStyle(fontSize: 20, color: Theme.of(context).colorScheme.onSurface),
         actions: [
           IconButton(icon: const Icon(Icons.close), tooltip: 'Close all', onPressed: () {
             if (isSplitView) {
