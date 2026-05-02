@@ -744,15 +744,20 @@ class Dashboard extends ChangeNotifier {
 // mutable!
 class PackageStackItem {
   final BareModule module;
-  Future<PackageInfoResult> infoResult;
-  bool isStale = false;
   final scrollController = ScrollController();  // for scroll-offset (SingleChildScrollView.restorationId did not seem to work)
-  PackageStackItem(this.module, this.infoResult);
+  PackageStackItem(this.module);
+}
+// mutable!
+class CachedPackageInfo {
+  final Future<PackageInfoResult> infoResult;
+  bool isStale;
+  CachedPackageInfo(this.infoResult, {required this.isStale});
 }
 class PackageStack extends ChangeNotifier {
-  final _stack = RingBuffer<PackageStackItem>(capacity: 48);  // TODO use RingBuffer with bounded capacity and reuse infoResults for same module
+  final _stack = RingBuffer<PackageStackItem>(capacity: 48);
+  final _cache = <BareModule, CachedPackageInfo>{};  // TODO remove unused entries after some time to keep cache reasonably small
 
-  static Future<PackageInfoResult> fetchInfo(BareModule module, {Set<String>? debugChannelUrls}) async {
+  static Future<PackageInfoResult> _doFetch(BareModule module, {Set<String>? debugChannelUrls}) async {
     final data = await World.world.client.info(module, profileId: World.world.profile.id);
     if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
       final channelsAdded = await World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls);
@@ -764,18 +769,36 @@ class PackageStack extends ChangeNotifier {
     }
   }
 
+  Future<PackageInfoResult> fetchInfo(BareModule module, {Set<String>? debugChannelUrls}) {
+    final useCache = debugChannelUrls?.isNotEmpty != true;
+    if (useCache) {
+      final cachedInfo = _cache[module];
+      if (cachedInfo != null && !cachedInfo.isStale) {
+        // debugPrint("Cache hit for $module");
+        return cachedInfo.infoResult;
+      }
+    }
+    final future = _doFetch(module, debugChannelUrls: debugChannelUrls);
+    if (useCache) {
+      _cache[module] = CachedPackageInfo(future, isStale: false);
+    }
+    return future;
+  }
+
   void push(BareModule module, {Set<String>? debugChannelUrls}) {
     if (_stack.isNotEmpty && _stack.last.module == module) {
       return;  // already on top, do not push again
     } else {
-      final infoResult = fetchInfo(module, debugChannelUrls: debugChannelUrls);
-      _stack.add(PackageStackItem(module, infoResult));
+      if (debugChannelUrls?.isNotEmpty == true) {
+        fetchInfo(module, debugChannelUrls: debugChannelUrls);
+      }
+      _stack.add(PackageStackItem(module));
       notifyListeners();
     }
   }
 
   void markAllStale() {
-    for (final item in _stack) {
+    for (final item in _cache.values) {
       item.isStale = true;
     }
     notifyListeners();
@@ -786,10 +809,10 @@ class PackageStack extends ChangeNotifier {
       return null;
     } else {
       final item = _stack.last;
-      if (item.isStale) {
-        item.infoResult = fetchInfo(item.module);
-        item.isStale = false;
-        notifyListeners();  // TODO needed or not?
+      final data = _cache[item.module];
+      if (data == null || data.isStale) {
+        // fetchInfo(item.module);
+        notifyListeners();  // TODO needed or not? this should trigger a rebuild and thus a new fetchInfo
       }
       return item;
     }

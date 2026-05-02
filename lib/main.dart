@@ -710,14 +710,16 @@ class PackageStackPanel extends StatelessWidget {
       child: const Center(child: BackgroundArtwork()),
       builder: (context, child) => switch (packageStack.peek()) {
         null => child!,
-        final item => PackagePage(
-          item.module,
-          infoResult: item.infoResult,
-          isSplitView: true,
-          scrollController: item.scrollController,
-          key: ObjectKey(item.infoResult),  // key ensures that whole page reloads instantly on module change
-          // key: ValueKey(item.module),  // TODO key ensures that whole page reloads instantly on module change (requires some synchronization with PendingUpdates state to avoid flicker at Add-to-Plugins/Reinstall buttons)
-        ),
+        final item => switch (packageStack.fetchInfo(item.module)) {
+          final infoResult => PackagePage(
+            item.module,
+            infoResult: infoResult,
+            isSplitView: true,
+            scrollController: item.scrollController,
+            key: ObjectKey(infoResult),  // key ensures that whole page reloads instantly on module change
+            // key: ValueKey(item.module),  // TODO key ensures that whole page reloads instantly on module change (requires some synchronization with PendingUpdates state to avoid flicker at Add-to-Plugins/Reinstall buttons)
+          ),
+        },
       },
     );
   }

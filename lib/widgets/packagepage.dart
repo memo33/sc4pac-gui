@@ -27,7 +27,6 @@ class PackagePage extends StatelessWidget {
     if (c != null && !Navigator.canPop(c)) {  // there is no dialog or fullscreen package page shown
       final BuildContext? c2 = NavigationService.packageStackPanelNavigatorKey.currentContext;
       if (c2 != null && c2.mounted) {  // split-view package stack is available, so use it
-        // TODO preserve scroll state of previous package page somehow?
         World.world.profile.dashboard.packageStack.push(module, debugChannelUrls: debugChannelUrls);
         return Future<void>.value(null);
       }
@@ -39,7 +38,7 @@ class PackagePage extends StatelessWidget {
         settings: const RouteSettings(name: World.packageRoute),
         pageBuilder: (context1, animation, secondaryAnimation) => PackagePage(
           module,
-          infoResult: PackageStack.fetchInfo(module, debugChannelUrls: debugChannelUrls),
+          infoResult: World.world.profile.dashboard.packageStack.fetchInfo(module, debugChannelUrls: debugChannelUrls),
           isSplitView: false,
           debugChannelUrls: debugChannelUrls,
         ),
