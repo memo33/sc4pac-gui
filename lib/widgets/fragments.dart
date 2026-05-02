@@ -459,7 +459,7 @@ class InstalledStatusIcon extends StatelessWidget {
   final InstalledStatus? status;
   final BareModule module;
   final bool listen;
-  const InstalledStatusIcon(this.status, {required BareModule this.module, required this.listen, super.key});
+  const InstalledStatusIcon(this.status, {required this.module, required this.listen, super.key});
 
   static const List<String> _messages = [
     "Not installed", "Installed as dependency", "Installed explicitly", "Update pending", "Reinstall pending", "Uninstall pending",
@@ -592,7 +592,7 @@ class StarIconButton extends StatelessWidget {
       : FilledButton.icon(
         key: key,
         icon: icon,
-        label: Text(b ? "Added to Plugins explicitly" : "Add to Plugins explicitly"),
+        label: Text(b ? "Added to Plugins explicitly" : "Add to Plugins explicitly", maxLines: 2, overflow: TextOverflow.ellipsis),
         onPressed: onPressed,
       );
   }
