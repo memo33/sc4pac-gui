@@ -716,6 +716,7 @@ class PackageStackPanel extends StatelessWidget {
             infoResult: infoResult,
             isSplitView: true,
             scrollController: item.scrollController,
+            carouselController: item.carouselController,
             key: ObjectKey(infoResult),  // key ensures that whole page reloads instantly on module change
             // key: ValueKey(item.module),  // TODO key ensures that whole page reloads instantly on module change (requires some synchronization with PendingUpdates state to avoid flicker at Add-to-Plugins/Reinstall buttons)
           ),

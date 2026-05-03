@@ -747,6 +747,7 @@ class Dashboard extends ChangeNotifier {
 class PackageStackItem {
   final BareModule module;
   final scrollController = ScrollController();  // for scroll-offset (SingleChildScrollView.restorationId did not seem to work)
+  late final carouselController = ImageCarouselController();  // has no dispose
   PackageStackItem(this.module);
 }
 // mutable!

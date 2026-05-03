@@ -20,7 +20,8 @@ class PackagePage extends StatelessWidget {
   final Future<PackageInfoResult> infoResult;
   final bool isSplitView;
   final ScrollController? scrollController;
-  const PackagePage(this.module, {super.key, required this.infoResult, required this.isSplitView, this.scrollController, this.debugChannelUrls});
+  final ImageCarouselController? carouselController;
+  const PackagePage(this.module, {super.key, required this.infoResult, required this.isSplitView, this.scrollController, this.carouselController, this.debugChannelUrls});
 
   static Future<dynamic> pushPkg(BuildContext context, BareModule module, {Set<String>? debugChannelUrls}) {
     final BuildContext? c = NavigationService.navigatorKey.currentContext;  // (should never be null)
@@ -303,7 +304,7 @@ class PackagePage extends StatelessWidget {
                         constraints: const BoxConstraints(/*minHeight: constraint.maxHeight,*/ maxWidth: 640),
                         child: Column(
                           children: [
-                            if (images.isNotEmpty) ImageCarousel(images),
+                            if (images.isNotEmpty) ImageCarousel(images, controller: carouselController),
                             const SizedBox(height: 10),
                             buttonRow,
                             const SizedBox(height: 25),
@@ -617,32 +618,49 @@ class DependenciesCard extends StatelessWidget {
   }
 }
 
+class ImageCarouselController {
+  int currentIndex = 0;
+  final sliderController = CarouselSliderController();  // has no dispose
+  ImageCarouselController();
+}
 class ImageCarousel extends StatefulWidget {
   final List<ImgInfo> images;
-  final int initialIndex;
-  const ImageCarousel(this.images, {this.initialIndex = 0, super.key});
+  final ImageCarouselController? controller;
+  const ImageCarousel(this.images, {required this.controller, super.key});
   @override State<ImageCarousel> createState() => _ImageCarouselState();
 }
 class _ImageCarouselState extends State<ImageCarousel> {
-  late int currentIndex = widget.initialIndex;
-  late final _controller = CarouselSliderController();  // no dispose
+  late final _controller = widget.controller ?? ImageCarouselController();
+  int get currentIndex => _controller.currentIndex;
 
   static const double imageHeight = 300;
   static const double imageWidth = 450;
   static const double viewportFraction = 0.99;  // TODO primitive prefetching of next image
 
   @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 0), () {
+      if (mounted && currentIndex < widget.images.length) {
+        // sometimes the carousel scrolls to the end unexplicably, so we force it to the correct position
+        _controller.sliderController.jumpToPage(currentIndex);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         CarouselSlider.builder(
-          carouselController: _controller,
+          carouselController: _controller.sliderController,
           options: CarouselOptions(
+            initialPage: currentIndex,
             enlargeCenterPage: false,
             height: imageHeight,
             enableInfiniteScroll: false,
             viewportFraction: viewportFraction,
-            onPageChanged: (index, reason) => setState(() => currentIndex = index),
+            onPageChanged: (index, reason) => setState(() => _controller.currentIndex = index),
           ),
           itemCount: widget.images.length,
           itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) {
@@ -672,7 +690,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
             const Spacer(),
             IconButton(
               icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
-              onPressed: currentIndex > 0 ? _controller.previousPage : null,
+              onPressed: currentIndex > 0 ? _controller.sliderController.previousPage : null,
             ),
             AnimatedSmoothIndicator(
               activeIndex: currentIndex,
@@ -684,11 +702,11 @@ class _ImageCarouselState extends State<ImageCarousel> {
                 dotHeight: 12,
                 dotWidth: 12,
               ),
-              onDotClicked: _controller.animateToPage,
+              onDotClicked: _controller.sliderController.animateToPage,
             ),
             IconButton(
               icon: const Icon(Symbols.arrow_forward_ios, size: 16),
-              onPressed: currentIndex < widget.images.length - 1 ? _controller.nextPage : null,
+              onPressed: currentIndex < widget.images.length - 1 ? _controller.sliderController.nextPage : null,
             ),
             const Spacer(),
           ],
