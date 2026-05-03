@@ -285,11 +285,12 @@ class PackagePage extends StatelessWidget {
               ],
             );
 
+            const sidePadding = 10.0;
             return LayoutBuilder(builder: (context, constraint) =>
               SingleChildScrollView(
                 key: scrollController == null ? null : PageStorageKey(scrollController),  // needed for SingleChildScrollView to store scroll offset
                 controller: scrollController,
-                child: Column(
+                child: Padding(padding: const EdgeInsets.symmetric(horizontal: sidePadding), child: Column(
                   children: [
                     const SizedBox(height: 8),
                     Align(
@@ -300,13 +301,13 @@ class PackagePage extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(top: 8, bottom: 20, left: 15, right: 15),
+                      padding: const EdgeInsets.only(top: 8, bottom: 20),
                       child: DependenciesCardGrid(
                         conflicting: conflicting,
                         dependencies: dependencies,
                         requiredBy: requiredBy,
                         statuses: statuses,
-                        maxWidth: constraint.maxWidth - 30,  // padding
+                        maxWidth: constraint.maxWidth - 2 * sidePadding,
                       ),
                     ),
                     Wrap(
@@ -344,7 +345,7 @@ class PackagePage extends StatelessWidget {
                       ],
                     ),
                   ],
-                ),
+                )),
               ),
             );
           }
