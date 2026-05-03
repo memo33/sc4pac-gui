@@ -196,7 +196,7 @@ class PackagePage extends StatelessWidget {
               children: <TableRow>[
                 if (images.isNotEmpty)
                   packageTableRow(null, ImageCarousel(images)),
-                packageTableRow(null, Row(children: [
+                packageTableRow(null, LayoutBuilder(builder: (context, constraint) => Row(children: [
                   Expanded(child: StarIconButton(
                     addedExplicitly,
                     module: module,
@@ -206,13 +206,15 @@ class PackagePage extends StatelessWidget {
                   if (installedVersion != null) ...[
                     const SizedBox(width: 10),
                     AnimatedActionButton(
-                      builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed),
+                      builder: (context, icon, onPressed) =>
+                        constraint.maxWidth > 400
+                          ? Padding(padding: const EdgeInsets.only(right: 10), child: OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed))
+                          : IconButton(icon: icon, tooltip: PackagePage.reinstallButtonLabel, onPressed: onPressed, color: Theme.of(context).colorScheme.primary),
                       symbol: Symbols.restart_alt,
                       action: () {
                         World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: false);
                       },
                     ),
-                    const SizedBox(width: 10),
                     OpenPluginsFolderButton(module: module, iconOnly: true, color: Theme.of(context).colorScheme.primary),
                   ],
                   if (installedVersion != null ||
@@ -247,7 +249,7 @@ class PackagePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                ])),
+                ]))),
                 packageTableRow(
                   Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status, module: module, listen: true)),
                   Text(installDates),
