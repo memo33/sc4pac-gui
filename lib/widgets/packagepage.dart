@@ -191,12 +191,10 @@ class PackagePage extends StatelessWidget {
             final installedVersion = status?.installed?.version;
             final dashboard = World.world.profile.dashboard;
 
-            final table = Table(
-              columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
-              children: <TableRow>[
-                if (images.isNotEmpty)
-                  packageTableRow(null, ImageCarousel(images)),
-                packageTableRow(null, LayoutBuilder(builder: (context, constraint) => Row(children: [
+            final buttonRow = LayoutBuilder(
+              builder: (context, constraint) =>
+                Row(children: [
+                  const SizedBox(width: 10),
                   Expanded(child: StarIconButton(
                     addedExplicitly,
                     module: module,
@@ -207,7 +205,7 @@ class PackagePage extends StatelessWidget {
                     const SizedBox(width: 10),
                     AnimatedActionButton(
                       builder: (context, icon, onPressed) =>
-                        constraint.maxWidth > 400
+                        constraint.maxWidth > 460
                           ? Padding(padding: const EdgeInsets.only(right: 10), child: OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed))
                           : IconButton(icon: icon, tooltip: PackagePage.reinstallButtonLabel, onPressed: onPressed, color: Theme.of(context).colorScheme.primary),
                       symbol: Symbols.restart_alt,
@@ -249,7 +247,13 @@ class PackagePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                ]))),
+                ],
+              ),
+            );
+
+            final table = Table(
+              columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
+              children: <TableRow>[
                 packageTableRow(
                   Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status, module: module, listen: true)),
                   Text(installDates),
@@ -297,7 +301,15 @@ class PackagePage extends StatelessWidget {
                       alignment: const Alignment(-0.75, 0),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(/*minHeight: constraint.maxHeight,*/ maxWidth: 640),
-                        child: table,
+                        child: Column(
+                          children: [
+                            if (images.isNotEmpty) ImageCarousel(images),
+                            const SizedBox(height: 10),
+                            buttonRow,
+                            const SizedBox(height: 25),
+                            table,
+                          ],
+                        ),
                       ),
                     ),
                     Padding(

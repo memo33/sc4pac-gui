@@ -596,7 +596,7 @@ class MainContents extends StatefulWidget {
 class _MainContentsState extends State<MainContents> {
   final _navRailKey = GlobalKey();
   static const double dividerHandleBuffer = 5;
-  static const _splitWidthThreshold = 1200;
+  static const _splitWidthThreshold = 1140;
 
   @override
   Widget build(BuildContext context) {

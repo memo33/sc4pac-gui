@@ -592,7 +592,7 @@ class StarIconButton extends StatelessWidget {
       : FilledButton.icon(
         key: key,
         icon: icon,
-        label: Text(b ? "Added to Plugins explicitly" : "Add to Plugins explicitly", maxLines: 2, overflow: TextOverflow.ellipsis),
+        label: Text(b ? "Added to Plugins explicitly" : "Add to Plugins explicitly", maxLines: 1, overflow: TextOverflow.ellipsis),
         onPressed: onPressed,
       );
   }
