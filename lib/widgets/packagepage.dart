@@ -370,7 +370,7 @@ class VariantsPanel extends StatelessWidget {
         builder: (context, child) => FutureBuilder(
           future: World.world.profile.dashboard.variantsFuture,
           builder: (context, snapshot) {
-            final selected = snapshot.data?.variants ?? {};
+            final selected = snapshot.data?.variants ?? World.world.profile.dashboard.variantsFallbackSync?.variants ?? {};  // fallback to avoid flicker on first load
             return LayoutBuilder(builder: (context, constraint) => Wrap(
               direction: Axis.vertical,
               spacing: 12,

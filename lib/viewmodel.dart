@@ -641,6 +641,7 @@ class Dashboard extends ChangeNotifier {
   String? repairProcessResult;
   final List<Map<String, String>> importedVariantSelections = [];  // FIFO, newest at the back
   late Future<VariantsList> variantsFuture;
+  VariantsList? variantsFallbackSync;
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
     fetchVariants();
@@ -669,7 +670,8 @@ class Dashboard extends ChangeNotifier {
   }
 
   void fetchVariants() {
-    variantsFuture = World.world.client.variantsList(profileId: profile.id);
+    variantsFuture = World.world.client.variantsList(profileId: profile.id)
+        ..then((variants) => variantsFallbackSync = variants);
     notifyListeners();
   }
 
