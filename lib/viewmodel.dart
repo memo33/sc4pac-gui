@@ -757,7 +757,7 @@ class CachedPackageInfo {
 }
 class PackageStack extends ChangeNotifier {
   final _stack = RingBuffer<PackageStackItem>(capacity: 48);
-  final _cache = <BareModule, CachedPackageInfo>{};  // TODO remove unused entries after some time to keep cache reasonably small
+  final _cache = MruCache<BareModule, CachedPackageInfo>(capacity: 100);
 
   static Future<PackageInfoResult> _doFetch(BareModule module, {Set<String>? debugChannelUrls}) async {
     final data = await World.world.client.info(module, profileId: World.world.profile.id);

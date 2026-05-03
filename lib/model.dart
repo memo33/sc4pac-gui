@@ -8,6 +8,7 @@ import 'dart:async';
 import 'data.dart';
 export 'data.dart' show BareModule;
 import 'dart:math' as math;
+import 'dart:collection' show LinkedHashMap;
 
 final Converter<List<int>, Object?> _jsonUtf8Decoder = const Utf8Decoder().fuse(const JsonDecoder());
 final Converter<Object?, List<int>> _jsonUtf8Encoder = JsonUtf8Encoder();
@@ -704,4 +705,33 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     );
   }
 
+}
+
+class MruCache<K, V> {
+  final int capacity;
+  int _remaining;
+  final LinkedHashMap<K, V> _cache = LinkedHashMap();
+  MruCache({required this.capacity}) : _remaining = capacity;
+  V? operator [](K key) {
+    if (_cache.containsKey(key)) {
+      final value = _cache.remove(key) as V;
+      _cache[key] = value;
+      return value;
+    } else {
+      return null;
+    }
+  }
+  void operator[]=(K key, V value) {
+    if (_cache.containsKey(key)) {
+      _cache.remove(key);
+    } else if (_remaining == 0) {
+      _cache.remove(_cache.keys.first);
+    } else {
+      _remaining--;
+    }
+    _cache[key] = value;
+  }
+  //int get length => capacity - _remaining;
+  Iterable<K> get keys => _cache.keys;
+  Iterable<V> get values => _cache.values;
 }

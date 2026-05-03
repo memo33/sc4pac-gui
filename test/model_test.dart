@@ -40,4 +40,23 @@ void main() {
     expect(b.takeRight(10), equals([12,13]));
     expect(b.remaining, equals(3));
   });
+  test('MruCache', () {
+    final c = MruCache<String, int>(capacity: 3);
+    c['a'] = 1;
+    expect(c['a'], equals(1));
+    expect(c.keys, equals(['a']));
+    c['b'] = 2;
+    c['c'] = 3;
+    expect(c['b'], equals(2));
+    c['d'] = 4;
+    expect(c.keys, equals(['c', 'b', 'd']));
+    c['c'] = 5;
+    expect(c.keys, equals(['b', 'd', 'c']));
+    c['d'];
+    expect(c.keys, equals(['b', 'c', 'd']));
+    c['a'];
+    expect(c.keys, equals(['b', 'c', 'd']));
+    c['a'] = 6;
+    expect(c.keys, equals(['c', 'd', 'a']));
+  });
 }
