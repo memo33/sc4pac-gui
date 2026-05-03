@@ -108,12 +108,12 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   segments: [
                     const ButtonSegment(
                       value: FindPkgToggleFilter.includeInstalled,
-                      label: Text("Installed"),
+                      label: Text("Installed", maxLines: 1, overflow: TextOverflow.ellipsis),
                       tooltip: "Deselect to hide packages already installed",
                     ),
                     ButtonSegment(
                       value: FindPkgToggleFilter.includeResources,
-                      label: const Text("Props/textures/resources"),
+                      label: const Text("Props/textures/resources", maxLines: 1, overflow: TextOverflow.ellipsis),
                       enabled: widget.findPackages.includeResourcesFilterEnabled(),
                       tooltip: widget.findPackages.includeResourcesFilterEnabled()
                         ? "Deselect to hide such dependency packages from the results"

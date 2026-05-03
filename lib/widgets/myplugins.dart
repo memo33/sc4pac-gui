@@ -147,7 +147,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     // ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
                     ButtonSegment(
                       value: InstallStateType.explicitlyInstalled,
-                      label: constraint.maxWidth > _segmentButtonThreshold ? const Text("Stars") : null,
+                      label: constraint.maxWidth > _segmentButtonThreshold ? const Text("Stars", maxLines: 1, overflow: TextOverflow.ellipsis) : null,
                       tooltip: "Explicitly installed packages",
                       icon: InstalledStatusIconExplicit(
                         colored: false,
@@ -159,7 +159,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     ),
                     ButtonSegment(
                       value: InstallStateType.installedAsDependency,
-                      label: constraint.maxWidth > _segmentButtonThreshold ? const Text("Dependencies") : null,
+                      label: constraint.maxWidth > _segmentButtonThreshold ? const Text("Dependencies", maxLines: 1, overflow: TextOverflow.ellipsis) : null,
                       tooltip: "Packages installed as dependency",
                       icon: const InstalledStatusIconDependency(colored: false),
                     ),

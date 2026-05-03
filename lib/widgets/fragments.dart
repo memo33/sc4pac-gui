@@ -773,7 +773,7 @@ class _PackageSearchBarState extends State<PackageSearchBar> {
   }
 
   @override
-  Widget build(BuildContext context) => SearchBar(
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraint) => SearchBar(
     controller: controller,
     focusNode: focusNode,
     hintText: widget.hintText,
@@ -785,7 +785,11 @@ class _PackageSearchBarState extends State<PackageSearchBar> {
       FutureBuilder<int>(
         future: widget.resultsCount,
         builder: (context, snapshot) => Row(children: [
-          Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!} packages' : ''),
+          if (!snapshot.hasError && snapshot.hasData && snapshot.data != 0 && constraint.maxWidth >= 200)
+            Text(
+              constraint.maxWidth > 280 ? '${snapshot.data!} packages' : '${snapshot.data!}',
+              style: TextStyle(color: Theme.of(context).hintColor),
+            ),
           if (controller.text.isNotEmpty)
             IconButton(
               tooltip: "Cancel search",
@@ -801,7 +805,7 @@ class _PackageSearchBarState extends State<PackageSearchBar> {
         ]),
       )
     ],
-  );
+  ));
 }
 
 class CategoryMenu extends StatefulWidget {
@@ -841,7 +845,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
       },
       leadingIcon: CategoryIcon(selectedCategory, fallback: Symbols.category_search),
       initialSelection: selectedCategory,
-      label: const Text('Category'),
+      label: const Text('Category', maxLines: 1, overflow: TextOverflow.ellipsis),
       // enableFilter: true,
       // inputDecorationTheme: const InputDecorationTheme(
       //   contentPadding: EdgeInsets.symmetric(vertical: 5.0),
