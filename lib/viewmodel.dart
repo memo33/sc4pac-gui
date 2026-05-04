@@ -794,7 +794,7 @@ class PackageStack extends ChangeNotifier {
     } else {
       if (debugChannelUrls?.isNotEmpty == true) {
         fetchInfo(module, debugChannelUrls: debugChannelUrls);
-      }
+      }  // otherwise fetch is triggered later during build if not cached already
       _stack.add(PackageStackItem(module));
       notifyListeners();
     }
@@ -814,22 +814,11 @@ class PackageStack extends ChangeNotifier {
       final item = _stack.last;
       final data = _cache[item.module];
       if (data == null || data.isStale) {
-        // fetchInfo(item.module);
-        notifyListeners();  // TODO needed or not? this should trigger a rebuild and thus a new fetchInfo
+        notifyListeners();  // this will trigger a rebuild and thus a new fetchInfo for item.module
       }
       return item;
     }
   }
-
-  // PackageStackItem? popAndPeek() {
-  //   if (_stack.isEmpty) {
-  //     return null;
-  //   } else {
-  //     _stack.removeLast();
-  //     notifyListeners();  // TODO needed or not?
-  //     return _stack.isEmpty ? null : _stack.last;
-  //   }
-  // }
 
   void pop() {
     if (_stack.isNotEmpty) {

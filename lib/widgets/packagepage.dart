@@ -570,7 +570,6 @@ class DependenciesCardGrid extends StatelessWidget {
     return Flex(
       direction: horizontal ? Axis.horizontal : Axis.vertical,
       crossAxisAlignment: CrossAxisAlignment.start,
-      // spacing: 15,  // TODO requires Flutter 3.27+
       children: !horizontal ? pkgLists : pkgLists.map((c) => Flexible(child: c)).toList(),
     );
   }

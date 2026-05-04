@@ -111,4 +111,4 @@ all state that should outlive the running GUI process needs to be written to dis
 - [x] deployment: launch scripts for each platform for reliably starting both server and client.
   If one of the processes terminates, this should be handled gracefully by the other.
 
-- [ ] split-pane layout for wide screens: list of packages on the left, individual package details on the right (similar to an email app).
+- [x] split-pane layout for wide screens: list of packages on the left, individual package details on the right (similar to an email app).
