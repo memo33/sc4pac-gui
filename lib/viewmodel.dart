@@ -50,7 +50,7 @@ class World extends ChangeNotifier {
   late Future<List<ProfilesListItem>> conflictingPluginsPathFuture;
   SettingsData? settings;
   SettingsData get settingsOrDefault => settings ?? SettingsData.defaultSettings;
-  int navRailIndex = 0;
+  final NavRailState navRail = NavRailState();
   // themeMode
   // other gui settings
 
@@ -316,12 +316,12 @@ class World extends ChangeNotifier {
         final module = packages.first;
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
-          PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls, refreshPreviousPage: () {});  // refresh not possible since current page can be anything
+          PackagePage.pushPkg(context, module, debugChannelUrls: channelUrls);
         }
       } else {  // multiple packages are opened in FindPackages screen
         // TODO ensure channel is known before searching for externalIds
         profile.findPackages.updateCustomFilter((packages: packages, externalIds: externalIds, debugChannelUrls: channelUrls));
-        navRailIndex = 1;  // switch to FindPackages
+        navRail.index = 1;  // switch to FindPackages
         final context = NavigationService.navigatorKey.currentContext;
         if (context != null && context.mounted) {
           Navigator.popUntil(context, ModalRoute.withName('/'));  // close potential package pages
@@ -353,6 +353,15 @@ class World extends ChangeNotifier {
       })
       .catchError((e) => ApiErrorWidget.dialog(ApiError.unexpected("Failed to update token", "$e")));
   }
+}
+
+class NavRailState extends ChangeNotifier {
+  int _index = 0;
+  set index(int idx) {
+    _index = idx;
+    notifyListeners();
+  }
+  int get index => _index;
 }
 
 class Profile {
@@ -628,9 +637,11 @@ class Dashboard extends ChangeNotifier {
   }
   final Profile profile;
   final pendingUpdates = PendingUpdates();
+  final packageStack = PackageStack();
   String? repairProcessResult;
   final List<Map<String, String>> importedVariantSelections = [];  // FIFO, newest at the back
   late Future<VariantsList> variantsFuture;
+  VariantsList? variantsFallbackSync;
   late Future<List<String>> channelUrls = World.world.client.channelsList(profileId: profile.id);
   Dashboard(this.profile) {
     fetchVariants();
@@ -659,7 +670,8 @@ class Dashboard extends ChangeNotifier {
   }
 
   void fetchVariants() {
-    variantsFuture = World.world.client.variantsList(profileId: profile.id);
+    variantsFuture = World.world.client.variantsList(profileId: profile.id)
+        ..then((variants) => variantsFallbackSync = variants);
     notifyListeners();
   }
 
@@ -667,6 +679,7 @@ class Dashboard extends ChangeNotifier {
     if (status == UpdateStatus.finished) {  // no error/no canceled
       pendingUpdates.clear();
       importedVariantSelections.clear();
+      packageStack.markAllStale();
       repairProcessResult = null;
     }
     fetchVariants();
@@ -730,9 +743,104 @@ class Dashboard extends ChangeNotifier {
 
 }
 
+// mutable!
+class PackageStackItem {
+  final BareModule module;
+  final scrollController = ScrollController();  // for scroll-offset (SingleChildScrollView.restorationId did not seem to work)
+  late final carouselController = ImageCarouselController();  // has no dispose
+  PackageStackItem(this.module);
+}
+// mutable!
+class CachedPackageInfo {
+  final Future<PackageInfoResult> infoResult;
+  bool isStale;
+  CachedPackageInfo(this.infoResult, {required this.isStale});
+}
+class PackageStack extends ChangeNotifier {
+  final _stack = RingBuffer<PackageStackItem>(capacity: 48);
+  final _cache = MruCache<BareModule, CachedPackageInfo>(capacity: 100);
+
+  static Future<PackageInfoResult> _doFetch(BareModule module, {Set<String>? debugChannelUrls}) async {
+    final data = await World.world.client.info(module, profileId: World.world.profile.id);
+    if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
+      final channelsAdded = await World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls);
+      return !channelsAdded ? data :
+          // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
+          World.world.client.info(module, profileId: World.world.profile.id);
+    } else {
+      return data;
+    }
+  }
+
+  Future<PackageInfoResult> fetchInfo(BareModule module, {Set<String>? debugChannelUrls}) {
+    final useCache = debugChannelUrls?.isNotEmpty != true;
+    if (useCache) {
+      final cachedInfo = _cache[module];
+      if (cachedInfo != null && !cachedInfo.isStale) {
+        // debugPrint("Cache hit for $module");
+        return cachedInfo.infoResult;
+      }
+    }
+    final future = _doFetch(module, debugChannelUrls: debugChannelUrls);
+    if (useCache) {
+      _cache[module] = CachedPackageInfo(future, isStale: false);
+    }
+    return future;
+  }
+
+  void push(BareModule module, {Set<String>? debugChannelUrls}) {
+    if (_stack.isNotEmpty && _stack.last.module == module) {
+      return;  // already on top, do not push again
+    } else {
+      if (debugChannelUrls?.isNotEmpty == true) {
+        fetchInfo(module, debugChannelUrls: debugChannelUrls);
+      }  // otherwise fetch is triggered later during build if not cached already
+      _stack.add(PackageStackItem(module));
+      notifyListeners();
+    }
+  }
+
+  void markAllStale() {
+    for (final item in _cache.values) {
+      item.isStale = true;
+    }
+    notifyListeners();
+  }
+
+  PackageStackItem? peek() {
+    if (_stack.isEmpty) {
+      return null;
+    } else {
+      final item = _stack.last;
+      final data = _cache[item.module];
+      if (data == null || data.isStale) {
+        notifyListeners();  // this will trigger a rebuild and thus a new fetchInfo for item.module
+      }
+      return item;
+    }
+  }
+
+  void pop() {
+    if (_stack.isNotEmpty) {
+      _stack.last.scrollController.dispose();
+      _stack.removeLast();
+      notifyListeners();
+    }
+  }
+
+  void clear() {
+    for (final item in _stack) {
+      item.scrollController.dispose();
+    }
+    _stack.clear();
+    notifyListeners();
+  }
+}
+
 class PendingUpdates extends ChangeNotifier {
 
   final Map<BareModule, PendingUpdateStatus> _overwrites = {};  // these are used as overrides of package installation states in the UI
+  final Map<BareModule, bool> _overwriteToggleState = {};  // forces `explicit`=yes/no
   // Mark the explicit-install state for a package. If the star button is toggled twice, this removes the package from `pendingUpdates` again.
   void setPendingUpdate(BareModule pkg, PendingUpdateStatus status) {
     final previous = _overwrites[pkg];
@@ -753,6 +861,7 @@ class PendingUpdates extends ChangeNotifier {
   }
   void clear() {
     _overwrites.clear();
+    _overwriteToggleState.clear();
     notifyListeners();
   }
 
@@ -760,21 +869,25 @@ class PendingUpdates extends ChangeNotifier {
     setPendingUpdate(module, PendingUpdateStatus.reinstall);
   }
 
+  void _setToggleState(BareModule module, {required bool checked}) {
+    _overwriteToggleState[module] = checked;
+  }
+
   Future<void> onToggledStarButton(BareModule module, bool checked) {
+    World.world.profile.findPackages.enableResetCustomFilter = true;
+    World.world.profile.findPackages.addedAllInCustomFilter = false;
+    _setToggleState(module, checked: checked);
+    setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
     final task = checked ?
         World.world.client.add([module], profileId: World.world.profile.id) :
         World.world.client.remove([module], profileId: World.world.profile.id);
-    return task.then((_) {
-      World.world.profile.findPackages.enableResetCustomFilter = true;
-      World.world.profile.findPackages.addedAllInCustomFilter = false;
-      setPendingUpdate(module, checked ? PendingUpdateStatus.add : PendingUpdateStatus.remove);
-    }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+    return task.catchError(ApiErrorWidget.dialog);
   }
 
   Future<void> onReinstallButton(BareModule module, {required bool redownload}) {
-    return World.world.client.reinstall([module], redownload: redownload, profileId: World.world.profile.id).then((_) {
-      setPendingUpdate(module, PendingUpdateStatus.reinstall);
-    }, onError: ApiErrorWidget.dialog);  // async, but we do not need to await result
+    setPendingUpdate(module, PendingUpdateStatus.reinstall);
+    final task = World.world.client.reinstall([module], redownload: redownload, profileId: World.world.profile.id);
+    return task.catchError(ApiErrorWidget.dialog);
   }
 
   void onRepairComplete(Iterable<BareModule> modules) {
@@ -789,11 +902,13 @@ class PendingUpdates extends ChangeNotifier {
     await World.world.client.add(toAdd.map((item) => item.module).toList(), profileId: World.world.profile.id);
     for (final item in toRemove) {
       if (_shouldSetPendingUpdate(item, removed: reset ? true : false)) {
+        _setToggleState(item.module, checked: false);
         World.world.profile.dashboard.pendingUpdates.setPendingUpdate(item.module, PendingUpdateStatus.remove);
       }
     }
     for (final item in toAdd) {
       if (_shouldSetPendingUpdate(item, removed: reset ? false : true)) {
+        _setToggleState(item.module, checked: true);
         World.world.profile.dashboard.pendingUpdates.setPendingUpdate(item.module, PendingUpdateStatus.add);
       }
     }
@@ -813,10 +928,17 @@ class PendingUpdates extends ChangeNotifier {
 
   bool isPending(BareModule module) => _overwrites.containsKey(module);
 
+  PendingUpdateStatus? getPendingStatus(BareModule module) => _overwrites[module];
+
   List<MapEntry<BareModule, PendingUpdateStatus>> sortedEntries() {
     final elems = _overwrites.entries.toList();
     elems.sort((a, b) => BareModule.compareAlphabetically(a.key, b.key));
     return elems;
+  }
+
+  bool isToggleStateFlipped(BareModule module, {required bool checked}) {
+    final bool? b = _overwriteToggleState[module];
+    return b == null ? false : (b != checked);
   }
 }
 

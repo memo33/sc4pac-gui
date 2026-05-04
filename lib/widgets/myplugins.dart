@@ -25,6 +25,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   late Future<List<PluginsSearchResultItem>> filteredList;
   // late Future<List<InstalledListItem>> searchResultFuture;
   // late Future<List<InstalledListItem>> filteredList;
+  BareModule? _lastSelectedModule;
 
   static int _compareDates(DateTime? t1, DateTime? t2) {
     // null dates are sorted to the front, recent dates to the back
@@ -70,21 +71,25 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
   }
 
   void _refresh() {
-    setState(() {
-      _search();
-    });
+    if (mounted) {
+      setState(() {
+        _search();
+      });
+    }
   }
 
   static const double _toolBarHeight = 100.0;
   static const double _toolbarBottomHeight = 40.0;
+  static const double _segmentButtonThreshold = 570.0;
+  static const double _importExportButtonThreshold = 430.0;
 
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          floating: true,
-          // pinned: true,  // TODO consider pinning to avoid scroll physics auto-scrolling to top when touching app bar
+          // floating: true,
+          pinned: true,  // pinning to avoid scroll physics auto-scrolling to top when touching app bar
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
@@ -105,8 +110,8 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       stats: snapshot.data,  // possibly null
                       initialCategory: widget.myPlugins.selectedCategory,
                       menuHeight: max(300,
-                        MediaQuery.of(context).size.height - _toolBarHeight
-                        - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                        MediaQuery.sizeOf(context).height - _toolBarHeight
+                        - MediaQuery.viewInsetsOf(context).bottom,  // e.g. on-screen keyboard height
                       ),
                       onSelected: (s) {
                         setState(() {
@@ -135,27 +140,28 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(_toolbarBottomHeight),
-            child:
+            child: LayoutBuilder(builder: (context, constraint) =>
               switch(<Widget>[
                 Padding(padding: const EdgeInsets.only(bottom: 5), child: SegmentedButton<InstallStateType>(
                   segments: [
                     // ButtonSegment(value: InstallStateType.markedForInstall, label: Text('Pending'), icon: Icon(Icons.arrow_right)),
                     ButtonSegment(
                       value: InstallStateType.explicitlyInstalled,
-                      label: const Text("Stars"),
+                      label: constraint.maxWidth > _segmentButtonThreshold ? const Text("Stars", maxLines: 1, overflow: TextOverflow.ellipsis) : null,
                       tooltip: "Explicitly installed packages",
                       icon: InstalledStatusIconExplicit(
+                        colored: false,
                         badgeColor: Theme.of(context).segmentedButtonTheme.style?.backgroundColor?.resolve(
                           widget.myPlugins.installStateSelection.contains(InstallStateType.explicitlyInstalled) ? {WidgetState.selected} : {}
                         ),
                         badgeScale: 0.75,
                       ),
                     ),
-                    const ButtonSegment(
+                    ButtonSegment(
                       value: InstallStateType.installedAsDependency,
-                      label: Text("Dependencies"),
+                      label: constraint.maxWidth > _segmentButtonThreshold ? const Text("Dependencies", maxLines: 1, overflow: TextOverflow.ellipsis) : null,
                       tooltip: "Packages installed as dependency",
-                      icon: InstalledStatusIconDependency(),
+                      icon: const InstalledStatusIconDependency(colored: false),
                     ),
                   ],
                   showSelectedIcon: false,
@@ -180,30 +186,46 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                 const SizedBox(width: 15),
                 ...switch (TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant)) {
                   final textButtonStyle => [
-                    TextButton.icon(
-                      icon: const Icon(Symbols.download),
-                      label: const Text("Import"),
-                      style: textButtonStyle,
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          barrierDismissible: true,
-                          builder: (context) => const ImportDialog(),
-                        );
-                      },
-                    ),
-                    TextButton.icon(
-                      icon: const Icon(Symbols.upload),
-                      label: const Text("Export"),
-                      style: textButtonStyle,
-                      onPressed: () {
-                        final dataFuture = filteredList.then((searchedItems) {
-                          final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
-                          return MyPlugins.createExportData(modules);
-                        });
-                        ExportDialog.show(context, dataFuture);
-                      },
-                    ),
+                    switch (() => showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (context) => const ImportDialog(),
+                    )) {
+                      final onPressedImport => constraint.maxWidth > _importExportButtonThreshold
+                        ? TextButton.icon(
+                            icon: const Icon(Symbols.download),
+                            label: const Text("Import"),
+                            style: textButtonStyle,
+                            onPressed: onPressedImport,
+                          )
+                        : IconButton(
+                            icon: const Icon(Symbols.download),
+                            tooltip: "Import",
+                            style: textButtonStyle,
+                            onPressed: onPressedImport,
+                          )
+                    },
+                    switch (() {
+                      final dataFuture = filteredList.then((searchedItems) {
+                        final modules = [for (final item in searchedItems) if (item.status.explicit == true) item.package];
+                        return MyPlugins.createExportData(modules);
+                      });
+                      ExportDialog.show(context, dataFuture);
+                    }) {
+                      final onPressedExport => constraint.maxWidth > _importExportButtonThreshold
+                        ? TextButton.icon(
+                            icon: const Icon(Symbols.upload),
+                            label: const Text("Export"),
+                            style: textButtonStyle,
+                            onPressed: onPressedExport,
+                          )
+                        : IconButton(
+                            icon: const Icon(Symbols.upload),
+                            tooltip: "Export",
+                            style: textButtonStyle,
+                            onPressed: onPressedExport,
+                          )
+                    },
                   ],
                 },
               ]) {
@@ -222,6 +244,7 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                     ),
                   )
               },
+            ),
           ),
         ),
         FutureBuilder<List<PluginsSearchResultItem>>(
@@ -245,8 +268,9 @@ class _MyPluginsScreenState extends State<MyPluginsScreen> {
                       index,
                       summary: pkg.summary,
                       status: pkg.status,
-                      refreshParent: _refresh,
-                      onToggled: (checked) => World.world.profile.dashboard.pendingUpdates.onToggledStarButton(pkg.module, checked).then((_) => _refresh()),
+                      afterToggled: _refresh,
+                      onSelected: () => setState(() => _lastSelectedModule = pkg.module),
+                      selected: pkg.module == _lastSelectedModule,
                       chips: [
                         ...sortedVariantKeys.map((k) => PackageTileChip.variant(k, pkg.status.installed!.variant[k]!, pkg.module)),
                       ],

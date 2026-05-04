@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as P;
 import 'package:localstorage/localstorage.dart' show initLocalStorage;
+import 'package:multi_split_view/multi_split_view.dart';
 import 'dart:io' as io;
 import 'model.dart';
 import 'data.dart';
@@ -16,6 +17,7 @@ import 'widgets/findpackages.dart';
 import 'widgets/myplugins.dart';
 import 'widgets/settings.dart';
 import 'widgets/fragments.dart';
+import 'widgets/packagepage.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();  // important if PackageInfo.fromPlatform called before runApp (otherwise causes null check error in release build on web)
@@ -94,6 +96,7 @@ class CommandlineArgs {
 
 class NavigationService {
   static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static GlobalKey<NavigatorState> packageStackPanelNavigatorKey = GlobalKey<NavigatorState>();
 }
 
 class Sc4pacGuiApp extends StatelessWidget {
@@ -161,7 +164,7 @@ class Sc4pacGuiApp extends StatelessWidget {
       home: ListenableBuilder(
         listenable: _world,
         builder: (context, child) => switch (_world.initPhase) {
-          InitPhase.initialized => NavRail(_world),
+          InitPhase.initialized => const MainContents(),
           InitPhase.connecting => ConnectionScreen(_world),
           InitPhase.loadingProfiles => LoadingProfilesScreen(_world),
           InitPhase.initializingProfile => ReadingProfileScreen(_world),
@@ -586,72 +589,159 @@ class FolderPathEdit extends StatelessWidget {
   }
 }
 
-class NavRail extends StatefulWidget {
-  final World world;
-  const NavRail(this.world, {super.key});
-
-  @override
-  State<NavRail> createState() => _NavRailState();
+class MainContents extends StatefulWidget {
+  const MainContents({super.key});
+  @override State<MainContents> createState() => _MainContentsState();
 }
-class _NavRailState extends State<NavRail> {
+class _MainContentsState extends State<MainContents> {
+  final _navRailKey = GlobalKey();
+  static const double dividerHandleBuffer = 5;
+  static const _splitWidthThreshold = 1140;
 
   @override
   Widget build(BuildContext context) {
+    final bool isSplit = MediaQuery.sizeOf(context).width >= _splitWidthThreshold;
+    final navRail = NavRail(key: _navRailKey);  // key is needed to preserve list state when switching on/off the split view
     return Scaffold(
       body: SafeArea(
-        child: Row(
-          children: <Widget>[
-            LayoutBuilder(builder: (context, constraint) =>
-              SingleChildScrollView(child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraint.maxHeight),
-                child: IntrinsicHeight(child:
-                  NavigationRail(
-                    selectedIndex: widget.world.navRailIndex,
-                    onDestinationSelected: (int index) {
-                      setState(() {
-                        widget.world.navRailIndex = index;
-                      });
-                    },
-                    labelType: NavigationRailLabelType.all,  // or selected,
-                    destinations: <NavigationRailDestination>[
-                      NavigationRailDestination(
-                        icon: DashboardIcon(widget.world.profile.dashboard, selected: false),
-                        selectedIcon: DashboardIcon(widget.world.profile.dashboard, selected: true),
-                        label: const Text('Dashboard'),
-                      ),
-                      const NavigationRailDestination(
-                        icon: Icon(Icons.travel_explore_outlined),
-                        selectedIcon: Icon(Icons.travel_explore),
-                        label: Text('Find Packages'),
-                      ),
-                      const NavigationRailDestination(
-                        icon: Icon(Icons.widgets_outlined),
-                        selectedIcon: Icon(Icons.widgets),
-                        label: Text('My Plugins'),
-                      ),
-                      const NavigationRailDestination(
-                        icon: Icon(Icons.settings_outlined),
-                        selectedIcon: Icon(Icons.settings),
-                        label: Text('Settings'),
-                      ),
-                    ],
-                  )
-                )
-              ))
+        child: !isSplit
+          ? navRail
+          : MultiSplitViewTheme(
+              data: MultiSplitViewThemeData(
+                dividerThickness: 1,
+                dividerHandleBuffer: dividerHandleBuffer,
+                dividerPainter: DividerPainters.background(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  // highlightedColor: Theme.of(context).primaryColorDark,  // too distracting
+                  // animationDuration: Duration(milliseconds: 400),
+                ),
+              ),
+              child: MultiSplitView(
+                antiAliasingWorkaround: false,
+                resizable: true,
+                sizeUnderflowPolicy: SizeUnderflowPolicy.stretchAll,
+                initialAreas: [
+                  Area(
+                    flex: .50,
+                    min: .30,
+                    builder: (context, area) => ScrollbarTheme(
+                      data: const ScrollbarThemeData(crossAxisMargin: dividerHandleBuffer + 3),
+                      child: navRail,
+                    ),
+                  ),
+                  Area(
+                    flex: .50,
+                    min: .35,  // not perfect, but it is difficult to set the minimum width in terms of absolute pixels
+                    builder: (context, area) => PackageStackPanel(
+                      key: NavigationService.packageStackPanelNavigatorKey,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            // const VerticalDivider(thickness: 1, width: 1),
-            // This is the main content.
-            Expanded(
-              child: switch (widget.world.navRailIndex) {
-                0 => DashboardScreen(widget.world.profile.dashboard, widget.world.client),
-                1 => FindPackagesScreen(widget.world.profile.findPackages),
-                2 => MyPluginsScreen(widget.world.profile.myPlugins),
-                _ => const SettingsScreen(),
-              },
-            ),
-          ],
-        ),
       ),
     );
+  }
+}
+
+class NavRail extends StatelessWidget {
+  const NavRail({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: World.world.navRail,
+      builder: (context, child) => Row(
+        children: <Widget>[
+          LayoutBuilder(builder: (context, constraint) =>
+            SingleChildScrollView(child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraint.maxHeight),
+              child: IntrinsicHeight(child:
+                NavigationRail(
+                  selectedIndex: World.world.navRail.index,
+                  onDestinationSelected: (int index) {
+                    World.world.navRail.index = index;
+                  },
+                  labelType: NavigationRailLabelType.all,
+                  destinations: <NavigationRailDestination>[
+                    NavigationRailDestination(
+                      icon: DashboardIcon(World.world.profile.dashboard, selected: false),
+                      selectedIcon: DashboardIcon(World.world.profile.dashboard, selected: true),
+                      label: const Text('Dashboard'),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.travel_explore_outlined),
+                      selectedIcon: Icon(Icons.travel_explore),
+                      label: Text('Find Packages'),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.widgets_outlined),
+                      selectedIcon: Icon(Icons.widgets),
+                      label: Text('My Plugins'),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      selectedIcon: Icon(Icons.settings),
+                      label: Text('Settings'),
+                    ),
+                  ],
+                )
+              )
+            ))
+          ),
+          Expanded(child: switch (World.world.navRail.index) {
+            0 => DashboardScreen(World.world.profile.dashboard, World.world.client),
+            1 => FindPackagesScreen(World.world.profile.findPackages),
+            2 => MyPluginsScreen(World.world.profile.myPlugins),
+            _ => const SettingsScreen(),
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class PackageStackPanel extends StatelessWidget {
+  const PackageStackPanel({super.key});
+
+  @override Widget build(BuildContext context) {
+    final packageStack = World.world.profile.dashboard.packageStack;
+    return ListenableBuilder(
+      listenable: packageStack,
+      child: const Center(child: BackgroundArtwork()),
+      builder: (context, child) => switch (packageStack.peek()) {
+        null => child!,
+        final item => switch (packageStack.fetchInfo(item.module)) {
+          final infoResult => PackagePage(
+            item.module,
+            infoResult: infoResult,
+            isSplitView: true,
+            scrollController: item.scrollController,
+            carouselController: item.carouselController,
+            key: ObjectKey(infoResult),  // key ensures that whole page reloads instantly on module change
+            // key: ValueKey(item.module),  // TODO key ensures that whole page reloads instantly on module change (requires some synchronization with PendingUpdates state to avoid flicker at Add-to-Plugins/Reinstall buttons)
+          ),
+        },
+      },
+    );
+  }
+}
+
+class BackgroundArtwork extends StatelessWidget {
+  const BackgroundArtwork({super.key});
+  @override Widget build(BuildContext context) {
+    return ColorFiltered(
+      colorFilter: _monochromeFilter(Theme.of(context).scaffoldBackgroundColor, scale: 2.25),
+      child: Image.asset("assets/sc4pac-gui.png"),
+    );
+  }
+  static ColorFilter _monochromeFilter(Color color, {double scale = 1.0}) {
+    const u = 0.2126, v = 0.7152, w = 0.0722;
+    final r = color.red, b = color.blue, g = color.green;
+    return ColorFilter.matrix(<double>[
+        u*scale*r/255, v*scale*r/255, w*scale*r/255, 0, 0,
+        u*scale*g/255, v*scale*g/255, w*scale*g/255, 0, 0,
+        u*scale*b/255, v*scale*b/255, w*scale*b/255, 0, 0,
+        0, 0, 0, 1, 0,
+      ]);
   }
 }

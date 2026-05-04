@@ -12,6 +12,7 @@ class FindPackagesScreen extends StatefulWidget {
   @override State<FindPackagesScreen> createState() => _FindPackagesScreenState();
 }
 class _FindPackagesScreenState extends State<FindPackagesScreen> {
+  BareModule? _lastSelectedModule;
 
   static const double _toolBarHeight = 100.0;
   static const double _toolbarBottomHeight = 40.0;
@@ -28,8 +29,8 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
       listenable: widget.findPackages,
       builder: (context, child) => CustomScrollView(slivers: [
         SliverAppBar(
-          floating: true,
-          // pinned: true,  // TODO consider pinning to avoid scroll physics auto-scrolling to top when touching app bar
+          // floating: true,
+          pinned: true,  // pinning to avoid scroll physics auto-scrolling to top when touching app bar
           // flexibleSpace: Placeholder(), // placeholder widget to visualize the shrinking size
           // expandedHeight: 200, // initial height of the SliverAppBar larger than normal
           toolbarHeight: _toolBarHeight,
@@ -77,8 +78,8 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                       },
                       initialCategory: widget.findPackages.selectedCategory,
                       menuHeight: max(300,
-                        MediaQuery.of(context).size.height - _toolBarHeight
-                        - MediaQuery.of(context).viewInsets.bottom,  // e.g. on-screen keyboard height
+                        MediaQuery.sizeOf(context).height - _toolBarHeight
+                        - MediaQuery.viewInsetsOf(context).bottom,  // e.g. on-screen keyboard height
                       ),
                       onSelected: (s) {
                         widget.findPackages.updateCategory(s);
@@ -107,12 +108,12 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                   segments: [
                     const ButtonSegment(
                       value: FindPkgToggleFilter.includeInstalled,
-                      label: Text("Installed"),
+                      label: Text("Installed", maxLines: 1, overflow: TextOverflow.ellipsis),
                       tooltip: "Deselect to hide packages already installed",
                     ),
                     ButtonSegment(
                       value: FindPkgToggleFilter.includeResources,
-                      label: const Text("Props/textures/resources"),
+                      label: const Text("Props/textures/resources", maxLines: 1, overflow: TextOverflow.ellipsis),
                       enabled: widget.findPackages.includeResourcesFilterEnabled(),
                       tooltip: widget.findPackages.includeResourcesFilterEnabled()
                         ? "Deselect to hide such dependency packages from the results"
@@ -192,14 +193,15 @@ class _FindPackagesScreenState extends State<FindPackagesScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final item = searchResult.packages[index];
-                    return PackageTile(item.module, index,
+                    return PackageTile(
+                      item.module,
+                      index,
                       summary: item.summary,
                       status: item.status,
                       debugChannelUrls: widget.findPackages.customFilter?.debugChannelUrls,
-                      refreshParent: widget.findPackages.refreshSearchResult,
-                      onToggled: (checked) =>
-                        World.world.profile.dashboard.pendingUpdates.onToggledStarButton(item.module, checked)
-                          .then((_) => widget.findPackages.refreshSearchResult()),
+                      afterToggled: () {},
+                      onSelected: () => setState(() => _lastSelectedModule = item.module),
+                      selected: item.module == _lastSelectedModule,
                     );
                   },
                   childCount: searchResult.packages.length,
@@ -238,6 +240,7 @@ class CustomFilterBar extends StatelessWidget {
         ),
         switch (OutlinedButton.icon(
           icon: InstalledStatusIconExplicit(  // TODO try using Icon.blendMode with Flutter 3.27+ for correct background coloring on hover
+            colored: false,
             badgeScale: 1.1,
             fill: 0,
             child: Transform.rotate(angle: -2.3, child: const Icon(Symbols.replay)),

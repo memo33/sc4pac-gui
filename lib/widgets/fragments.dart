@@ -13,7 +13,7 @@ import 'package:flutter_markdown/flutter_markdown.dart' as fmd;
 import 'package:open_file/open_file.dart';
 import '../icomoon_icons.dart' show Icomoon;
 import '../model.dart';
-import '../viewmodel.dart' show PendingUpdateStatus, World;
+import '../viewmodel.dart' show PendingUpdateStatus, PendingUpdates, World;
 import 'packagepage.dart';
 import '../main.dart' show NavigationService;
 import '../data.dart' show ChannelStats, InstalledStatus;
@@ -146,10 +146,10 @@ class PkgNameFragment extends StatelessWidget {
   final InstalledStatus? status;
   final bool colored;
   final String? localVariant;
-  final void Function()? refreshParent;  // required if asButton
   final String? prefix, suffix;
   final bool asInlineButton;
-  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.asInlineButton = false, this.status, this.colored = true, this.localVariant, this.refreshParent, this.prefix, this.suffix});
+  final int? maxLines;
+  const PkgNameFragment(this.module, {super.key, this.asButton = false, this.asInlineButton = false, this.status, this.colored = true, this.localVariant, this.prefix, this.suffix, this.maxLines});
 
   static const EdgeInsets padding = EdgeInsets.all(10);
 
@@ -160,6 +160,8 @@ class PkgNameFragment extends StatelessWidget {
     final style1 = colored ? style.copyWith(color: theme.primaryColorLight) : style.copyWith(color: theme.hintColor);
     final style2 = colored ? style.copyWith(color: theme.primaryColor) : style;
     final text = RichText(
+      overflow: maxLines != null ? TextOverflow.ellipsis : TextOverflow.clip,
+      maxLines: maxLines,  // needed for overflow
       text: TextSpan(
         style: style,
         children: [
@@ -173,15 +175,15 @@ class PkgNameFragment extends StatelessWidget {
     );
     return asButton
         ? TextButton.icon(
-          onPressed: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
+          onPressed: () => PackagePage.pushPkg(context, module),
           label: text,
-          icon: status == null ? null : InstalledStatusIcon(status),
+          icon: status == null ? null : InstalledStatusIcon(status, module: module, listen: false),  // TODO listen here instead
           iconAlignment: IconAlignment.start,
           style: TextButton.styleFrom(padding: PkgNameFragment.padding),
         )
         : asInlineButton
         ? InkWell(
-          onTap: () => PackagePage.pushPkg(context, module, refreshPreviousPage: refreshParent ?? () {}),
+          onTap: () => PackagePage.pushPkg(context, module),
           child: text,
         )
         : text;
@@ -193,12 +195,12 @@ class TextWithCopyButton extends StatelessWidget {
   final Widget child;
   const TextWithCopyButton({required this.copyableText, required this.child, super.key});
   @override Widget build(BuildContext context) {
-    return Wrap(
-      direction: Axis.horizontal,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 10,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        child,
+        Flexible(child: child),
+        const SizedBox(width: 10),
         AnimatedCopyButton(
           getCopyableText: () => copyableText,
         ),
@@ -344,8 +346,7 @@ class PkgLinkSyntax extends md.InlineSyntax {
 }
 
 class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
-  final void Function()? refreshParent;
-  PkgLinkElementBuilder({required this.refreshParent});
+  PkgLinkElementBuilder();
 
   @override
   Widget? visitElementAfterWithContext(BuildContext context, md.Element element, TextStyle? preferredStyle, TextStyle? parentStyle) {
@@ -357,7 +358,6 @@ class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
           prefix: element.prefix,
           suffix: element.suffix,
           asInlineButton: true,
-          refreshParent: refreshParent,
         ),
       ));
     } else {
@@ -369,8 +369,7 @@ class PkgLinkElementBuilder extends fmd.MarkdownElementBuilder {
 class MarkdownText extends StatelessWidget {
   final String text;
   final TextStyle? style;
-  final void Function()? refreshParent;
-  const MarkdownText(this.text, {this.refreshParent, this.style, super.key});
+  const MarkdownText(this.text, {this.style, super.key});
 
   static final _extensionSet = md.ExtensionSet(
     md.ExtensionSet.gitHubFlavored.blockSyntaxes,
@@ -385,7 +384,7 @@ class MarkdownText extends StatelessWidget {
     return fmd.MarkdownBody(
       data: text,
       extensionSet: _extensionSet,
-      builders: {PkgLinkNode.pkgNodeTag: PkgLinkElementBuilder(refreshParent: refreshParent)},
+      builders: {PkgLinkNode.pkgNodeTag: PkgLinkElementBuilder()},
       softLineBreak: false,
       styleSheet: fmd.MarkdownStyleSheet(
         p: style,
@@ -453,41 +452,90 @@ class PackageTileChip extends StatelessWidget {
   }
 }
 
+enum _InstalledStatusIconMessage {
+  notInstalled, installedAsDependency, installedExplicitly, updatePending, reinstallPending, uninstallPending,
+}
 class InstalledStatusIcon extends StatelessWidget {
   final InstalledStatus? status;
-  const InstalledStatusIcon(this.status, {super.key});
+  final BareModule module;
+  final bool listen;
+  const InstalledStatusIcon(this.status, {required this.module, required this.listen, super.key});
+
+  static const List<String> _messages = [
+    "Not installed", "Installed as dependency", "Installed explicitly", "Update pending", "Reinstall pending", "Uninstall pending",
+  ];
+
+  static _InstalledStatusIconMessage _categorize(InstalledStatus? status, {required bool isFlipped, required PendingUpdateStatus? pendingStatus}) {
+    if (status == null) {
+      if (isFlipped) {
+        return _InstalledStatusIconMessage.updatePending;
+      } else {  // not explicit and not installed
+        return _InstalledStatusIconMessage.notInstalled;
+      }
+    } else {  // status != null
+      if (pendingStatus == PendingUpdateStatus.remove) {
+        return _InstalledStatusIconMessage.uninstallPending;
+      } else if (/*status!.installed?.reinstall == true ||*/ pendingStatus == PendingUpdateStatus.reinstall) {  // status.installed.reinstall is commented out so that icon refreshes after Update All
+        return _InstalledStatusIconMessage.reinstallPending;
+      } else if (status!.explicit && !isFlipped || !(status!.explicit) && isFlipped) {
+        if (status!.installed == null) {
+          return _InstalledStatusIconMessage.updatePending;
+        } else {
+          return _InstalledStatusIconMessage.installedExplicitly;
+        }
+      } else if (status!.installed != null) {  // installed, but not explicit
+        return _InstalledStatusIconMessage.installedAsDependency;
+      } else {  // not explicit and not installed
+        return _InstalledStatusIconMessage.notInstalled;
+      }
+    }
+  }
+
+  Widget _buildDefault(BuildContext context, {required bool isFlipped, required PendingUpdateStatus? pendingStatus}) {
+    final _InstalledStatusIconMessage tooltip = _categorize(status, isFlipped: isFlipped, pendingStatus: pendingStatus);
+    Widget icon = switch(tooltip) {
+      _InstalledStatusIconMessage.notInstalled => const InstalledStatusIconOther(Icons.token_outlined, colored: false),
+      _InstalledStatusIconMessage.installedAsDependency => const InstalledStatusIconDependency(colored: true),
+      _InstalledStatusIconMessage.installedExplicitly => const InstalledStatusIconExplicit(colored: true),
+      _InstalledStatusIconMessage.updatePending => const InstalledStatusIconOther(Symbols.deployed_code_history),
+      _InstalledStatusIconMessage.uninstallPending => const InstalledStatusIconOther(Symbols.auto_delete),
+      _InstalledStatusIconMessage.reinstallPending => const InstalledStatusIconOther(Symbols.settings_backup_restore),
+    };
+    return Tooltip(message: _messages[tooltip.index], child: icon);
+  }
+
   @override
   Widget build(BuildContext context) {
-    String tooltip = "Not installed";
-    Widget? icon;
-    if (status != null) {
-      if (status!.installed?.reinstall == true) {
-        tooltip = "Reinstall pending";
-        icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
-      } else if (status!.explicit) {
-        if (status!.installed == null) {
-          tooltip = "Update pending";
-          icon = Icon(Symbols.deployed_code_history, color: Theme.of(context).colorScheme.secondary);
-        } else {
-          tooltip = "Installed explicitly";
-          icon = InstalledStatusIconExplicit(color: Theme.of(context).colorScheme.secondary);
-        }
-      } else if (status!.installed != null) {
-        tooltip = "Installed as dependency";
-        icon = InstalledStatusIconDependency(color: Theme.of(context).colorScheme.secondary);
-      } // else not explicit and not installed
+    final child = _buildDefault(context, isFlipped: false, pendingStatus: null);
+    if (!listen) {
+      return child;
+    } else {
+      final pendingUpdates = World.world.profile.dashboard.pendingUpdates;
+      final initialCheckedValue = status?.explicit ?? false;
+      return ListenableBuilder(
+        listenable: pendingUpdates,
+        child: child,
+        builder: (context, child) =>
+          pendingUpdates.isToggleStateFlipped(module, checked: initialCheckedValue)
+          ? _buildDefault(context, isFlipped: true, pendingStatus: pendingUpdates.getPendingStatus(module))
+          : switch (pendingUpdates.getPendingStatus(module)) {
+            null => child!,
+            final pendingStatus => _buildDefault(context, isFlipped: false, pendingStatus: pendingStatus),
+          },
+      );
     }
-    return Tooltip(message: tooltip, child: icon ?? const Icon(Icons.token_outlined));
   }
 }
+
 class InstalledStatusIconExplicit extends StatelessWidget {
-  final Color? color;
+  final bool colored;
   final Color? badgeColor;
   final double badgeScale;
   final Widget? child;
   final double fill;
-  const InstalledStatusIconExplicit({this.color, this.badgeColor, this.badgeScale = 1.0, this.child, this.fill = 1.0, super.key});
+  const InstalledStatusIconExplicit({required this.colored, this.badgeColor, this.badgeScale = 1.0, this.child, this.fill = 1.0, super.key});
   @override Widget build(BuildContext context) {
+    final Color? color = colored ? Theme.of(context).colorScheme.secondary : null;
     return badges.Badge(
       badgeContent: Icon(Symbols.star, size: 13 * badgeScale, color: color, fill: fill),
       position: badges.BadgePosition.bottomEnd(bottom: -3 * badgeScale, end: -2 * badgeScale),
@@ -501,32 +549,62 @@ class InstalledStatusIconExplicit extends StatelessWidget {
   }
 }
 class InstalledStatusIconDependency extends StatelessWidget {
-  final Color? color;
-  const InstalledStatusIconDependency({this.color, super.key});
+  final bool colored;
+  const InstalledStatusIconDependency({required this.colored, super.key});
   @override Widget build(BuildContext context) {
-    return Icon(Symbols.package_2, color: color);
+    return Icon(Symbols.package_2, color: colored ? Theme.of(context).colorScheme.secondary : null);
+  }
+}
+class InstalledStatusIconOther extends StatelessWidget {
+  final bool colored;
+  final IconData symbol;
+  const InstalledStatusIconOther(this.symbol, {this.colored = true, super.key});
+  @override Widget build(BuildContext context) {
+    return Icon(symbol, color: colored ? Theme.of(context).colorScheme.secondary : null);
   }
 }
 
-class StarIconButton extends StatefulWidget {
+class StarIconButton extends StatelessWidget {
   final bool initialCheckedValue;
-  final void Function(bool) onToggled;
-  const StarIconButton(this.initialCheckedValue, {required this.onToggled, super.key});
-  @override State<StarIconButton> createState() => _StarIconButtonState();
-}
-class _StarIconButtonState extends State<StarIconButton> {
-  late bool _checked = widget.initialCheckedValue;
-  @override Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(Symbols.star, fill: _checked ? 1 : 0),
-      color: _checked ? Theme.of(context).colorScheme.secondary : null,
-      tooltip: _checked ? "Remove from explicit Plugins" : "Add to Plugins explicitly",
-      onPressed: () {
-        setState(() {
-          _checked = !_checked;
-          widget.onToggled(_checked);  // finishes quickly, i.e. not awaiting async computation
-        });
+  final void Function()? afterToggled;
+  final BareModule module;
+  final bool iconOnly;
+  const StarIconButton(this.initialCheckedValue, {required this.afterToggled, required this.module, this.iconOnly = true, super.key});
+
+  Widget _buildDefault(BuildContext context, PendingUpdates pendingUpdates, {required bool isFlipped}) {
+    bool b = initialCheckedValue ^ isFlipped;
+    final VoidCallback onPressed = () async {
+      await pendingUpdates.onToggledStarButton(module, !b);
+      if (afterToggled != null) {
+        afterToggled!();
       }
+    };
+    final key = ValueKey((module, b));  // passing a key is important to avoid flicker on hover at rebuilds
+    final icon = Icon(Symbols.star, fill: b ? 1 : 0);
+    return iconOnly
+      ? IconButton(
+        key: key,
+        icon: icon,
+        color: b ? Theme.of(context).colorScheme.secondary : null,
+        tooltip: b ? "Remove from explicit Plugins" : "Add to Plugins explicitly",
+        onPressed: onPressed,
+      )
+      : FilledButton.icon(
+        key: key,
+        icon: icon,
+        label: Text(b ? "Added to Plugins explicitly" : "Add to Plugins explicitly", maxLines: 1, overflow: TextOverflow.ellipsis),
+        onPressed: onPressed,
+      );
+  }
+
+  @override Widget build(BuildContext context) {
+    final pendingUpdates = World.world.profile.dashboard.pendingUpdates;
+    return ListenableBuilder(
+      listenable: pendingUpdates,
+      child: _buildDefault(context, pendingUpdates, isFlipped: false),  // may avoid rebuilds of buttons that have not been toggled since last update
+      builder: (context, child) => pendingUpdates.isToggleStateFlipped(module, checked: initialCheckedValue)
+        ? _buildDefault(context, pendingUpdates, isFlipped: true)
+        : child!,
     );
   }
 }
@@ -585,10 +663,11 @@ class PackageTile extends StatelessWidget {
   final InstalledStatus? status;
   final PendingUpdateStatus? pendingStatus;
   final Set<String>? debugChannelUrls;
-  final void Function(bool)? onToggled;
-  final void Function() refreshParent;
+  final void Function()? afterToggled;
   final VisualDensity? visualDensity;
-  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.onToggled, required this.refreshParent, this.visualDensity});
+  final bool selected;
+  final void Function()? onSelected;
+  const PackageTile(this.module, this.index, {super.key, this.summary, this.chips = const [], this.status, this.pendingStatus, this.debugChannelUrls, this.afterToggled, this.visualDensity, this.selected = false, this.onSelected});
   @override
   Widget build(BuildContext context) {
     final explicit = status?.explicit ?? false;
@@ -605,10 +684,10 @@ class PackageTile extends StatelessWidget {
       children: tags,
     );
     return ListTile(
-      leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status),
+      leading: pendingStatus != null ? PendingUpdateStatusIcon(pendingStatus!) : InstalledStatusIcon(status, module: module, listen: true),
       title: Wrap(spacing: 10, children: [PkgNameFragment(module), ...chips]),
       subtitle: summary?.isEmpty == true && tagsWidget == null ? null : LayoutBuilder(builder: (context, constraints) {
-        final summaryWidget = summary != null ? MarkdownText(summary!, refreshParent: refreshParent) : null;
+        final summaryWidget = summary != null ? MarkdownText(summary!) : null;
         if (constraints.maxWidth < 400) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -632,15 +711,21 @@ class PackageTile extends StatelessWidget {
         }
       }),
       visualDensity: visualDensity,
+      // selected: selected,  // commented out to avoid colored icon
+      tileColor: selected ? Theme.of(context).focusColor.withOpacity(0.12) : null,  // instead of selectedTileColor
       trailing: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // passing a key is important to trigger redraw of button if index of list tile changes (e.g. due to filtering)
-          if (onToggled != null) StarIconButton(explicit, onToggled: onToggled!, key: ValueKey((module, explicit))),
+          if (afterToggled != null) StarIconButton(explicit, afterToggled: afterToggled!, module: module),
           Text((index+1).toString()),
         ],
       ),
-      onTap: () => PackagePage.pushPkg(context, module, debugChannelUrls: debugChannelUrls, refreshPreviousPage: refreshParent),
+      onTap: () {
+        if (onSelected != null) {
+          onSelected!();
+        }
+        PackagePage.pushPkg(context, module, debugChannelUrls: debugChannelUrls);
+      },
     );
   }
 }
@@ -688,7 +773,7 @@ class _PackageSearchBarState extends State<PackageSearchBar> {
   }
 
   @override
-  Widget build(BuildContext context) => SearchBar(
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraint) => SearchBar(
     controller: controller,
     focusNode: focusNode,
     hintText: widget.hintText,
@@ -700,7 +785,11 @@ class _PackageSearchBarState extends State<PackageSearchBar> {
       FutureBuilder<int>(
         future: widget.resultsCount,
         builder: (context, snapshot) => Row(children: [
-          Text((!snapshot.hasError && snapshot.hasData) ? '${snapshot.data!} packages' : ''),
+          if (!snapshot.hasError && snapshot.hasData && snapshot.data != 0 && constraint.maxWidth >= 200)
+            Text(
+              constraint.maxWidth > 280 ? '${snapshot.data!} packages' : '${snapshot.data!}',
+              style: TextStyle(color: Theme.of(context).hintColor),
+            ),
           if (controller.text.isNotEmpty)
             IconButton(
               tooltip: "Cancel search",
@@ -716,7 +805,7 @@ class _PackageSearchBarState extends State<PackageSearchBar> {
         ]),
       )
     ],
-  );
+  ));
 }
 
 class CategoryMenu extends StatefulWidget {
@@ -756,7 +845,7 @@ class _CategoryMenuState extends State<CategoryMenu> {
       },
       leadingIcon: CategoryIcon(selectedCategory, fallback: Symbols.category_search),
       initialSelection: selectedCategory,
-      label: const Text('Category'),
+      label: const Text('Category', maxLines: 1, overflow: TextOverflow.ellipsis),
       // enableFilter: true,
       // inputDecorationTheme: const InputDecorationTheme(
       //   contentPadding: EdgeInsets.symmetric(vertical: 5.0),

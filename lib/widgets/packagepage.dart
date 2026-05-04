@@ -14,23 +14,40 @@ import 'fragments.dart';
 import '../data.dart';
 import '../main.dart' show NavigationService;
 
-class PackagePage extends StatefulWidget {
+class PackagePage extends StatelessWidget {
   final BareModule module;
   final Set<String>? debugChannelUrls;  // for messaging purposes on 404 error
-  const PackagePage(this.module, {super.key, this.debugChannelUrls});
+  final Future<PackageInfoResult> infoResult;
+  final bool isSplitView;
+  final ScrollController? scrollController;
+  final ImageCarouselController? carouselController;
+  const PackagePage(this.module, {super.key, required this.infoResult, required this.isSplitView, this.scrollController, this.carouselController, this.debugChannelUrls});
 
-  @override
-  State<PackagePage> createState() => _PackagePageState();
-
-  static Future<dynamic> pushPkg(BuildContext context, BareModule module, {required void Function() refreshPreviousPage, Set<String>? debugChannelUrls}) {
+  static Future<dynamic> pushPkg(BuildContext context, BareModule module, {Set<String>? debugChannelUrls}) {
+    final BuildContext? c = NavigationService.navigatorKey.currentContext;  // (should never be null)
+    if (c != null && !Navigator.canPop(c)) {  // there is no dialog or fullscreen package page shown
+      final BuildContext? c2 = NavigationService.packageStackPanelNavigatorKey.currentContext;
+      if (c2 != null && c2.mounted) {  // split-view package stack is available, so use it
+        World.world.profile.dashboard.packageStack.push(module, debugChannelUrls: debugChannelUrls);
+        return Future<void>.value(null);
+      }
+    }
     return Navigator.push(
-      context,
-      MaterialPageRoute(
+      c ?? context,  // TODO c should always be non-null, so context is unnecessary
+      PageRouteBuilder(  // no animation
         barrierDismissible: true,
         settings: const RouteSettings(name: World.packageRoute),
-        builder: (context1) => PackagePage(module, debugChannelUrls: debugChannelUrls),
+        pageBuilder: (context1, animation, secondaryAnimation) => PackagePage(
+          module,
+          infoResult: World.world.profile.dashboard.packageStack.fetchInfo(module, debugChannelUrls: debugChannelUrls),
+          isSplitView: false,
+          debugChannelUrls: debugChannelUrls,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
       ),
-    ).then((_) => refreshPreviousPage());
+    );
   }
 
   static const tableLabelPadding = EdgeInsets.fromLTRB(10, 5, 20, 5);
@@ -67,10 +84,6 @@ class PackagePage extends StatefulWidget {
     );
   }
 
-}
-class _PackagePageState extends State<PackagePage> {
-  late Future<PackageInfoResult> futureJson;
-
   static TableRow packageTableRow(Widget? label, Widget child) {
     return TableRow(
       children: [
@@ -87,56 +100,35 @@ class _PackagePageState extends State<PackagePage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _fetchInfo();
-  }
-
-  void _fetchInfo() {
-    futureJson = World.world.client.info(widget.module, profileId: World.world.profile.id)
-      .then((PackageInfoResult data) async {
-        final debugChannelUrls = widget.debugChannelUrls;
-        if (data == PackageInfoResult.notFound && debugChannelUrls != null && debugChannelUrls.isNotEmpty == true) {
-          return World.world.profile.dashboard.addUnknownChannelUrls(debugChannelUrls)
-            .then((channelsAdded) =>
-              !channelsAdded ? data :
-                // 2nd attempt at fetching info, using new channels (errors will be handled in Widget build)
-                World.world.client.info(widget.module, profileId: World.world.profile.id)
-            );
-        } else {
-          return data;
-        }
-      });
-  }
-
-  void _refresh() {
-    setState(_fetchInfo);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final moduleStr = widget.module.toString();
+    final moduleStr = module.toString();
     return Scaffold(
       appBar: AppBar(
+        leading: isSplitView ? BackButton(onPressed: () => World.world.profile.dashboard.packageStack.pop()) : const BackButton(),
         title: TextWithCopyButton(
           copyableText: moduleStr,
-          child: PkgNameFragment(widget.module, asButton: false, colored: false, refreshParent: _refresh),
+          child: PkgNameFragment(module, asButton: false, colored: false, maxLines: 1),
         ),
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20) ?? TextStyle(fontSize: 20, color: Theme.of(context).colorScheme.onSurface),
         actions: [
           IconButton(icon: const Icon(Icons.close), tooltip: 'Close all', onPressed: () {
-            Navigator.popUntil(context, (route) => route.settings.name != World.packageRoute);
+            if (isSplitView) {
+              World.world.profile.dashboard.packageStack.clear();
+            } else {
+              Navigator.popUntil(context, (route) => route.settings.name != World.packageRoute);
+            }
           }),
         ],
       ),
       body: FutureBuilder<PackageInfoResult>(
-        future: futureJson,
+        future: infoResult,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: ApiErrorWidget.scroll(ApiError.from(snapshot.error!)));
           } else if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.data == PackageInfoResult.notFound) {
-            return Center(child: PackageNotFoundMessage(widget.module, widget.debugChannelUrls));
+            return Center(child: PackageNotFoundMessage(module, debugChannelUrls));
           } else {
             final remote = snapshot.data!.remote;
             final statuses = snapshot.data!.local.statuses;
@@ -200,30 +192,34 @@ class _PackagePageState extends State<PackagePage> {
             final installedVersion = status?.installed?.version;
             final dashboard = World.world.profile.dashboard;
 
-            final table = Table(
-              columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
-              children: <TableRow>[
-                if (images.isNotEmpty)
-                  packageTableRow(null, ImageCarousel(images)),
-                packageTableRow(null, Row(children: [
-                  Expanded(child: AddPackageButton(widget.module, addedExplicitly, refreshParent: _refresh)),
+            final buttonRow = LayoutBuilder(
+              builder: (context, constraint) =>
+                Row(children: [
+                  const SizedBox(width: 10),
+                  Expanded(child: StarIconButton(
+                    addedExplicitly,
+                    module: module,
+                    afterToggled: null,
+                    iconOnly: false,
+                  )),
                   if (installedVersion != null) ...[
                     const SizedBox(width: 10),
                     AnimatedActionButton(
-                      builder: (context, icon, onPressed) => OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed),
+                      builder: (context, icon, onPressed) =>
+                        constraint.maxWidth > 460
+                          ? Padding(padding: const EdgeInsets.only(right: 10), child: OutlinedButton.icon(icon: icon, label: const Text(PackagePage.reinstallButtonLabel), onPressed: onPressed))
+                          : IconButton(icon: icon, tooltip: PackagePage.reinstallButtonLabel, onPressed: onPressed, color: Theme.of(context).colorScheme.primary),
                       symbol: Symbols.restart_alt,
                       action: () {
-                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module, redownload: false)
-                          .then((_) => _refresh());
+                        World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: false);
                       },
                     ),
-                    const SizedBox(width: 10),
-                    OpenPluginsFolderButton(module: widget.module, iconOnly: true, color: Theme.of(context).colorScheme.primary),
+                    OpenPluginsFolderButton(module: module, iconOnly: true, color: Theme.of(context).colorScheme.primary),
                   ],
                   if (installedVersion != null ||
                     // Allow Redownload in case of extraction failures.
                     // (TODO These conditions are not fully correct, since Clear-Log will hide the buttons)
-                    dashboard.pendingUpdates.isPending(widget.module) && (
+                    dashboard.pendingUpdates.isPending(module) && (
                       dashboard.updateProcess?.status == UpdateStatus.finishedWithError ||
                       dashboard.updateProcess?.status == UpdateStatus.canceled
                     ) && dashboard.updateProcess?.plan?.toInstall.any((item) => item.package == moduleStr) == true
@@ -247,24 +243,32 @@ class _PackagePageState extends State<PackagePage> {
                           leadingIcon: const Icon(Symbols.cloud_sync),
                           child: const Text("Redownload & Reinstall"),
                           onPressed: () {
-                            World.world.profile.dashboard.pendingUpdates.onReinstallButton(widget.module, redownload: true)
-                              .then((_) => _refresh());
+                            World.world.profile.dashboard.pendingUpdates.onReinstallButton(module, redownload: true);
                           },
                         ),
                       ],
                     ),
-                ])),
-                packageTableRow(Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status)), Text(installDates)),
+                ],
+              ),
+            );
+
+            final table = Table(
+              columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
+              children: <TableRow>[
+                packageTableRow(
+                  Align(alignment:Alignment.centerLeft, child: InstalledStatusIcon(status, module: module, listen: true)),
+                  Text(installDates),
+                ),
                 packageTableRow(const Text("Version"), SelectionArea(child: Text(switch (remote) {
                   {'version': String v} => installedVersion != null && installedVersion != v ? "$v (currently installed: $installedVersion)" : v,
                   _ => 'Unknown'
                 }))),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => SelectionArea(child: MarkdownText(text, refreshParent: _refresh)), _ => const Text('-') }),
+                  packageTableRow(const Text("Summary"), switch (info) { {'summary': String text} => SelectionArea(child: MarkdownText(text)), _ => const Text('-') }),
                 if (remote case {'info': {'description': String text}})
-                  packageTableRow(const Text("Description"), SelectionArea(child: MarkdownText(text, refreshParent: _refresh))),
+                  packageTableRow(const Text("Description"), SelectionArea(child: MarkdownText(text))),
                 if (remote case {'info': {'warning': String text}})
-                  packageTableRow(const Text("Warning"), SelectionArea(child: MarkdownText(text, refreshParent: _refresh))),
+                  packageTableRow(const Text("Warning"), SelectionArea(child: MarkdownText(text))),
                 if (remote case {'info': {'author': String text}})
                   packageTableRow(const Text("Author"), SelectionArea(child: Text(text))),
                 if (remote case {'info': {'websites': List<dynamic> urls}})
@@ -278,60 +282,46 @@ class _PackagePageState extends State<PackagePage> {
                     variantChoices: variantChoices,
                     installedStatus: status,
                     descriptions: descriptions,
-                    module: widget.module,
+                    module: module,
                   ),
                 ),
                 if (remote case {'info': dynamic info})
-                  packageTableRow(const Text("Incompatibilities"), SelectionArea(child: switch (info) { {'conflicts': String text} => MarkdownText(text, refreshParent: _refresh), _ => const Text('None') })),
+                  packageTableRow(const Text("Incompatibilities"), SelectionArea(child: switch (info) { {'conflicts': String text} => MarkdownText(text), _ => const Text('None') })),
               ],
             );
 
+            const sidePadding = 10.0;
             return LayoutBuilder(builder: (context, constraint) =>
               SingleChildScrollView(
-                child: Column(
+                key: scrollController == null ? null : PageStorageKey(scrollController),  // needed for SingleChildScrollView to store scroll offset
+                controller: scrollController,
+                child: Padding(padding: const EdgeInsets.symmetric(horizontal: sidePadding), child: Column(
                   children: [
                     const SizedBox(height: 8),
                     Align(
                       alignment: const Alignment(-0.75, 0),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(/*minHeight: constraint.maxHeight,*/ maxWidth: 640),
-                        child: table,
+                        child: Column(
+                          children: [
+                            if (images.isNotEmpty) ImageCarousel(images, controller: carouselController),
+                            const SizedBox(height: 10),
+                            buttonRow,
+                            const SizedBox(height: 25),
+                            table,
+                          ],
+                        ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(top: 8, bottom: 20, left: 15, right: 15),
-                      child: switch ([
-                        if (conflicting.isNotEmpty)
-                          DependenciesCard(
-                            conflicting,
-                            title: "Conflicts With",
-                            statuses: statuses,
-                            refreshParent: _refresh,
-                            icon: Icon(Symbols.multiple_stop, color: Theme.of(context).hintColor)
-                          ),
-                        DependenciesCard(dependencies,
-                          title: "Dependencies",
-                          statuses: statuses,
-                          refreshParent: _refresh,
-                          icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
-                        ),
-                        DependenciesCard(requiredBy,
-                          title: "Required By",
-                          statuses: statuses,
-                          refreshParent: _refresh,
-                          icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
-                        ),
-                      ]) {
-                        final pkgLists => switch (290 * pkgLists.length > constraint.maxWidth) {
-                          bool vertical =>
-                            Flex(
-                              direction: vertical ? Axis.vertical : Axis.horizontal,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              // spacing: 15,  // TODO requires Flutter 3.27+
-                              children: vertical ? pkgLists : pkgLists.map((c) => Expanded(child: c)).toList(),
-                            ),
-                        },
-                      },
+                      padding: const EdgeInsets.only(top: 8, bottom: 20),
+                      child: DependenciesCardGrid(
+                        conflicting: conflicting,
+                        dependencies: dependencies,
+                        requiredBy: requiredBy,
+                        statuses: statuses,
+                        maxWidth: constraint.maxWidth - 2 * sidePadding,
+                      ),
                     ),
                     Wrap(
                       spacing: 50,
@@ -368,7 +358,7 @@ class _PackagePageState extends State<PackagePage> {
                       ],
                     ),
                   ],
-                ),
+                )),
               ),
             );
           }
@@ -394,7 +384,7 @@ class VariantsPanel extends StatelessWidget {
         builder: (context, child) => FutureBuilder(
           future: World.world.profile.dashboard.variantsFuture,
           builder: (context, snapshot) {
-            final selected = snapshot.data?.variants ?? {};
+            final selected = snapshot.data?.variants ?? World.world.profile.dashboard.variantsFallbackSync?.variants ?? {};  // fallback to avoid flicker on first load
             return LayoutBuilder(builder: (context, constraint) => Wrap(
               direction: Axis.vertical,
               spacing: 12,
@@ -413,7 +403,6 @@ class VariantsPanel extends StatelessWidget {
                                 BareModule(parts[0], parts[1]),
                                 localVariant: parts.sublist(2).join(":"),
                                 asInlineButton: true,
-                                refreshParent: null,  // for now, we do not pass a refresh callback, as we listen to dashboard
                               )
                             : Text(variantIdShort),
                         },
@@ -536,13 +525,62 @@ class MetadataUrlButton extends StatelessWidget {
   }
 }
 
+class DependenciesCardGrid extends StatelessWidget {
+  final Iterable<BareModule> conflicting;
+  final Iterable<BareModule> dependencies;
+  final Iterable<BareModule> requiredBy;
+  final Map<String, InstalledStatus> statuses;
+  final double maxWidth;
+  const DependenciesCardGrid({required this.conflicting, required this.dependencies, required this.requiredBy, required this.statuses, required this.maxWidth, super.key});
+  static const double _minColumnWidth = 280;
+  @override
+  Widget build(BuildContext context) {
+    final pkgLists = [
+      if (conflicting.isNotEmpty)
+        DependenciesCard(
+          conflicting,
+          title: "Conflicts With",
+          statuses: statuses,
+          icon: Icon(Symbols.multiple_stop, color: Theme.of(context).hintColor)
+        ),
+      DependenciesCard(dependencies,
+        title: "Dependencies",
+        statuses: statuses,
+        icon: Icon(Symbols.call_merge, color: Theme.of(context).hintColor),
+      ),
+      DependenciesCard(requiredBy,
+        title: "Required By",
+        statuses: statuses,
+        icon: RotatedBox(quarterTurns: 2, child: Icon(Symbols.call_split, color: Theme.of(context).hintColor)),
+      ),
+    ];
+    final horizontal = _minColumnWidth * pkgLists.length <= maxWidth;
+    if (!horizontal) {
+      final mixed = pkgLists.length == 3 && _minColumnWidth * 2 <= maxWidth;
+      if (mixed) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: pkgLists[0]),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Flexible(child: pkgLists[1]), Flexible(child: pkgLists[2])]),
+          ],
+        );
+      }
+    }
+    return Flex(
+      direction: horizontal ? Axis.horizontal : Axis.vertical,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: !horizontal ? pkgLists : pkgLists.map((c) => Flexible(child: c)).toList(),
+    );
+  }
+}
+
 class DependenciesCard extends StatelessWidget {
   final Iterable<BareModule> dependencies;
   final String title;
   final Map<String, InstalledStatus> statuses;
-  final void Function() refreshParent;
   final Widget icon;
-  const DependenciesCard(this.dependencies, {required this.title, required this.statuses, required this.refreshParent, required this.icon, super.key});
+  const DependenciesCard(this.dependencies, {required this.title, required this.statuses, required this.icon, super.key});
   static const double _left = 10;
   @override
   Widget build(BuildContext context) {
@@ -570,7 +608,7 @@ class DependenciesCard extends StatelessWidget {
                     child: Text("None"),
                   ),
                 ...dependencies.map((module) =>
-                  PkgNameFragment(module, asButton: true, refreshParent: refreshParent, status: statuses[module.toString()])
+                  PkgNameFragment(module, asButton: true, status: statuses[module.toString()])
                 ),
               ],
             ),
@@ -579,60 +617,49 @@ class DependenciesCard extends StatelessWidget {
   }
 }
 
-class AddPackageButton extends StatefulWidget {
-  final BareModule module;
-  final bool initialAddedExplicitly;
-  final void Function() refreshParent;
-  //bool isInstalled;
-  const AddPackageButton(this.module, this.initialAddedExplicitly, {required this.refreshParent, super.key});
-
-  @override
-  State<AddPackageButton> createState() => _AddPackageButtonState();
+class ImageCarouselController {
+  int currentIndex = 0;
+  final sliderController = CarouselSliderController();  // has no dispose
+  ImageCarouselController();
 }
-class _AddPackageButtonState extends State<AddPackageButton> {
-  late bool _addedExplicitly = widget.initialAddedExplicitly;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      icon: Icon(Symbols.star, fill: _addedExplicitly ? 1 : 0),
-      label: Text(_addedExplicitly ? "Added to Plugins explicitly" : "Add to Plugins explicitly"),
-      onPressed: () {
-        setState(() {
-          _addedExplicitly = !_addedExplicitly;
-          World.world.profile.dashboard.pendingUpdates.onToggledStarButton(widget.module, _addedExplicitly).then((_) => widget.refreshParent());
-        });
-      },
-    );
-  }
-}
-
 class ImageCarousel extends StatefulWidget {
   final List<ImgInfo> images;
-  final int initialIndex;
-  const ImageCarousel(this.images, {this.initialIndex = 0, super.key});
+  final ImageCarouselController? controller;
+  const ImageCarousel(this.images, {required this.controller, super.key});
   @override State<ImageCarousel> createState() => _ImageCarouselState();
 }
 class _ImageCarouselState extends State<ImageCarousel> {
-  late int currentIndex = widget.initialIndex;
-  late final _controller = CarouselSliderController();  // no dispose
+  late final _controller = widget.controller ?? ImageCarouselController();
+  int get currentIndex => _controller.currentIndex;
 
   static const double imageHeight = 300;
   static const double imageWidth = 450;
   static const double viewportFraction = 0.99;  // TODO primitive prefetching of next image
 
   @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 0), () {
+      if (mounted && currentIndex < widget.images.length) {
+        // sometimes the carousel scrolls to the end unexplicably, so we force it to the correct position
+        _controller.sliderController.jumpToPage(currentIndex);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         CarouselSlider.builder(
-          carouselController: _controller,
+          carouselController: _controller.sliderController,
           options: CarouselOptions(
+            initialPage: currentIndex,
             enlargeCenterPage: false,
             height: imageHeight,
             enableInfiniteScroll: false,
             viewportFraction: viewportFraction,
-            onPageChanged: (index, reason) => setState(() => currentIndex = index),
+            onPageChanged: (index, reason) => setState(() => _controller.currentIndex = index),
           ),
           itemCount: widget.images.length,
           itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) {
@@ -662,7 +689,7 @@ class _ImageCarouselState extends State<ImageCarousel> {
             const Spacer(),
             IconButton(
               icon: const Icon(Symbols.arrow_back_ios_new, size: 16),
-              onPressed: currentIndex > 0 ? _controller.previousPage : null,
+              onPressed: currentIndex > 0 ? _controller.sliderController.previousPage : null,
             ),
             AnimatedSmoothIndicator(
               activeIndex: currentIndex,
@@ -674,11 +701,11 @@ class _ImageCarouselState extends State<ImageCarousel> {
                 dotHeight: 12,
                 dotWidth: 12,
               ),
-              onDotClicked: _controller.animateToPage,
+              onDotClicked: _controller.sliderController.animateToPage,
             ),
             IconButton(
               icon: const Icon(Symbols.arrow_forward_ios, size: 16),
-              onPressed: currentIndex < widget.images.length - 1 ? _controller.nextPage : null,
+              onPressed: currentIndex < widget.images.length - 1 ? _controller.sliderController.nextPage : null,
             ),
             const Spacer(),
           ],

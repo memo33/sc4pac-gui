@@ -8,6 +8,7 @@ import 'dart:async';
 import 'data.dart';
 export 'data.dart' show BareModule;
 import 'dart:math' as math;
+import 'dart:collection' show LinkedHashMap;
 
 final Converter<List<int>, Object?> _jsonUtf8Decoder = const Utf8Decoder().fuse(const JsonDecoder());
 final Converter<Object?, List<int>> _jsonUtf8Encoder = JsonUtf8Encoder();
@@ -45,27 +46,61 @@ class ApiError {
 
 class RingBuffer<A> extends Iterable<A> {
   final int capacity;
-  final List<A> buffer = [];
-  int start = 0;
-  RingBuffer({required this.capacity});
+  final List<A?> _buffer;
+  int _end = 0;
+  int remaining;
+  RingBuffer({required this.capacity}) : _buffer = List.filled(capacity, null, growable: false), remaining = capacity;
   void add(A value) {
-    if (buffer.length < capacity) {
-      buffer.add(value);
-    } else {
-      buffer[start] = value;
-      start = (start + 1) % capacity;
+    _buffer[_end] = value;
+    _end = (_end + 1) % capacity;
+    if (remaining > 0) {
+      remaining--;
     }
   }
-  @override int get length => buffer.length < capacity ? buffer.length - start : capacity;
-  @override bool get isEmpty => length == 0;
-  @override bool get isNotEmpty => length != 0;
+  @override int get length => capacity - remaining;
+  @override bool get isEmpty => remaining == capacity;
+  @override bool get isNotEmpty => remaining != capacity;
+  A? get lastOrNull {
+    if (isEmpty) {
+      return null;
+    } else {
+      final lastIndex = (_end - 1 + capacity) % capacity;
+      return _buffer[lastIndex] as A;
+    }
+  }
+  @override A get last {
+    final value = lastOrNull;
+    if (value == null) {
+      throw StateError("no element");
+    } else {
+      return value;
+    }
+  }
   Iterable<A> takeRight(int count) {
     count = math.max(0, math.min(count, length));
-    final l1 = math.min(count, start);
+    final l1 = math.min(count, _end);
     final l2 = count - l1;
-    return buffer.getRange(buffer.length - l2, buffer.length).followedBy(buffer.getRange(start - l1, start));
+    return _buffer.getRange(capacity - l2, capacity).followedBy(_buffer.getRange(_end - l1, _end)).cast<A>();
   }
   @override Iterator<A> get iterator => takeRight(length).iterator;
+  A removeLast() {
+    if (isEmpty) {
+      throw StateError("no element");
+    } else {
+      _end = (_end - 1 + capacity) % capacity;
+      final A value = _buffer[_end] as A;
+      _buffer[_end] = null;
+      remaining++;
+      return value;
+    }
+  }
+  void clear() {
+    for (int i = 0; i < capacity; i++) {
+      _buffer[i] = null;
+    }
+    _end = 0;
+    remaining = capacity;
+  }
 }
 
 enum ServerStatus { launching, listening, terminated }
@@ -670,4 +705,33 @@ class Sc4pacClient /*extends ChangeNotifier*/ {
     );
   }
 
+}
+
+class MruCache<K, V> {
+  final int capacity;
+  int _remaining;
+  final LinkedHashMap<K, V> _cache = LinkedHashMap();
+  MruCache({required this.capacity}) : _remaining = capacity;
+  V? operator [](K key) {
+    if (_cache.containsKey(key)) {
+      final value = _cache.remove(key) as V;
+      _cache[key] = value;
+      return value;
+    } else {
+      return null;
+    }
+  }
+  void operator[]=(K key, V value) {
+    if (_cache.containsKey(key)) {
+      _cache.remove(key);
+    } else if (_remaining == 0) {
+      _cache.remove(_cache.keys.first);
+    } else {
+      _remaining--;
+    }
+    _cache[key] = value;
+  }
+  //int get length => capacity - _remaining;
+  Iterable<K> get keys => _cache.keys;
+  Iterable<V> get values => _cache.values;
 }
