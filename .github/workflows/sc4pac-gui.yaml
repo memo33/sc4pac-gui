@@ -111,6 +111,7 @@ jobs:
           mkdir dist-linux-x64
           tar -xvf sc4pac-gui-linux-x64-artifact.tar --directory dist-linux-x64
           unzip -d dist-linux-x64/cli sc4pac-cli.zip
+          cp -p scripts/HELP*.html dist-linux-x64/
           cp -p scripts/{sc4pac-gui.desktop,install.sh,uninstall.sh} dist-linux-x64/
           cp -p assets/sc4pac-gui.png dist-linux-x64/
           (cd dist-linux-x64 && zip -r ../sc4pac-gui-linux-x64.zip .)
@@ -119,12 +120,14 @@ jobs:
           mkdir dist-windows-x64
           tar -xvf sc4pac-gui-windows-x64-artifact.tar --directory dist-windows-x64
           unzip -d dist-windows-x64/cli sc4pac-cli.zip
+          cp -p scripts/HELP*.html dist-windows-x64/
           (cd dist-windows-x64 && zip -r ../sc4pac-gui-windows-x64.zip .)
       - name: Package web
         run: |
           mkdir -p dist-web/webapp
           tar -xvf sc4pac-gui-web-artifact.tar --directory dist-web/webapp
           unzip -d dist-web/cli sc4pac-cli.zip
+          cp -p scripts/HELP*.html dist-web/
           cp -p scripts/launch-GUI-web* dist-web/
           (cd dist-web && zip -r ../sc4pac-gui-webapp-crossplatform.zip .)
 
