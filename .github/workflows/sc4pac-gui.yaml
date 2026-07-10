@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2022  # TODO As of june 2026, we need an older version of Visual Studio until we can migrate to newer Flutter version https://github.com/actions/runner-images/issues/14017
             platform: windows
             artifact_name: sc4pac-gui-windows-x64-artifact
             build_output_path: build/windows/x64/runner/Release
