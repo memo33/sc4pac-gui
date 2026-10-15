@@ -901,6 +901,7 @@ class CategoryIcon extends StatelessWidget {
     '700-transit': Symbols.commute,
     '710-automata': Symbols.traffic_jam,
     '770-network-addon-mod': Icomoon.namLogo2021BlackPad10,
+    '780-automata': Symbols.traffic_jam,  // planned
     '900-overrides': Symbols.event_repeat,
   };
 }
